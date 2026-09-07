@@ -1,11 +1,12 @@
 ---
 id: autonomy-82f2dc
 title: Create the public verifiably/autonomy repo and push
-status: todo
+status: done
 priority: 2
 size: s
+owner: main
 created: 2026-09-07T12:08:25Z
-updated: 2026-09-07T12:08:25Z
+updated: 2026-09-07T12:30:09Z
 depends: []
 tags: [hygiene]
 ---
@@ -15,3 +16,7 @@ The autonomy checkout has commits but no git remote at all, and no verifiably/au
 Create it public under the verifiably org, matching beliefs and nodes, and push main. Public also means GitHub Actions on standard runners is free here (see the CI decision in beliefs AGENTS.md).
 
 Same precondition as making any repo public: audit the whole history for secrets, credentials and home-directory paths before the first push, since the initial push publishes every commit at once.
+
+## Notes
+
+- 2026-09-07T12:30:09Z (main): verifiably/autonomy created public and main pushed. gitleaks clean, no host paths, no session trailers; four commits, three files.
