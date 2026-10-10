@@ -1,0 +1,11 @@
+# What this project is. `tools/ops-docs write` renders it into the identity region of
+# README.md and AGENTS.md; `tools/ops-docs check` refuses a commit while they differ.
+# Design: ops docs/specs/2026-09-22-project-guides-design.md §3.
+name = "autonomy"
+aliases = []
+purpose = "The envelope and orchestrator of verifiably: what may run unattended"
+abstract = """
+What may run unattended, under what tier, and how the next research action is chosen: the run baseline and dispositions, tiers as write-class permits, the actor sandbox and session ledger, behavioural profiles and the versioned priority function. It drives science's commands as tools and holds no private kernel access. Designed, not started.
+"""
+authority = []
+subsystems = []
