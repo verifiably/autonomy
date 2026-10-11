@@ -7,7 +7,7 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-11T20:43:09Z
+updated: 2026-10-11T20:45:02Z
 depends: []
 tags: [design]
 agent: claude-code
@@ -22,3 +22,7 @@ The spec decides: how a run opens (fresh run-unique actor identity; baseline of 
 Keep the harness out of it: the envelope constrains any actor identically, a pi agent, a Claude Code session or a person's script. The authorization model (autonomy-1aac03) is the companion: a tier is an authorization, a gate never is.
 
 Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
+
+## Notes
+
+- 2026-10-11T20:45:02Z (main): Goal: ops-3f5aa6 (a science harness on pi). Report the done note there.
