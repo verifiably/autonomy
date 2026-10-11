@@ -1,1 +1,4 @@
 prefix = "autonomy"
+
+[git]
+commit = true
