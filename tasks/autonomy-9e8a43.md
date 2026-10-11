@@ -7,7 +7,7 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-11T20:44:01Z
-updated: 2026-10-11T20:44:01Z
+updated: 2026-10-11T20:45:03Z
 depends: [autonomy-250f4d, ops-fbc3d9]
 tags: [unattended]
 agent: claude-code
@@ -24,3 +24,7 @@ Outcomes: the run ends in one of the envelope's dispositions and, inside clean, 
 The evidence report is what a person reads afterwards: disposition, outcome, what was consumed against what was allowed, the records written, the questions asked and how they were answered, and the smallest unresolved choice if one remains.
 
 Deliver a reviewed spec and plan here; the harness-side pieces are filed to their owners from the plan.
+
+## Notes
+
+- 2026-10-11T20:45:03Z (main): Goal: ops-3f5aa6 (a science harness on pi). Report the done note there.
