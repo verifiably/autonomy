@@ -7,8 +7,8 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-11T20:44:01Z
-updated: 2026-10-12T10:17:43Z
-depends: [autonomy-250f4d, ops-fbc3d9, sci-bef251, sci-a45f10]
+updated: 2026-10-12T12:10:26Z
+depends: [autonomy-250f4d, ops-fbc3d9, sci-bef251, sci-a45f10, autonomy-641123]
 tags: [unattended]
 agent: claude-code
 ---
