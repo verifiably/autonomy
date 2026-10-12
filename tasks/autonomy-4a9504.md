@@ -1,15 +1,16 @@
 ---
 id: autonomy-4a9504
 title: Envelope Plan A — The `ledger.v1` reader (E3)
-status: doing
+status: done
 priority: 2
 size: s
 complexity: low
 process: direct
 owner: envelope-design
 created: 2026-10-12T12:09:46Z
-updated: 2026-10-12T15:23:03Z
+updated: 2026-10-12T15:23:28Z
 started: 2026-10-12T15:23:03Z
+completed: 2026-10-12T15:23:28Z
 depends: [autonomy-c264b2]
 parent: autonomy-250f4d
 tags: []
@@ -21,4 +22,8 @@ step: "Task 2: The `ledger.v1` reader (E3)"
 ## Notes
 
 - 2026-10-12T15:23:03Z (envelope-design): started
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T15:23:28Z (envelope-design): done
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T15:23:28Z (envelope-design): ledger.v1 reader (E3); 20 tests
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
