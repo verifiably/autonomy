@@ -632,8 +632,10 @@ configuration that puts a denied root under `$XDG_RUNTIME_DIR` fails closed at s
 `(st_dev, st_ino)` chain, is an ancestor or descendant of any denied path. A bind of
 `/` is refused by the same rule.
 
-**The probe** runs `/bin/sh` in the identical spec. For each denied path, given as an
-argument by its real path, it reports `stat`'s errno, and every one must be `ENOENT`.
+**The probe** runs `/usr/bin/python3 -I` in the identical spec, from the bound
+`/usr`, because a shell cannot report which errno `stat` failed with. For each denied
+path, given as an argument by its real path, it reports `stat`'s errno, and every one
+must be `ENOENT`.
 
 **The handle** is the socket plus the token.
 
@@ -802,8 +804,10 @@ progress has no owner and is `entry-foreign`. A forger can downgrade at most one
     the run's actor string, which can be read from the run directory.
 - **Settled entry:**
   - A member if its `registration` is a member registration.
-  - The crash transaction's settlement is `outcome-unknown`. When recovery appended
-    it, it is also reported as `entry-settled-recovery`.
+  - The crash transaction's settlement is `outcome-unknown`. A chain does not record
+    whether recovery or the original commit appended a settlement
+    (`SettledEntryView` carries only `txid`, `registration` and `committed`), so the
+    check does not distinguish the two.
   - Otherwise it is `entry-foreign`.
 - **Every `act` line:** its intent and registration must appear in the interval, with
   a settlement whose `committed` is true. Otherwise it is `act-unverified`, which is
@@ -834,7 +838,6 @@ progress has no owner and is `entry-foreign`. A forger can downgrade at most one
 | `session-open`'s permit differs from the tier's | `permit-mismatch` | `unwired` |
 | the orchestrator was lost | `orchestrator-lost` | `unwired` |
 | a read mount moved | `mount-moved` | none (reported) |
-| a recovery settlement of an `outcome-unknown` registration | `entry-settled-recovery` | none (reported) |
 | with no seal, tail entries that another session's ledger names, from the first such entry with no run-actor entry after it | `after-run` | none (reported) |
 | none of the above | — | `clean` |
 
