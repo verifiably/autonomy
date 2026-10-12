@@ -4,8 +4,9 @@
 **Status:** draft for review. Revised after review round 1, which found 3 Critical, 9
 Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
 after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
-Important and 2 Minor; and after round 5, which found 1 Important and 5 Minor. All of
-them are addressed in
+Important and 2 Minor; after round 5, which found 1 Important and 5 Minor; and after
+round 6, a human-directed review that found 3 P1 and 3 P2. All of them are addressed
+in
 this text.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
@@ -288,14 +289,44 @@ while drafting, and the review may overturn them.
     chain intervals from a science read, and the ledger file. Its rules mirror
     `reconcile`'s where the two overlap (§9). A disagreement between the two is a
     defect to report.
-11. **A run confines every host path an actor can name.** Under a run session, a
-    command input that names a host path must be absolute and must resolve, by real
-    path, under the run's scratch directory, or it is refused `path-outside-run`. The
-    scratch directory is bound into the sandbox at its own host path, so the actor and
-    the endpoint name the same file the same way. Commands that execute
-    code (`run`) execute under kernel confinement whose denied set includes the
-    envelope's. A command reachable at a tier that cannot meet both is not reachable
-    under a run session: science refuses it at dispatch.
+11. **A run confines every host path an actor can name, by descriptor, not by path
+    string.** A check on a path followed by a later open is a race the actor wins: it
+    can swap a checked file or directory for a symlink in between. So under a run
+    session, the endpoint never opens an actor-named path by name.
+
+    - **The scratch handle.** At launch, the endpoint opens the scratch directory
+      once (`O_PATH | O_DIRECTORY`) and holds that descriptor for the session.
+    - **Path inputs.** A command input that names a host path must be absolute and
+      begin with the scratch path. Otherwise it is refused `path-outside-run`. The
+      remainder is opened relative to the scratch handle with `openat2` and
+      `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS | RESOLVE_NO_MAGICLINKS |
+      RESOLVE_NO_XDEV`. A path that fails to resolve under those flags is refused
+      `path-outside-run`. Everything after that reads through the resulting
+      descriptor.
+    - **Directory capture.** A directory input (`run`'s `code`) is captured before
+      anything uses it. The endpoint copies it into an endpoint-private directory
+      under the operations root, which the actor cannot reach. The walk goes entry by
+      entry: each child is opened with `openat2` relative to its parent's descriptor,
+      under the same flags plus `O_NOFOLLOW`, checked with `fstat`, and read from
+      that descriptor. A symlink, device, FIFO or socket is refused. Every later step
+      (validation, bundling, execution) uses the private copy, so a swap in scratch
+      after capture changes nothing.
+    - **Platforms without `openat2`** (Linux before 5.6, or a seccomp policy that
+      blocks it): path inputs are refused `path-confinement-unavailable`. The
+      endpoint never falls back to resolving paths by name.
+    - **Shared paths.** The scratch directory is bound into the sandbox at its own
+      canonical host path, so the actor and the endpoint name the same file the same
+      way.
+    - **Code execution.** Commands that execute code (`run`) execute the private
+      copy under kernel confinement whose denied set includes the envelope's.
+    - **Fail closed.** A command reachable at a tier that cannot meet all of this is
+      not reachable under a run session: science refuses it at dispatch.
+
+    `run`'s `entrypoint` is not a host path, and these rules do not apply to it. It
+    stays what the kernel's execution contract makes it: a path relative to the
+    captured bundle, checked by `validate_entrypoint` inside the bundle. science
+    builds the bundle from the private copy of `code`, and passes `entrypoint`
+    through unchanged.
 
 ## 3. A run, end to end
 
@@ -384,9 +415,21 @@ orchestrator that died.
 
   Only then does it run the closing check. The disposition is at least `unwired`
   (`orchestrator-lost`), and a `quarantined` finding still takes precedence.
-- **No `seal.json`:** if the endpoint died too, each interval ends at the last entry
-  that is a member by §9's rules. Later entries are reported as `after-run`, never
-  classified, because the claim no longer held.
+- **No `seal.json`:** if the endpoint died too, nothing marks where the run's writes
+  ended. A commit that became durable just before the death, with no `act` line yet,
+  is exactly the effect that needs investigating. So the tail is never dropped:
+  - Each interval ends at the **closing head**, read after the endpoint is confirmed
+    dead, and every entry in it is classified by §9's rules. The run's own
+    unledgered commits come out `outcome-unknown`, and anything else unexplained
+    comes out `entry-foreign`.
+  - The one exception needs independent boundary evidence: another session's ledger.
+    Find the first entry in the tail that an `act` line in another session's ledger
+    names, where that session's `session-open` is present and no run-actor entry
+    follows it in the chain. Entries from there on that some other session's ledger
+    names are `after-run`: they were written once the run's claim was gone, and they
+    are reported, not classified. Ledgers are read from `<operations root>/sessions/`,
+    on the host side. Everything from that point that no ledger names, and any
+    run-actor entry after it, is still classified.
 - **What guards the orphan:** the kernel claim dies with the endpoint, so autonomy's
   scan at step 2 is what keeps an unclassified interval out of the next run's
   baseline.
@@ -415,8 +458,16 @@ orchestrator that died.
 - the control socket (lease, seal, reports, `seal.json`), and the endpoint's own
   execution subtree, killed at the seal;
 - the `run-sealed` refusal mapping;
-- the path-input confinement and the dispatch refusal of decision 11;
+- the dispatch refusal of decision 11;
 - `mcp bridge`, a client-only bridge to a handle;
+- **handle mode for the CLI.** Today the CLI runs read-only commands in-process from
+  host configuration, and finds the write socket through that same configuration.
+  When `VERIFIABLY_ENDPOINT` is set, every command, reads and writes alike, goes
+  through the handle with the token from `VERIFIABLY_TOKEN_FILE`, and no host
+  configuration is loaded. Two cases are refused `handle-incomplete`: a handle given
+  together with `--config`, and one variable set without the other. There is no
+  fallback to local execution;
+- the descriptor-based path confinement and the private capture of decision 11;
 - `heads [--resolve]` and `log` (§10);
 - the basis computation.
 
@@ -567,6 +618,10 @@ argument by its real path, it reports `stat`'s errno, and every one must be `ENO
   row 4's obligation: the envelope bounds the actor, not the host's own user. Direct
   writes are still caught as `entry-foreign`.
 
+**CLI:** a shell actor runs the `science` CLI as it is. The two handle variables put
+the CLI in handle mode (§4): every command goes through the endpoint, and no host
+configuration is read.
+
 **MCP:** an MCP-speaking harness is given `science mcp bridge` as its MCP server. The
 bridge reads the handle from the environment and opens no session.
 
@@ -640,6 +695,15 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
     in the interval, is `intent-unfulfilled`, which is `unwired`. No transition
     landed: an execution failed after its intent, or a fulfil was refused
     `run-sealed`.
+  - Under an incomplete ledger, a run-actor intent that no `act` line names, but
+    with a registration in the interval that fulfils it, is `outcome-unknown`
+    (`unwired`), the same finding as that registration. A holdings intent with no
+    `act` line also counts as `outcome-unknown` when only null-`fulfills` store
+    registrations match it, through its location and their registered paths. The
+    crash left an intent, its effect and its settlement, but no `act` line, and every
+    entry of that sequence carries the same unknown outcome.
+  - Under a complete ledger, the same run-actor intent is `entry-foreign`. Nothing
+    but a writer that forged the actor explains it.
   - Any other intent is `entry-foreign`, which is `quarantined`.
 - **Registration entry:**
   - A member if an `act` line names it as `entry`, that line's intent is a member,
@@ -677,7 +741,7 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
 | no `seal.json` (endpoint died) | `seal-missing` | `unwired`; the intervals end per §3 *Orphans* |
 | a baseline tip is not on its chain (the chain was rewritten) | `chain-discontinuous` | `quarantined` |
 | an entry that neither the ledger nor the run's actor explains | `entry-foreign` | `quarantined` |
-| a run-actor registration with no `act` line, under an incomplete ledger | `outcome-unknown` | `unwired` |
+| a run-actor intent, registration or settlement with no `act` line, under an incomplete ledger | `outcome-unknown` | `unwired` |
 | a run-actor intent with no fulfilling registration (no `act` line, or only store-write lines) | `intent-unfulfilled` | `unwired` |
 | the endpoint could not drain the in-flight act in time | `seal-timeout` | `unwired` |
 | a ledger `act` not verified in the interval | `act-unverified` | `unwired` |
@@ -688,7 +752,7 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
 | the orchestrator was lost | `orchestrator-lost` | `unwired` |
 | a read mount moved | `mount-moved` | none (reported) |
 | a recovery settlement of an `outcome-unknown` registration | `entry-settled-recovery` | none (reported) |
-| entries after the last member, when there is no seal | `after-run` | none (reported) |
+| with no seal, tail entries that another session's ledger names, from the first such entry with no run-actor entry after it | `after-run` | none (reported) |
 | none of the above | — | `clean` |
 
 **Why a world move and a mount move differ.** The world chain moves only by the
@@ -725,11 +789,21 @@ Two read commands are new. Both are `read-only` class, and both exist for people
   corpus and of the store root. The read is detached by default. `--resolve` uses the
   recovery-resolving read and reports any chain still pending.
 - **`log --chain <corpus id | store> --after <tip> [--through <tip>]`:** a detached
-  read, in chain order. Each entry carries:
+  read, in chain order. Its header names the chain: whether it is a corpus or the
+  store, its id (the corpus id, or the store root's identity), its root, and its
+  genesis digest. Each entry carries what §9's rules read:
   - its digest and entry type;
-  - for an intent, the decoded kind and actor;
-  - for a registration, `fulfills`;
-  - for a settlement, `registration` and `committed`.
+  - for an intent: the decoded kind and actor. For a holdings intent, also its
+    `location`, the store-relative path, and the store identity it targets. For a
+    move, both intents with their locations;
+  - for a registration: `fulfills` (possibly null), the consumer tag, the
+    transaction id, and the registered paths, meaning each path's `initial` and
+    `final` state from the transaction;
+  - for a settlement: `registration` and `committed`.
+
+  The fields are a versioned output contract (`log.v1`). autonomy's `science_reads`
+  parses that contract strictly. A missing field is `read-unavailable`, and the check
+  never guesses.
 
   A tip that is not on the chain is refused `tip-unknown`, which is how
   `chain-discontinuous` is detected. The output budget pages through a cursor as
@@ -783,10 +857,12 @@ named, never passed.
 | E11 *(pending)* | an orphan closes `unwired` with `orchestrator-lost`; a new run on its corpus is refused until then; `run close` reads no chain while the endpoint can still write | SIGKILL the orchestrator; `run` refuses `orphaned-run`; `run close` while an act is held inside the seal timeout, and again past it | a normally closed run allows the next; a `run close` that skips the endpoint wait finalizes before the held act's entries land; a `run close` that kills as soon as `seal.json` appears leaves no `session-close` |
 | E12 *(pending)* | world, basis and baseline races are seen | move the world head; change a pack binding between open and seal; write between steps 3 and 5 | an untouched run is `clean` |
 | E13 *(pending, science)* | a host process holding the token is refused `bad-peer`; a request without the token is refused | endpoint test | the actor's own request dispatches |
-| E14 *(pending, science)* | a path input outside the scratch directory, or relative, is refused `path-outside-run` | `run` with `entrypoint` naming a host file; a relative path; a symlink in scratch pointing out | the same file copied into scratch, named by its scratch path, is accepted |
+| E14 *(pending, science)* | a path input outside scratch, relative, or through a symlink is refused `path-outside-run`; a swap after the check cannot redirect a read; a captured directory is immune to later changes | `run` with `code` naming a host directory; a relative path; a symlink in scratch pointing out; a race harness that swaps a checked file, then a checked subdirectory, for a symlink to a host file between validation and open (looped); a capture followed by a swap, then execution | `code` as a directory in scratch with a bundle-relative `entrypoint` executes, and a host file never appears in the bundle or the record; a resolve-by-path variant (test hook) loses the race harness |
 | E15 *(pending, beliefs)* | a second session on a claimed chain is refused, across processes | kernel test | sequential sessions both open |
 | E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), a `run` act held mid-execution, and a holdings act sealed between its store write and its publish, and an endpoint killed between a store commit and its `act` line | an unsealed session's next act lands; the kill case is `unwired` (`outcome-unknown`), and without the store clause it is `quarantined`; without store-write `act` lines, a clean holdings run is `quarantined`; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
-| E17 | a forged run actor with a complete ledger is `quarantined`; under an incomplete ledger it is `unwired` | unit over constructed evidence | dropping the incomplete-ledger condition makes the forged case `unwired` |
+| E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence (corpus act; holdings act with store registration; orphan tail with and without a later session) | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit |
+| E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
+| E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
 
 ## 13. Delivery
 
@@ -799,8 +875,9 @@ because half of it cannot be tested before the slices in `science` and `beliefs`
    the detached after-tip read, the basis identities, the confinement extension; rows
    E15–E16. It is filed in `beliefs`, designed there, and frozen in a cut.
 3. **The `science` slice:** `serve --run`, the handle checks, the control socket,
-   `seal.json`, the `run-sealed` mapping, path confinement, `mcp bridge`, `heads`,
-   `log`, the basis computation; rows E13–E14. It is filed in `science`, and depends
+   `seal.json`, the `run-sealed` mapping, descriptor path confinement and capture,
+   `mcp bridge`, CLI handle mode, `heads`,
+   `log`, the basis computation; rows E13–E14, E18 and E19. It is filed in `science`, and depends
    on 2.
 4. **Plan B (autonomy, after 2 and 3):** `science_reads`, `baseline`, `endpoint`,
    `run`, the CLI; rows E7–E12.
