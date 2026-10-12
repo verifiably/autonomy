@@ -1,3 +1,8 @@
 # Fallback test-timing log, written by tools/tt when the shared log is unwritable and
 # emptied by ops `tt-report`; never committed.
 .tt/
+# The package's virtual environment (a work-link symlink) and bytecode.
+.venv
+__pycache__/
+# pytest-testmon selection data for `just test-fast`; per checkout, never committed.
+python/.testmondata

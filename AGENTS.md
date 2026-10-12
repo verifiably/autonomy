@@ -11,12 +11,16 @@ Member of the verifiably family (https://github.com/verifiably/docs/blob/main/ov
 ## Gates
 
 `just check` runs ops-check, `ops-docs check` and `tasks check`; the pre-commit hook
-runs it. Every test recipe is `true` until the envelope is built; replace them in
-`justfile` with the first suite. On a fresh clone, `git config core.hooksPath .githooks`.
+runs it. The suite is pytest under `python/`: `just setup` once per worktree (uv sync), then
+`just test-one <path | path::test | -k expr>` while working and `just test-fast`
+(pytest-testmon) before committing. Tests marked `bwrap` need bubblewrap and
+unprivileged user namespaces. On a fresh clone, `git config core.hooksPath .githooks`.
 
 ## Layout
 
-- docs/ — designs (specs) and plans for this layer, once written; empty today.
+- `docs/specs/`, `docs/plans/` — this layer's designs and plans; the envelope's is
+  `docs/specs/2026-10-12-envelope-design.md`.
+- `python/` — the `verifiably-autonomy` package (`python/src/autonomy/`) and its tests.
 - `tools/` — `tt`, `ops-check`, `ops-docs` vendored from ops; `family.toml` published
   from verifiably/docs.
 

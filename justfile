@@ -25,10 +25,10 @@ tt := "python3 tools/tt"
 # never drift from the gate it is supposed to be. Avoid single quotes inside them.
 # With no affected-only mechanism, set fast_cmd to the same command as test_cmd and say
 # so here; the target must always exist and the report shows the gap as equal durations.
-# Nothing is built yet: every test command is `true` until the envelope lands, so the
-# hooks run the docs checks today and the report shows the gap as equal durations.
-fast_cmd := "true"
-test_cmd := "true"
+# The package lives under python/; `uv run` syncs the dev group (pytest, pytest-testmon),
+# and testmon gives the fast loop its affected-only selection.
+fast_cmd := "cd python && uv run pytest --testmon"
+test_cmd := "cd python && uv run pytest"
 check_cmd := "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"
 
 # Staged paths that cannot change the code checks' verdict: a commit staging only these
@@ -51,12 +51,8 @@ ci_suite_refs := ""
 # takes the full gate.
 ci_remote := "origin"
 
-# The fast loop against what is being pushed, for the shortened gate. One of: selection
-# against the push base, naming the base (vitest run --changed <base>; nextest over the
-# crates changed since <base> and their reverse dependencies), falling back explicitly
-# to the fast set when the base cannot be resolved; testmon's own selection (fast_cmd
-# may serve); or the project's fixed fast set. Say which here.
-push_fast_cmd := "true"
+# testmon's own selection (form 2): fast_cmd serves.
+push_fast_cmd := fast_cmd
 
 # The runner with no selection of its own: `test-one` appends the caller's arguments,
 # each one intact, and nothing else; do not end it with `2>&1` (the recipe does). Which
@@ -71,7 +67,7 @@ push_fast_cmd := "true"
 #   playwright PLAYWRIGHT_JUNIT_OUTPUT_FILE=\"${TT_JUNIT_DIR:?run through tt}/playwright.xml\" before the command, --reporter=<current>,junit
 #   unittest   --durations 10 (printed; no JUnit writer)
 # The \" are justfile string escapes. Design: ops docs/specs/2026-10-08-tt-content-and-slowest-design.md §4.3.
-one_cmd := "true"
+one_cmd := "cd python && uv run pytest"
 
 # What a fresh checkout or worktree needs before the suite can run: dependency installs
 # (npm ci, uv sync) and any gitignored inputs the tests read, hydrated from the main
@@ -90,7 +86,7 @@ one_cmd := "true"
 # catches both kinds only every two hours. Use explicit, audited paths; never
 # ignore source parents. Linux needs attr installed. Attribute failures must
 # fail setup, not be swallowed.
-setup_cmd := "true"
+setup_cmd := "just work-link python/.venv && cd python && uv sync"
 
 # Affected-only: the inner loop.
 test-fast:

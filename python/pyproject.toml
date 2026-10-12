@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "verifiably-autonomy"
+version = "0.1.0"
+description = "The envelope of verifiably: what may run unattended."
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-testmon>=2.2.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/autonomy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["bwrap: needs bubblewrap and unprivileged user namespaces"]
