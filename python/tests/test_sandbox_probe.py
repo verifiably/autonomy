@@ -82,3 +82,28 @@ def test_the_actor_sees_its_scratch_at_its_host_path(layout):
     argv = build_argv(SandboxSpec(scratch=layout["scratch"]), ["/usr/bin/cat", "hello"], info_fd=None)
     out = subprocess.run(argv, capture_output=True, text=True, timeout=30, check=True)
     assert out.stdout == "hi"
+
+
+def test_a_probe_timeout_is_typed(layout, monkeypatch):
+    def hung(argv, **kwargs):
+        raise subprocess.TimeoutExpired(argv, 60)
+
+    monkeypatch.setattr(subprocess, "run", hung)
+    with pytest.raises(SandboxUnproven) as caught:
+        probe(SandboxSpec(scratch=layout["scratch"]), (layout["corpus"],))
+    assert caught.value.code == "probe-failed"
+    with pytest.raises(SandboxUnproven) as caught:
+        preflight(which=lambda _: "/usr/bin/bwrap")
+    assert caught.value.code == "userns-unavailable"
+
+
+def test_non_utf8_probe_output_is_typed(layout, monkeypatch):
+    path = str(layout["corpus"].resolve())
+
+    def garbled(argv, **kwargs):
+        return subprocess.CompletedProcess(argv, 0, stdout=b"\xff\xfe " + path.encode() + b"\n", stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", garbled)
+    with pytest.raises(SandboxUnproven) as caught:
+        probe(SandboxSpec(scratch=layout["scratch"]), (layout["corpus"],))
+    assert caught.value.code == "probe-reachable"

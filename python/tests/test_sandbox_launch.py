@@ -168,3 +168,62 @@ def test_an_interpreter_without_pidfds_is_refused_before_anything_starts(tmp_pat
         launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"])
     assert caught.value.code == "pidfd-unavailable"
     assert started == []
+
+
+def recording_popen(monkeypatch) -> list[subprocess.Popen]:
+    started: list[subprocess.Popen] = []
+    real_popen = subprocess.Popen
+
+    class Recording(real_popen):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            started.append(self)
+
+    monkeypatch.setattr(subprocess, "Popen", Recording)
+    return started
+
+
+def test_an_unexpected_error_after_popen_never_releases_the_actor(tmp_path, monkeypatch):
+    import errno
+
+    started = recording_popen(monkeypatch)
+
+    def exhausted(pid, *args):
+        raise OSError(errno.EMFILE, "Too many open files")
+
+    monkeypatch.setattr(os, "pidfd_open", exhausted)
+    with pytest.raises(SandboxUnproven) as caught:
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/sh", "-c", "echo ran > ran"])
+    assert caught.value.code == "launch-failed"
+    assert len(started) == 1 and started[0].returncode is not None  # killed and reaped
+    time.sleep(0.3)
+    assert not (tmp_path / "ran").exists()  # the held command never ran
+
+
+def test_a_bwrap_that_never_reports_its_child_is_reaped(tmp_path, monkeypatch):
+    import autonomy.sandbox.bwrap as bwrap
+
+    started = recording_popen(monkeypatch)
+    monkeypatch.setattr(bwrap, "LAUNCH_TIMEOUT", 0.5)
+    monkeypatch.setattr(bwrap, "build_argv", lambda *a, **k: ["/usr/bin/sleep", "30"])
+    begun = time.monotonic()
+    with pytest.raises(SandboxUnproven) as caught:
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"])
+    assert caught.value.code == "launch-failed"
+    assert time.monotonic() - begun < 5
+    assert started[0].returncode is not None
+
+
+def test_close_twice_never_touches_an_unrelated_fd(tmp_path):
+    sandboxed = launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"])
+    sandboxed.wait(timeout=10)
+    sandboxed.close()
+    read_fd, write_fd = os.pipe()  # likely reuses the pidfd's number
+    try:
+        sandboxed.close()
+        assert sandboxed.terminate(grace=0.1) == 0
+        os.write(write_fd, b"x")  # still open
+        assert os.read(read_fd, 1) == b"x"
+    finally:
+        os.close(read_fd)
+        os.close(write_fd)
