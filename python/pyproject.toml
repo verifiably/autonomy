@@ -22,3 +22,8 @@ packages = ["src/autonomy"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["bwrap: needs bubblewrap and unprivileged user namespaces"]
+
+[tool.uv]
+# The sandbox needs os.pidfd_open and signal.pidfd_send_signal (envelope design §8);
+# uv's managed CPython builds omit both, so the environment uses the system interpreter.
+python-preference = "system"

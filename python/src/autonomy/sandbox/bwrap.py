@@ -3,9 +3,14 @@ and (Task 7) launch and kill."""
 
 from __future__ import annotations
 
+import json
+import os
 import shutil
+import signal
 import subprocess
+import threading
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from autonomy.sandbox.spec import IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SYSTEM_SYMLINKS, SandboxSpec
@@ -88,3 +93,118 @@ def prove(spec: SandboxSpec, denied: Iterable[Path], *, which: Callable[[str], s
     preflight(which)
     check_binds(spec, denied)
     probe(spec, denied)
+
+
+@dataclass
+class Sandboxed:
+    """A running sandbox: the outer bwrap process and a pidfd on the namespace's
+    init, opened as soon as bwrap reports it, so a reused pid is never signalled."""
+
+    process: subprocess.Popen
+    child_pid: int
+    pidfd: int
+
+    def _signal(self, sig: int) -> None:
+        try:
+            signal.pidfd_send_signal(self.pidfd, sig)
+        except ProcessLookupError:
+            pass
+
+    def terminate(self, grace: float = 10.0) -> int:
+        """SIGTERM, then SIGKILL after `grace`. bwrap's PID 1 need not forward
+        SIGTERM, so SIGKILL is the path relied on: killing the namespace's init
+        kills every process in it (spec §8)."""
+        self._signal(signal.SIGTERM)
+        try:
+            return self.process.wait(timeout=grace)
+        except subprocess.TimeoutExpired:
+            self._signal(signal.SIGKILL)
+            return self.process.wait()
+
+    def wait(self, timeout: float | None = None) -> int:
+        return self.process.wait(timeout=timeout)
+
+    def close(self) -> None:
+        if self.process.poll() is None:
+            self._signal(signal.SIGKILL)
+            self.process.wait()
+        try:
+            os.close(self.pidfd)
+        except OSError:
+            pass
+
+
+def _read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
+    """Read bwrap's --info-fd JSON object; None when bwrap exits without one."""
+    decoder = json.JSONDecoder()
+    buffer = ""
+    while True:
+        chunk = os.read(fd, 4096)
+        if not chunk:
+            return None
+        buffer += chunk.decode("utf-8")
+        try:
+            value, _ = decoder.raw_decode(buffer.lstrip())
+        except ValueError:
+            continue
+        return value if isinstance(value, dict) else None
+
+
+def _abort(process: subprocess.Popen, message: str) -> SandboxUnproven:
+    """Reap a launch that failed before its command was released."""
+    if process.poll() is None:
+        process.kill()  # the outer bwrap; --die-with-parent takes the held child with it
+    process.wait()
+    return SandboxUnproven("launch-failed", "bwrap", f"{message} (exit {process.returncode})")
+
+
+def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
+    """Start the actor so that its handle exists before it can run.
+
+    bwrap writes the child's pid on --info-fd and then holds the command until
+    --block-fd has data. The pidfd is opened inside that window, so a command that
+    exits at once (or a reused pid) can never be missed; only then is the command
+    released. A failure before release kills and reaps the outer bwrap."""
+    if threading.current_thread() is not threading.main_thread():
+        raise RuntimeError(
+            "launch the sandbox from the main thread: --die-with-parent is PR_SET_PDEATHSIG, "
+            "which fires when the spawning thread exits"
+        )
+    if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
+        raise SandboxUnproven(
+            "pidfd-unavailable",
+            "python",
+            "this interpreter lacks os.pidfd_open or signal.pidfd_send_signal; the actor cannot be "
+            "held by a handle that survives pid reuse",
+        )
+    info_read, info_write = os.pipe()
+    block_read, block_write = os.pipe()
+    try:
+        process = subprocess.Popen(
+            build_argv(spec, argv, info_fd=info_write, block_fd=block_read),
+            pass_fds=(info_write, block_read),
+            stdin=subprocess.DEVNULL,
+        )
+    except BaseException:
+        for fd in (info_read, block_write):
+            os.close(fd)
+        raise
+    finally:
+        os.close(info_write)
+        os.close(block_read)
+    try:
+        try:
+            info = _read_info(info_read, process)
+        finally:
+            os.close(info_read)
+        child = None if info is None else info.get("child-pid")
+        if type(child) is not int:
+            raise _abort(process, "bwrap reported no child")
+        try:
+            pidfd = os.pidfd_open(child)
+        except ProcessLookupError:
+            raise _abort(process, f"the held child {child} vanished before its handle was taken") from None
+        os.write(block_write, b"\x01")  # release the command
+    finally:
+        os.close(block_write)
+    return Sandboxed(process, child, pidfd)
