@@ -1,7 +1,9 @@
 # Envelope — design (sub-project 6)
 
 **Date:** 2026-10-12
-**Status:** draft for review. Revised after review round 1, which found 3 Critical, 9
+**Status:** approved 2026-10-12 (human review round 10). Plan A (§13 item 1) implemented
+the same day: `docs/plans/2026-10-12-envelope-plan-a.md`, rows E1–E6 and E17. Items 2–4
+are open: beliefs-7a56ef, sci-a1d45f, autonomy-641123. Revised after review round 1, which found 3 Critical, 9
 Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
 after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
 Important and 2 Minor; after round 5, which found 1 Important and 5 Minor; and after
