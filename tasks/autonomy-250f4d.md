@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T15:19:36Z
+updated: 2026-10-12T15:20:55Z
 started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
@@ -65,3 +65,4 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
 - 2026-10-12T12:30:24Z (envelope-design): Plan A review details: P2 ledger parser raises TypeError for a complete JSON line whose line value is [] or {}; P2 close omits chain-discontinuous and returns unwired when on_chain=false is combined with a missing or malformed ledger; P2 launch races pidfd_open against child exit (reproduced with /usr/bin/true and a 200 ms acquisition delay, raising ProcessLookupError despite exit 0). Add focused regression cases and correct the supplied code before execution. Execution choice: native, then a fresh whole-branch reviewer. Round-9 ownership accepted for the current science command surface; kernel acquisition/recheck outer-report crashes need nested-intent handling before those routes are exposed. just check passed; review reproductions ran directly from plan snippets, including one real bwrap child; all child processes reaped.
 - 2026-10-12T15:19:36Z (envelope-design): resumed
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T15:20:55Z (envelope-design): execution: native (user choice), then a fresh whole-branch review
