@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T11:34:59Z
+updated: 2026-10-12T11:36:00Z
 started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
@@ -45,3 +45,5 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
 - 2026-10-12T11:30:15Z (envelope-design): resumed
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-12T11:34:59Z (envelope-design): review: spec round 7 — verdict: revise; findings: P2 2, P3 5; reviewer: claude-code/claude-opus-5-5
+- 2026-10-12T11:36:00Z (envelope-design): parked (waiting on user, review): User reviews the revised spec docs/specs/2026-10-12-envelope-design.md in .worktrees/envelope-design (round 6 addressed; round 7 subagent findings fixed in 5febb2f, not re-reviewed). On approval: writing-plans for Plan A and file the beliefs and science slices.
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
