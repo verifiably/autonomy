@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T11:19:44Z
+updated: 2026-10-12T11:26:25Z
 started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
@@ -41,3 +41,4 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
 - 2026-10-12T11:19:35Z (envelope-design): review: spec round 5 — verdict: revise; findings: Important 1, Minor 5; reviewer: claude-code/claude-opus-5-5
 - 2026-10-12T11:19:44Z (envelope-design): parked (waiting on user, review): User reviews docs/specs/2026-10-12-envelope-design.md in .worktrees/envelope-design (5 subagent review rounds done; round-5 fixes not re-reviewed). On approval: writing-plans for Plan A (autonomy, buildable now) and file the beliefs and science slices.
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T11:26:25Z (envelope-design): review: spec round 6 — verdict: revise; findings: P1 3, P2 3; reviewer: codex
