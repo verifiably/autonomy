@@ -112,3 +112,16 @@ def test_a_missing_denied_path_under_a_bind_is_refused(layout):
         check_binds(SandboxSpec(scratch=layout["scratch"]), (*denied(layout), store))
     assert caught.value.code == "bind-overlaps-denied"
 
+
+
+def test_a_denied_root_that_cannot_be_stat_ed_is_refused_not_downgraded(layout):
+    locked = layout["tmp"] / "locked-denied"
+    root = locked / "corpus"
+    root.mkdir(parents=True)
+    locked.chmod(0)
+    try:
+        with pytest.raises(SandboxUnproven) as caught:
+            check_binds(SandboxSpec(scratch=layout["scratch"]), (*denied(layout), root))
+        assert caught.value.code == "denied-unreadable"
+    finally:
+        locked.chmod(0o755)

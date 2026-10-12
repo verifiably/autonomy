@@ -32,13 +32,16 @@ def _ancestry(path: Path) -> set[tuple[int, int]]:
 
 def _target(path: Path) -> tuple[Path, tuple[int, int] | None, set[tuple[int, int]]]:
     """A denied path for comparison. One that does not exist yet (an unconfigured
-    store root) or cannot be stat'ed still takes part by path; only the inode
-    comparisons need it to exist."""
+    store root) still takes part by path; only the inode comparisons need it to
+    exist. One that exists but cannot be stat'ed is refused, never downgraded to a
+    path-only comparison that a bind-mount alias would pass."""
     real = path.resolve(strict=False)
     try:
         return real, _identity(real), _ancestry(real)
-    except OSError:
+    except (FileNotFoundError, NotADirectoryError):
         return real, None, set()
+    except OSError as caught:
+        raise SandboxUnproven("denied-unreadable", str(path), f"a denied path must be stat-able: {caught}") from caught
 
 
 def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
