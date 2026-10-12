@@ -1,13 +1,15 @@
 ---
 id: autonomy-250f4d
 title: "Envelope design (sub-project 6): actor sandbox, baseline with log heads, tiers as permits, ledger-checked interval membership, dispositions, lease"
-status: todo
+status: doing
 priority: 2
 size: l
 complexity: high
 process: planned
+owner: main
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-11T20:45:02Z
+updated: 2026-10-12T10:47:24Z
+started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
 agent: claude-code
@@ -26,3 +28,5 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
 ## Notes
 
 - 2026-10-11T20:45:02Z (main): Goal: ops-3f5aa6 (a science harness on pi). Report the done note there.
+- 2026-10-12T10:47:24Z (main): started
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
