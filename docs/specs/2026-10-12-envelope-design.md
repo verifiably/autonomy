@@ -6,8 +6,9 @@ Important and 8 Minor problems; after round 2, which found 7 Important and 2 Min
 after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
 Important and 2 Minor; after round 5, which found 1 Important and 5 Minor; and after
 round 6, a human-directed review that found 3 P1 and 3 P2; and after round 7, which
-found 2 P2 and 5 P3; and after round 8, a human-directed review that found 3 P2. All
-of them are addressed in
+found 2 P2 and 5 P3; after round 8, a human-directed review that found 3 P2; and
+after round 9, a human-directed review that found 1 P2. All of them are addressed
+in
 this text.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
@@ -720,30 +721,50 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
   disagreement in `beliefs`.
 
 **Transactions and the crash allowance.** Every effect on a written chain is a
-**transaction**: one registration and its settlement. A registration's **owning
-intent** is defined as follows:
+**transaction**: one registration and its settlement. A transaction is **recorded**
+when an `act` line names its registration, and **unrecorded** otherwise.
 
-- for a registration with a `fulfills`, the intent it fulfils;
-- for a null-`fulfills` store registration, the run-actor holdings intent whose
-  location is among its registered paths.
+**The act in progress.** The session runs one handler at a time, and the kernel
+appends an act's intents before its transactions. So the act that a crash
+interrupted is always the last one the run began:
 
-A transaction is **unledgered** when no `act` line names its registration.
+- the last run-actor intent in the write corpus's interval, in chain order;
+- plus, when that intent is a `move-destination`, its `move-source`. The kernel's
+  `move` appends the two back to back, source first, and no run-actor intent
+  separates them.
 
-The session runs one handler at a time. Within an act, every transaction is followed
-by its `act` line before the next transaction begins, whether that next one is the
-next phase of the same act or the next act. So a crash can leave at most one
-unledgered transaction across all the written chains: the one in progress when the
-crash came. It may be the first transaction of its act, or a later phase of an act
-whose earlier phases were already ledgered. The second case is a holdings publish
-that crashed after its store write was ledgered.
+The payloads carry no explicit link between a move's two intents, so this structural
+rule is the pairing, and `log.v1` reports each holdings intent's act kind for it.
 
-Under an incomplete ledger, an unledgered registration **qualifies** for the crash
-allowance when all of these hold:
+**Owning intent.** Ownership is decided before any allowance applies, and never by
+location matching across the whole interval:
 
-- its owning intent is a run-actor intent;
-- that intent is named by no `act` line, or it is the intent of the ledger's last
-  `act` line, which is the act in progress;
-- it comes after every registration that an `act` line names on its own chain.
+- **A recorded registration:** owned by the intent its `act` line names. For a
+  `store_move`, that is the move-source intent (§4).
+- **An unrecorded registration with a `fulfills`:** owned by the intent it fulfils.
+- **An unrecorded null-`fulfills` store registration:** owned by the holdings intent
+  of the act in progress whose location is among its registered paths. For a move,
+  both locations appear, and the owner is the move-source intent. If the act in
+  progress is not a holdings act, or no location matches, the registration has no
+  owner.
+
+So a successful write to x followed by a failed intent for x causes no confusion: the
+write's registration is recorded and owned through its `act` line, and the failed
+intent owns nothing.
+
+**The allowance.** Within an act, every transaction is followed by its `act` line
+before the next transaction begins, whether that is the next phase of the same act or
+the next act. So a crash can leave at most one unrecorded transaction across all the
+written chains: the one in progress. It may be the first transaction of its act, or a
+later phase of an act whose earlier phases are already recorded. Examples of a later
+phase are a holdings publish after its store write, or a move's destination publish
+after its source publish.
+
+Under an incomplete ledger, an unrecorded registration **qualifies** for the crash
+allowance when both of these hold:
+
+- its owning intent belongs to the act in progress;
+- it comes after every recorded registration on its own chain.
 
 When exactly one registration qualifies, that one is the **crash transaction**. It,
 its settlement and its owning intent, if no `act` line names that intent, are
@@ -753,8 +774,9 @@ all, so none gets the allowance. Every unledgered transaction is then
 qualifies.
 
 The limit is therefore one transaction, not one intent. Several forged store
-transactions that touch one holdings intent's location all qualify, and they
-quarantine the run. A forger can downgrade at most one transaction, only to
+transactions that touch the act in progress's location all qualify, and they
+quarantine the run. A store transaction whose paths match no intent of the act in
+progress has no owner and is `entry-foreign`. A forger can downgrade at most one transaction, only to
 `unwired`, and only when the endpoint really did leave the ledger incomplete.
 
 - **Intent entry:**
@@ -854,9 +876,9 @@ Two read commands are new. Both are `read-only` class, and both exist for people
   store, its id (the corpus id, or the store root's identity), its root, and its
   genesis digest. Each entry carries what §9's rules read:
   - its digest and entry type;
-  - for an intent: the decoded kind and actor. For a holdings intent, also its
-    `location`, the store-relative path, and the store identity it targets. For a
-    move, both intents with their locations;
+  - for an intent: the decoded kind and actor. For a holdings intent, also its act
+    kind (`write`, `delete`, `move-source`, `move-destination`, `re-check`), its
+    `location` (the store-relative path), and the store identity it targets;
   - for a registration: `fulfills` (possibly null), the consumer tag, the
     transaction id, and the registered paths, meaning each path's `initial` and
     `final` state from the transaction;
@@ -921,7 +943,7 @@ named, never passed.
 | E14 *(pending, science)* | a path input outside scratch, relative, or through a symlink is refused `path-outside-run`; a swap after the check cannot redirect a read; a captured directory is immune to later changes | `run` with `code` naming a host directory; a relative path; a symlink in scratch pointing out; a race harness that swaps a checked file, then a checked subdirectory, for a symlink to a host file between validation and open (looped); a capture followed by a swap, then execution | `code` as a directory in scratch with a bundle-relative `entrypoint` executes, and a host file never appears in the bundle or the record; a resolve-by-path variant (test hook) loses the race harness |
 | E15 *(pending, beliefs)* | a second session on a claimed chain is refused, across processes | kernel test | sequential sessions both open |
 | E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), a `run` act held mid-execution, and a holdings act sealed between its store write and its publish, and an endpoint killed between a store commit and its `act` line | an unsealed session's next act lands; the kill case is `unwired` (`outcome-unknown`), and without the store clause it is `quarantined`; without store-write `act` lines, a clean holdings run is `quarantined`; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
-| E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; a holdings act that crashed in its second phase (store write ledgered, publish committed without its `act` line); several null-`fulfills` store registrations matching one holdings intent; orphan tail with and without a later session, including that session's settlements, a failed intent before its first commit, and a session whose only acts failed; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; the second-phase crash is `unwired`, and an allowance keyed to unnamed intents makes it `quarantined`; the several-registrations case is `quarantined`, and an allowance keyed to one intent makes it `unwired`; without the one-transaction limit the second sequence is `unwired` rather than `quarantined`; with a boundary found only through `act` lines, the failed-first-intent and failure-only cases quarantine the orphan; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
+| E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; a holdings act that crashed in its second phase (store write ledgered, publish committed without its `act` line); a recorded write to x followed by a failed intent for x; a move fully recorded; a move crashed after its `store_move` commit, and another between its source and destination publishes; a store transaction touching a location outside the act in progress; several null-`fulfills` store registrations matching one holdings intent; orphan tail with and without a later session, including that session's settlements, a failed intent before its first commit, and a session whose only acts failed; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; the second-phase crash is `unwired`, and an allowance keyed to unnamed intents makes it `quarantined`; the several-registrations case is `quarantined`, and an allowance keyed to one intent makes it `unwired`; with location matching across the interval, the write-then-failed-intent case is `quarantined` instead of `unwired` (`intent-unfulfilled`, its write a member); ownership by any matching move intent makes a crashed `store_move` ambiguous; without the one-transaction limit the second sequence is `unwired` rather than `quarantined`; with a boundary found only through `act` lines, the failed-first-intent and failure-only cases quarantine the orphan; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
 | E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a holdings act killed after its publish commit and before that `act` line, with its store write already ledgered; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
 | E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
 
