@@ -6,7 +6,8 @@ Important and 8 Minor problems; after round 2, which found 7 Important and 2 Min
 after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
 Important and 2 Minor; after round 5, which found 1 Important and 5 Minor; and after
 round 6, a human-directed review that found 3 P1 and 3 P2; and after round 7, which
-found 2 P2 and 5 P3. All of them are addressed in
+found 2 P2 and 5 P3; and after round 8, a human-directed review that found 3 P2. All
+of them are addressed in
 this text.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
@@ -433,9 +434,15 @@ orchestrator that died.
     comes out `entry-foreign`.
   - The one exception needs independent boundary evidence: another session's ledger.
     Ledgers are read from `<operations root>/sessions/`, on the host side.
-    1. **Find the boundary.** It is the first entry in the tail that an `act` line in
-       another session's ledger names, where that session's `session-open` is
-       present, and where no run-actor entry follows it in the chain. Settlements
+    1. **Find the boundary.** It is the first entry in the tail that carries
+       verified later-session evidence, with no run-actor entry after it in the
+       chain. That evidence is either of these:
+       - an `act` line in a later session's ledger names the entry;
+       - the entry is an intent whose decoded actor is a later session's
+         `session:<id>`.
+
+       A session whose only acts failed, or that failed before its first commit,
+       therefore still establishes the boundary through its intents. Settlements
        carry no actor, so a settlement is never a run-actor entry for this test.
     2. **Mark `after-run`.** From the boundary on, these entries are `after-run`,
        reported and not classified, because they were written once the run's claim
@@ -712,32 +719,55 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
   so it reports `session-act-unverified` for every store-root act. The plan files that
   disagreement in `beliefs`.
 
+**Transactions and the crash allowance.** Every effect on a written chain is a
+**transaction**: one registration and its settlement. A registration's **owning
+intent** is defined as follows:
+
+- for a registration with a `fulfills`, the intent it fulfils;
+- for a null-`fulfills` store registration, the run-actor holdings intent whose
+  location is among its registered paths.
+
+A transaction is **unledgered** when no `act` line names its registration.
+
+The session runs one handler at a time. Within an act, every transaction is followed
+by its `act` line before the next transaction begins, whether that next one is the
+next phase of the same act or the next act. So a crash can leave at most one
+unledgered transaction across all the written chains: the one in progress when the
+crash came. It may be the first transaction of its act, or a later phase of an act
+whose earlier phases were already ledgered. The second case is a holdings publish
+that crashed after its store write was ledgered.
+
+Under an incomplete ledger, an unledgered registration **qualifies** for the crash
+allowance when all of these hold:
+
+- its owning intent is a run-actor intent;
+- that intent is named by no `act` line, or it is the intent of the ledger's last
+  `act` line, which is the act in progress;
+- it comes after every registration that an `act` line names on its own chain.
+
+When exactly one registration qualifies, that one is the **crash transaction**. It,
+its settlement and its owning intent, if no `act` line names that intent, are
+`outcome-unknown` (`unwired`). When more than one qualifies, no crash explains them
+all, so none gets the allowance. Every unledgered transaction is then
+`entry-foreign`, and the run is `quarantined`. Under a complete ledger nothing
+qualifies.
+
+The limit is therefore one transaction, not one intent. Several forged store
+transactions that touch one holdings intent's location all qualify, and they
+quarantine the run. A forger can downgrade at most one transaction, only to
+`unwired`, and only when the endpoint really did leave the ledger incomplete.
+
 - **Intent entry:**
-  - A member if a ledger `act` line names it as `intent` and its decoded actor is the
+  - A member if an `act` line names it as `intent` and its decoded actor is the
     run's.
-  - A run-actor intent that no `act` line names, with no registration fulfilling it
-    and no matching null-`fulfills` store registration in the interval, is
-    `intent-unfulfilled`, which is `unwired`. No transition landed: an execution
-    failed after its intent, or a fulfil was refused `run-sealed`. A forged bare
-    intent lands here too. It has no effect, and it is reported.
-  - **The trailing unledgered act.** The session runs one handler at a time, and the
-    ledger line follows each commit, so a crash can leave at most one act without
-    its `act` line: the last one. The trailing unledgered act is the run-actor
-    intent that no `act` line names and that comes after every entry an `act` line
-    names, in chain order. With it come:
-    - the registrations that fulfil it;
-    - for a holdings intent, the null-`fulfills` store registrations matched to it
-      through its location and their registered paths;
-    - the settlements of those registrations.
-  - Under an incomplete ledger, every entry of the trailing unledgered act is
-    `outcome-unknown` (`unwired`). The crash left an intent, its effect and its
-    settlement, but no `act` line, and they carry one unknown outcome.
-  - Any other run-actor intent that no `act` line names but that has an effect (a
-    fulfilling or matched registration) is `entry-foreign`, and so are its entries.
-    This holds under any ledger, because a crash cannot explain a second such act,
-    and nothing but a writer that forged the actor does. A forger can therefore
-    downgrade at most one sequence, and only to `unwired`, and only when the
-    endpoint really did leave the ledger incomplete.
+  - A run-actor intent that no `act` line names:
+    - when it owns the crash transaction: `outcome-unknown` (`unwired`);
+    - when it owns no registration at all: `intent-unfulfilled` (`unwired`). No
+      transition landed: an execution failed after its intent, or a fulfil was
+      refused `run-sealed`. A forged bare intent lands here too; it has no effect,
+      and it is reported;
+    - when it owns a registration that is not the crash transaction:
+      `entry-foreign` (`quarantined`).
   - Any other intent is `entry-foreign`, which is `quarantined`.
 - **Registration entry:**
   - A member if an `act` line names it as `entry`, that line's intent is a member,
@@ -745,24 +775,22 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
     - its `fulfills` is that intent; or
     - it is a store-chain registration whose `fulfills` is null. This is a holdings
       store write, ledgered under its holdings act's intent.
-  - A registration of the trailing unledgered act is `outcome-unknown` (`unwired`)
-    under an incomplete ledger. That covers both a registration fulfilling the
-    intent and a matched null-`fulfills` store registration, which is a crash
-    between a store commit and its `act` line.
+  - The crash transaction's registration is `outcome-unknown` (`unwired`).
   - Otherwise it is `entry-foreign`. This includes a write by a process that forged
-    the run's actor string, which can be read from the run directory; with a
-    complete ledger, nothing but a foreign writer explains it.
+    the run's actor string, which can be read from the run directory.
 - **Settled entry:**
   - A member if its `registration` is a member registration.
-  - A settlement of an `outcome-unknown` registration carries that registration's
-    finding. When recovery appended it, it is also reported as
-    `entry-settled-recovery`.
+  - The crash transaction's settlement is `outcome-unknown`. When recovery appended
+    it, it is also reported as `entry-settled-recovery`.
   - Otherwise it is `entry-foreign`.
 - **Every `act` line:** its intent and registration must appear in the interval, with
   a settlement whose `committed` is true. Otherwise it is `act-unverified`, which is
   `unwired`.
-- **A member intent with no fulfilling registration** (only store-write lines, or
-  none) is a cut route act: `intent-unfulfilled`, which is `unwired`.
+- **A member intent with no fulfilling registration** is a cut route act:
+  `intent-unfulfilled`, which is `unwired`. This covers an intent with no `act` line
+  naming a fulfilling registration, or with only store-write lines. A fulfilling
+  registration that is the crash transaction means the act was not cut, so it does
+  not count here.
 
 **The rows:**
 
@@ -773,8 +801,8 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
 | no `seal.json` (endpoint died) | `seal-missing` | `unwired`; the intervals end per §3 *Orphans* |
 | a baseline tip is not on its chain (the chain was rewritten) | `chain-discontinuous` | `quarantined` |
 | an entry that neither the ledger nor the run's actor explains | `entry-foreign` | `quarantined` |
-| the trailing unledgered act's intent, registrations and settlements, under an incomplete ledger | `outcome-unknown` | `unwired` |
-| any other unledgered run-actor intent that has an effect, and its entries | `entry-foreign` | `quarantined` |
+| the crash transaction (exactly one qualifying unledgered registration, under an incomplete ledger), its settlement, and its owning intent if unnamed | `outcome-unknown` | `unwired` |
+| any other unledgered transaction, including every one when more than one qualifies, and an unnamed run-actor intent that owns one | `entry-foreign` | `quarantined` |
 | a run-actor intent with no fulfilling or matched registration (no `act` line, or only store-write lines) | `intent-unfulfilled` | `unwired` |
 | the endpoint could not drain the in-flight act in time | `seal-timeout` | `unwired` |
 | a ledger `act` not verified in the interval | `act-unverified` | `unwired` |
@@ -893,8 +921,8 @@ named, never passed.
 | E14 *(pending, science)* | a path input outside scratch, relative, or through a symlink is refused `path-outside-run`; a swap after the check cannot redirect a read; a captured directory is immune to later changes | `run` with `code` naming a host directory; a relative path; a symlink in scratch pointing out; a race harness that swaps a checked file, then a checked subdirectory, for a symlink to a host file between validation and open (looped); a capture followed by a swap, then execution | `code` as a directory in scratch with a bundle-relative `entrypoint` executes, and a host file never appears in the bundle or the record; a resolve-by-path variant (test hook) loses the race harness |
 | E15 *(pending, beliefs)* | a second session on a claimed chain is refused, across processes | kernel test | sequential sessions both open |
 | E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), a `run` act held mid-execution, and a holdings act sealed between its store write and its publish, and an endpoint killed between a store commit and its `act` line | an unsealed session's next act lands; the kill case is `unwired` (`outcome-unknown`), and without the store clause it is `quarantined`; without store-write `act` lines, a clean holdings run is `quarantined`; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
-| E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; orphan tail with and without a later session, including that session's settlements and a failed intent; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; without the trailing-act limit the second sequence is `unwired` rather than `quarantined`; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
-| E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
+| E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; a holdings act that crashed in its second phase (store write ledgered, publish committed without its `act` line); several null-`fulfills` store registrations matching one holdings intent; orphan tail with and without a later session, including that session's settlements, a failed intent before its first commit, and a session whose only acts failed; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; the second-phase crash is `unwired`, and an allowance keyed to unnamed intents makes it `quarantined`; the several-registrations case is `quarantined`, and an allowance keyed to one intent makes it `unwired`; without the one-transaction limit the second sequence is `unwired` rather than `quarantined`; with a boundary found only through `act` lines, the failed-first-intent and failure-only cases quarantine the orphan; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
+| E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a holdings act killed after its publish commit and before that `act` line, with its store write already ledgered; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
 | E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
 
 ## 13. Delivery
