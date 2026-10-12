@@ -46,7 +46,7 @@ def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
 
 
 def build_argv(
-    spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None, block_fd: int | None = None
+    spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None
 ) -> list[str]:
     args = ["bwrap", "--unshare-all"]
     if spec.network == "host":
@@ -71,10 +71,6 @@ def build_argv(
     args += ["--chdir", str(spec.scratch)]
     if info_fd is not None:
         args += ["--info-fd", str(info_fd)]
-    if block_fd is not None:
-        # bwrap reports the child on --info-fd, then holds the command until this fd
-        # has data: the window in which launch() takes its pidfd (Task 7)
-        args += ["--block-fd", str(block_fd)]
     return [*args, "--", *argv]
 
 
@@ -172,30 +168,39 @@ def _read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
         return value if isinstance(value, dict) else None
 
 
-def _abort(process: subprocess.Popen, message: str, child: int | None = None) -> SandboxUnproven:
-    """Reap a launch that failed before its command was released.
+RELEASE = b"run\n"
+"""The one line that lets the gate exec the actor."""
 
-    Called while block_write is still open: a reported child is then still blocked,
-    so it is alive and its pid cannot have been reused, and it is killed by pid before
-    anything closes the fd that would release it."""
-    if child is not None:
+_GATE = 'read -r go; exec </dev/null; [ "$go" = run ] || exit 125; exec "$@"'
+"""The command bwrap runs: it reads one line from stdin (the gate pipe) and execs the
+actor only on an explicit `run`. EOF (any failure or death of the launcher) makes it
+exit without running the actor. Stdin is reopened on /dev/null first, so the actor
+never sees the gate."""
+
+
+def _abort(process: subprocess.Popen, pidfd: int) -> None:
+    """Undo a launch whose gate was never released: kill the namespace through the
+    pidfd when one is held (never by pid), kill and reap bwrap, close the pidfd. The
+    gate's write end closes after this, and EOF makes the gate exit without running
+    the actor even if something survived."""
+    if pidfd >= 0:
         try:
-            os.kill(child, signal.SIGKILL)  # the namespace's init: every process in it
+            signal.pidfd_send_signal(pidfd, signal.SIGKILL)
         except ProcessLookupError:
             pass
+        os.close(pidfd)
     if process.poll() is None:
-        process.kill()  # the outer bwrap; --die-with-parent takes the held child with it
+        process.kill()
     process.wait()
-    return SandboxUnproven("launch-failed", "bwrap", f"{message} (exit {process.returncode})")
 
 
 def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
     """Start the actor so that its handle exists before it can run.
 
-    bwrap writes the child's pid on --info-fd and then holds the command until
-    --block-fd has data. The pidfd is opened inside that window, so a command that
-    exits at once (or a reused pid) can never be missed; only then is the command
-    released. A failure before release kills and reaps the outer bwrap."""
+    bwrap runs a gate (`_GATE`) that waits on stdin; bwrap reports the namespace's
+    init on --info-fd, the pidfd is opened while the gate still waits, and only then
+    is `RELEASE` written. Every failure before that aborts through the pidfd or by
+    killing bwrap, and the gate, seeing EOF, never runs the actor."""
     if threading.current_thread() is not threading.main_thread():
         raise RuntimeError(
             "launch the sandbox from the main thread: --die-with-parent is PR_SET_PDEATHSIG, "
@@ -209,21 +214,22 @@ def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
             "held by a handle that survives pid reuse",
         )
     info_read, info_write = os.pipe()
-    block_read, block_write = os.pipe()
-    child: object = None
+    gate_read, gate_write = os.pipe()
+    gated = ["/usr/bin/sh", "-c", _GATE, "va-gate", *argv]
     try:
         process = subprocess.Popen(
-            build_argv(spec, argv, info_fd=info_write, block_fd=block_read),
-            pass_fds=(info_write, block_read),
-            stdin=subprocess.DEVNULL,
+            build_argv(spec, gated, info_fd=info_write),
+            pass_fds=(info_write,),
+            stdin=gate_read,
         )
     except BaseException:
-        for fd in (info_read, block_write):
-            os.close(fd)
+        os.close(info_read)
+        os.close(gate_write)
         raise
     finally:
         os.close(info_write)
-        os.close(block_read)
+        os.close(gate_read)
+    pidfd = -1
     try:
         try:
             info = _read_info(info_read, process)
@@ -231,21 +237,17 @@ def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
             os.close(info_read)
         child = None if info is None else info.get("child-pid")
         if type(child) is not int:
-            raise _abort(process, "bwrap reported no child in time")
+            raise SandboxUnproven("launch-failed", "bwrap", "bwrap reported no child in time")
         try:
             pidfd = os.pidfd_open(child)
-        except ProcessLookupError:
-            raise _abort(process, f"the held child {child} vanished before its handle was taken") from None
         except OSError as caught:
-            raise _abort(process, f"no handle on the held child {child}: {caught.strerror}", child) from caught
-        os.write(block_write, b"\x01")  # release the command
-    except SandboxUnproven:
-        raise
-    except BaseException:
-        # anything unanticipated: never let closing block_write release an actor
-        # nobody holds a handle on
-        _abort(process, "launch interrupted", child if type(child) is int else None)
-        raise
+            raise SandboxUnproven("launch-failed", "bwrap", f"no handle on child {child}: {caught.strerror}") from caught
+        os.write(gate_write, RELEASE)
+    except BaseException as caught:
+        _abort(process, pidfd)
+        if isinstance(caught, SandboxUnproven) or not isinstance(caught, Exception):
+            raise
+        raise SandboxUnproven("launch-failed", "bwrap", f"{type(caught).__name__}: {caught}") from caught
     finally:
-        os.close(block_write)
+        os.close(gate_write)
     return Sandboxed(process, child, pidfd)

@@ -24,9 +24,6 @@ def test_argv_shape(layout):
     for flag in ("--die-with-parent", "--new-session", "--clearenv"):
         assert flag in argv
     assert argv[argv.index("--info-fd") + 1] == "7"
-    assert "--block-fd" not in argv
-    held = build_argv(spec, ["/usr/bin/true"], info_fd=7, block_fd=8)
-    assert held[held.index("--block-fd") + 1] == "8"
     assert argv[-2:] == ["--", "/usr/bin/true"]
     scratch = str(layout["scratch"])
     assert ["--bind", scratch, scratch] == argv[argv.index("--bind"):argv.index("--bind") + 3]

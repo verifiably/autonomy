@@ -227,3 +227,40 @@ def test_close_twice_never_touches_an_unrelated_fd(tmp_path):
     finally:
         os.close(read_fd)
         os.close(write_fd)
+
+
+def open_fds() -> set[int]:
+    return {int(name) for name in os.listdir("/proc/self/fd")}
+
+
+@pytest.mark.parametrize("failure", [BrokenPipeError, KeyboardInterrupt])
+def test_a_failed_release_never_runs_the_actor_and_leaks_nothing(tmp_path, monkeypatch, failure):
+    import autonomy.sandbox.bwrap as bwrap
+
+    started = recording_popen(monkeypatch)
+    real_write = os.write
+
+    def failing_release(fd, data):
+        if data == bwrap.RELEASE:
+            raise failure()
+        return real_write(fd, data)
+
+    monkeypatch.setattr(os, "write", failing_release)
+    before = open_fds()
+    with pytest.raises((SandboxUnproven, KeyboardInterrupt)) as caught:
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/sh", "-c", "echo ran > ran"])
+    if failure is BrokenPipeError:
+        assert caught.value.code == "launch-failed"
+    assert started[0].returncode is not None  # reaped
+    assert open_fds() <= before  # the pidfd and pipes are closed
+    time.sleep(0.3)
+    assert not (tmp_path / "ran").exists()
+
+
+def test_the_actor_never_sees_the_gate(tmp_path):
+    sandboxed = launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/sh", "-c", "ls /proc/self/fd > fds"])
+    try:
+        assert sandboxed.wait(timeout=10) == 0
+    finally:
+        sandboxed.close()
+    assert sorted((tmp_path / "fds").read_text().split()) == ["0", "1", "2", "3"]  # 3 is ls's own dir fd
