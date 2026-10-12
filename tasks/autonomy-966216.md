@@ -1,15 +1,16 @@
 ---
 id: autonomy-966216
 title: "Envelope Plan A — `bwrap` argv, preflight, and the denial probe (E5)"
-status: doing
+status: done
 priority: 2
 size: s
 complexity: low
 process: direct
 owner: envelope-design
 created: 2026-10-12T12:09:47Z
-updated: 2026-10-12T15:25:11Z
+updated: 2026-10-12T15:25:35Z
 started: 2026-10-12T15:25:11Z
+completed: 2026-10-12T15:25:35Z
 depends: [autonomy-422173]
 parent: autonomy-250f4d
 tags: []
@@ -21,4 +22,8 @@ step: "Task 6: `bwrap` argv, preflight, and the denial probe (E5)"
 ## Notes
 
 - 2026-10-12T15:25:11Z (envelope-design): started
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T15:25:35Z (envelope-design): done
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T15:25:35Z (envelope-design): bwrap argv, preflight, ENOENT probe (E5); 9 tests incl. real bwrap
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
