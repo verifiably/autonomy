@@ -3,7 +3,8 @@
 **Date:** 2026-10-12
 **Status:** draft for review. Revised after review round 1, which found 3 Critical, 9
 Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
-and after round 3, which found 2 Important and 5 Minor. All of them are addressed in
+after round 3, which found 2 Important and 5 Minor; and after round 4, which found 2
+Important and 2 Minor. All of them are addressed in
 this text.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
@@ -190,16 +191,26 @@ while drafting, and the review may overturn them.
         default). Acts come in two shapes, and the lock treats them differently:
         - **A scoped act** (`ScopedWriter._act`) holds the lock across the whole act,
           so acquiring the lock drains it. There is at most one.
-        - **A route act** (a run record or a holdings observation, through
-          `session/routes.py` and the holdings boundary) takes the lock separately
-          for its intent and for its fulfil. Between those phases its execution
-          runs: a Snakemake job, or a store write. Such an act is not drained; it is
-          cut at its next phase. Its fulfil is refused `run-sealed`, and the check
-          reports it as `intent-unfulfilled`.
-     3. The endpoint kills its own execution subtree: every job a route act launched,
-        held in a process group or cgroup the endpoint owns. Store effects that a cut
-        route act had already made are left to kernel recovery, outside the interval.
-        `intent-unfulfilled` reports them.
+        - **A route act** takes the lock once per phase. Such an act is not drained;
+          it is cut at its next phase, which is refused `run-sealed`.
+          - **A run record** (`session/routes.py`) has two phases: the intent, and
+            the fulfil. Between them the confined job runs (`_execute_run`, under
+            `bwrap`) without the lock and without writing any chain.
+          - **A holdings observation** (`ledgered_seam`) has more: the intent, then
+            `store_genesis`, `store_write`, `store_move` or `store_delete`, then
+            `publish_fulfilling`. Each holds the lock for its call, so a store
+            write in progress is drained and lands before the sealed tip. Each
+            appends a store-chain registration whose `fulfills` is null; the
+            `beliefs` slice ledgers it (§4).
+
+          The check reports a cut route act as `intent-unfulfilled` (§9).
+     3. The endpoint kills its own execution subtree. The confined job's outer
+        `bwrap` is a direct child of the endpoint, in the endpoint's own process
+        group, so a process-group kill would take the endpoint with it. Instead, the
+        endpoint SIGKILLs its direct children, read from
+        `/proc/self/task/*/children`, or runs them in a child cgroup it owns. Killing
+        the outer `bwrap` takes down the job's PID namespace through
+        `--die-with-parent`, which also covers the endpoint's own death.
      4. Holding the lock and still holding the claim, it reads each written chain's
         tip with a detached read. It reports these **sealed tips** on the control
         socket and in `<run dir>/seal.json`, which it writes itself. Only then does
@@ -359,7 +370,10 @@ orchestrator that died.
      pidfd).
   2. If the endpoint is alive, it waits for `seal.json`, for at most the seal timeout
      plus 5 s.
-  3. It then SIGKILLs the endpoint and waits for it to exit.
+  3. Once `seal.json` exists, it waits on the pidfd for the endpoint to exit by
+     itself, for at most 5 s, because the endpoint writes `session-close` after
+     `seal.json`. It SIGKILLs only on a timeout, or when `seal.json` never came, and
+     then waits for the exit.
 
   Only then does it run the closing check. The disposition is at least `unwired`
   (`orchestrator-lost`), and a `quarantined` finding still takes precedence.
@@ -408,7 +422,12 @@ orchestrator that died.
 - the belief-policy and contract identities the basis reads;
 - the confinement denied-set extension that decision 11 names;
 - a fix to `reconcile`'s act matching, by `corpus` today, so that store-root acts
-  verify (§9).
+  verify (§9);
+- an `act` line for every store-chain registration a holdings act appends
+  (`store_genesis`, `store_write`, `store_move`, `store_delete`). The line's `entry`
+  is the registration, its `intent` the holdings act's intent, and its `records`
+  empty. Without it, every holdings write would be an unledgered registration in a
+  written chain.
 
 Each of these is a design slice in its own repository, frozen in a conformance cut
 there.
@@ -613,8 +632,11 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
     `run-sealed`.
   - Any other intent is `entry-foreign`, which is `quarantined`.
 - **Registration entry:**
-  - A member if an `act` line names it as `entry`, its `fulfills` is that line's
-    `intent`, and that intent is a member.
+  - A member if an `act` line names it as `entry`, that line's intent is a member,
+    and either:
+    - its `fulfills` is that intent; or
+    - it is a store-chain registration whose `fulfills` is null. This is a holdings
+      store write, ledgered under its holdings act's intent.
   - A registration fulfilling a run-actor intent that no `act` line names is
     `outcome-unknown` (`unwired`) when the ledger is incomplete.
   - Otherwise it is `entry-foreign`. This includes a write by a process that forged
@@ -629,6 +651,8 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
 - **Every `act` line:** its intent and registration must appear in the interval, with
   a settlement whose `committed` is true. Otherwise it is `act-unverified`, which is
   `unwired`.
+- **A member intent with no fulfilling registration** (only store-write lines, or
+  none) is a cut route act: `intent-unfulfilled`, which is `unwired`.
 
 **The rows:**
 
@@ -742,12 +766,12 @@ named, never passed.
 | E8 *(pending)* | a write outside the session lands as `entry-foreign` and `quarantined` | mid-run, a bare `CorpusWriter` in another process writes the corpus | the same run without it is `clean` |
 | E9 *(pending)* | after the seal, no act lands, and a write after the release falls outside the interval | an actor writing in a loop; `stop`; then open an attended session and write | the seal-less variant (test hook) puts an entry after `stop` inside the interval |
 | E10 *(pending)* | the lease seals a hung orchestrator; EOF seals a dead one | SIGSTOP the orchestrator past the lease; separately SIGKILL it; a write request is refused `run-sealed` | while renewing, the request lands |
-| E11 *(pending)* | an orphan closes `unwired` with `orchestrator-lost`; a new run on its corpus is refused until then; `run close` reads no chain while the endpoint can still write | SIGKILL the orchestrator; `run` refuses `orphaned-run`; `run close` while an act is held inside the seal timeout, and again past it | a normally closed run allows the next; a `run close` that skips the endpoint wait finalizes before the held act's entries land |
+| E11 *(pending)* | an orphan closes `unwired` with `orchestrator-lost`; a new run on its corpus is refused until then; `run close` reads no chain while the endpoint can still write | SIGKILL the orchestrator; `run` refuses `orphaned-run`; `run close` while an act is held inside the seal timeout, and again past it | a normally closed run allows the next; a `run close` that skips the endpoint wait finalizes before the held act's entries land; a `run close` that kills as soon as `seal.json` appears leaves no `session-close` |
 | E12 *(pending)* | world, basis and baseline races are seen | move the world head; change a pack binding between open and seal; write between steps 3 and 5 | an untouched run is `clean` |
 | E13 *(pending, science)* | a host process holding the token is refused `bad-peer`; a request without the token is refused | endpoint test | the actor's own request dispatches |
 | E14 *(pending, science)* | a path input outside the scratch directory, or relative, is refused `path-outside-run` | `run` with `entrypoint` naming a host file; a relative path; a symlink in scratch pointing out | the same file copied into scratch, named by its scratch path, is accepted |
 | E15 *(pending, beliefs)* | a second session on a claimed chain is refused, across processes | kernel test | sequential sessions both open |
-| E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), and a `run` act held mid-execution | an unsealed session's next act lands; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
+| E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), a `run` act held mid-execution, and a holdings act sealed between its store write and its publish | an unsealed session's next act lands; without store-write `act` lines, a clean holdings run is `quarantined`; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
 | E17 | a forged run actor with a complete ledger is `quarantined`; under an incomplete ledger it is `unwired` | unit over constructed evidence | dropping the incomplete-ledger condition makes the forged case `unwired` |
 
 ## 13. Delivery
