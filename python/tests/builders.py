@@ -47,7 +47,7 @@ def evidence(chains=(), **overrides):
         "tier_permit": PERMIT,
         "baseline_available": True,
         "ledger": ledger(),
-        "chains": tuple(chains),
+        "chains": None if chains is None else tuple(chains),
         "sealed": True,
         "seal_timeout": False,
         "orchestrator_lost": False,
