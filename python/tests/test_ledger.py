@@ -124,3 +124,8 @@ def test_load_reads_a_file(tmp_path):
     path.write_bytes(opening() + closing())
     got = load_ledger(path, SID)
     assert isinstance(got, Ledger) and got.closed
+
+
+def test_deeply_nested_json_is_malformed_not_raised():
+    # json.loads raises RecursionError, not ValueError, past the interpreter's depth
+    malformed(opening() + b"[" * 200_000 + b"\n")

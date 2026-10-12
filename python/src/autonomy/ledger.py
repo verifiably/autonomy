@@ -105,8 +105,8 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
             raise _Malformed(f"line {number}: a CRLF line ending")
         try:
             parsed = json.loads(chunk.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError) as caught:
-            raise _Malformed(f"line {number}: not JSON: {caught}") from caught
+        except (UnicodeDecodeError, ValueError, RecursionError) as caught:
+            raise _Malformed(f"line {number}: not JSON: {type(caught).__name__}") from caught
         if not isinstance(parsed, dict):
             raise _Malformed(f"line {number}: not a JSON object")
         kind = parsed.get("line")
