@@ -6,9 +6,9 @@ priority: 2
 size: l
 complexity: high
 process: planned
-owner: main
+owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T10:47:24Z
+updated: 2026-10-12T10:47:30Z
 started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
@@ -29,4 +29,6 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
 
 - 2026-10-11T20:45:02Z (main): Goal: ops-3f5aa6 (a science harness on pi). Report the done note there.
 - 2026-10-12T10:47:24Z (main): started
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T10:47:30Z (envelope-design): resumed
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
