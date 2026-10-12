@@ -100,6 +100,23 @@ def test_without_a_usable_ledger_the_runs_own_entries_stay_unwired(unusable):
     assert v.disposition == "unwired" and "entry-foreign" not in codes(v)
 
 
+@pytest.mark.parametrize("unusable", UNUSABLE)
+def test_an_intent_with_no_actor_is_foreign_with_or_without_a_ledger(unusable):
+    chains = [corpus(intent("i1"), intent("n1", actor=None))]
+    assert close(evidence(chains, ledger=unusable)).disposition == "quarantined"
+    assert close(evidence(chains, ledger=ledger())).disposition == "quarantined"
+
+
+@pytest.mark.parametrize("unusable", UNUSABLE)
+def test_a_registration_fulfilling_a_foreign_intent_quarantines_without_a_ledger(unusable):
+    # an intent outside the interval, or one under another actor, is never the run's
+    for chains in ([corpus(intent("i1"), reg("r9", "outside"))],
+                   [corpus(intent("x1", actor="session:" + "9" * 32), reg("r9", "x1"))]):
+        v = close(evidence(chains, ledger=unusable))
+        assert "r9" in [f.ref for f in v.findings if f.code == "entry-foreign"]
+        assert v.disposition == "quarantined"
+
+
 def test_without_a_usable_ledger_an_orphans_later_session_is_not_foreign():
     later = ledger(session_id=LATER_SID)
     v = close(evidence([corpus(intent("L1", actor=LATER))], ledger=None, sealed=False, basis_seal=None,

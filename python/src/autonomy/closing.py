@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-from autonomy.evidence import Intent, RunEvidence
+from autonomy.evidence import Intent, Registration, RunEvidence
 from autonomy.ledger import LedgerUnusable
 from autonomy.membership import Finding, classify
 
@@ -125,21 +125,35 @@ def close(evidence: RunEvidence) -> Verdict:
 
 
 def _ledgerless(evidence: RunEvidence) -> list[Finding]:
-    """The quarantine evidence that needs no ledger: a rewritten chain, and an intent
-    under an actor that is neither the run's nor, for an orphan with no seal, a later
-    session's. Every other entry needs the ledger to classify, and the ledger finding
-    already makes the run `unwired`."""
+    """The quarantine evidence that needs no ledger:
+
+    - a rewritten chain;
+    - an intent whose actor is not the run's (an undecodable actor included), unless,
+      for an orphan with no seal, it is a later session's;
+    - a registration fulfilling an intent that is outside the interval or is not the
+      run's (or, for an orphan, a later session's).
+
+    Every other entry needs the ledger to classify, and the ledger finding already
+    makes the run `unwired`."""
     assert evidence.chains is not None
     later_actors = {f"session:{other.session_id}" for other in evidence.later_ledgers}
-    out: list[Finding] = []
-    for chain in evidence.chains:
-        if not chain.on_chain:
-            out.append(Finding("chain-discontinuous", chain.chain_id, "the baseline tip is not on this chain"))
-            continue
+
+    def admissible(actor: str | None) -> bool:
+        return actor == evidence.run_actor or (not evidence.sealed and actor in later_actors)
+
+    live = [chain for chain in evidence.chains if chain.on_chain]
+    intents = {e.digest: e for chain in live for e in chain.entries if isinstance(e, Intent)}
+    out = [
+        Finding("chain-discontinuous", chain.chain_id, "the baseline tip is not on this chain")
+        for chain in evidence.chains
+        if not chain.on_chain
+    ]
+    for chain in live:
         for entry in chain.entries:
-            if not isinstance(entry, Intent) or entry.actor is None or entry.actor == evidence.run_actor:
-                continue
-            if not evidence.sealed and entry.actor in later_actors:
-                continue
-            out.append(Finding("entry-foreign", entry.digest, "an intent under another actor"))
+            if isinstance(entry, Intent) and not admissible(entry.actor):
+                out.append(Finding("entry-foreign", entry.digest, "an intent under another actor"))
+            elif isinstance(entry, Registration) and entry.fulfills is not None:
+                target = intents.get(entry.fulfills)
+                if target is None or not admissible(target.actor):
+                    out.append(Finding("entry-foreign", entry.digest, "a registration fulfilling an intent the run did not write"))
     return out
