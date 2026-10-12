@@ -2,8 +2,9 @@
 
 **Date:** 2026-10-12
 **Status:** draft for review. Revised after review round 1, which found 3 Critical, 9
-Important and 8 Minor problems, and after round 2, which found 7 Important and 2 Minor.
-All of them are addressed in this text.
+Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
+and after round 3, which found 2 Important and 5 Minor. All of them are addressed in
+this text.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -186,16 +187,29 @@ while drafting, and the review may overturn them.
    - **Sealed tips:** sealing has three steps.
      1. The endpoint sets the flag without taking the session lock.
      2. It acquires the session lock, with a timeout (the seal timeout, 30 s by
-        default). This drains the act in flight, of which there is at most one,
-        because `_act` holds the lock across a whole act.
-     3. Holding the lock and still holding the claim, it reads each written chain's
+        default). Acts come in two shapes, and the lock treats them differently:
+        - **A scoped act** (`ScopedWriter._act`) holds the lock across the whole act,
+          so acquiring the lock drains it. There is at most one.
+        - **A route act** (a run record or a holdings observation, through
+          `session/routes.py` and the holdings boundary) takes the lock separately
+          for its intent and for its fulfil. Between those phases its execution
+          runs: a Snakemake job, or a store write. Such an act is not drained; it is
+          cut at its next phase. Its fulfil is refused `run-sealed`, and the check
+          reports it as `intent-unfulfilled`.
+     3. The endpoint kills its own execution subtree: every job a route act launched,
+        held in a process group or cgroup the endpoint owns. Store effects that a cut
+        route act had already made are left to kernel recovery, outside the interval.
+        `intent-unfulfilled` reports them.
+     4. Holding the lock and still holding the claim, it reads each written chain's
         tip with a detached read. It reports these **sealed tips** on the control
         socket and in `<run dir>/seal.json`, which it writes itself. Only then does
         it write `session-close` and exit, releasing the claim.
 
      If the lock is not acquired in time, the endpoint reports `seal-timeout`. The
-     orchestrator then kills it, and the run closes through `seal-missing` and the
-     orphan interval rule (§3).
+     orchestrator appends that to `events.jsonl` and kills the endpoint, and the run
+     closes through `seal-missing` and the orphan interval rule (§3). An endpoint
+     whose control socket is already at EOF does the same on its own: it kills its
+     execution subtree and exits without `seal.json`.
    - **The interval:** each written chain's interval ends at its sealed tip. A
      legitimate session that opens after the claim is released therefore never lands
      inside a run's interval.
@@ -204,8 +218,10 @@ while drafting, and the review may overturn them.
    policy". So every belief is a function of the chains, which the heads capture, and
    of everything else an evaluation reads. That second part is the basis:
 
-   - the content digest of a fixed file set: every file the `beliefs` and `science`
-     distributions installed into the endpoint's environment (each distribution's
+   - the content digest of a fixed file set: every file installed into the endpoint's
+     environment by `beliefs`, `science`, and the transitive closure of their
+     `verifiably-*` requirements (`nodes` and `atoms` today; `nodes` parses every
+     record) (each distribution's
      `RECORD`, or a walk of its package tree for an editable install). These are file
      digests, not version strings, so an editable install counts. The set is fixed at
      open and re-digested at seal. A digest of the modules actually imported would grow
@@ -337,9 +353,16 @@ orchestrator that died.
 
 - **What happens to the endpoint:** it sees EOF on its control socket and seals
   within one read, writing `seal.json` itself.
-- **Closing it:** `autonomy run close <run-id>` runs the closing check. Its
-  disposition is at least `unwired` (`orchestrator-lost`), and a `quarantined`
-  finding still takes precedence.
+- **Closing it:** `autonomy run close <run-id>` waits until the endpoint can no
+  longer write before it reads any chain:
+  1. It locates the endpoint through `events.jsonl` (pid plus start time, opened as a
+     pidfd).
+  2. If the endpoint is alive, it waits for `seal.json`, for at most the seal timeout
+     plus 5 s.
+  3. It then SIGKILLs the endpoint and waits for it to exit.
+
+  Only then does it run the closing check. The disposition is at least `unwired`
+  (`orchestrator-lost`), and a `quarantined` finding still takes precedence.
 - **No `seal.json`:** if the endpoint died too, each interval ends at the last entry
   that is a member by §9's rules. Later entries are reported as `after-run`, never
   classified, because the claim no longer held.
@@ -442,7 +465,9 @@ The serialized permit is `{"kinds": [...sorted], "act_families": [...sorted],
   exist only after step 3: the session id, the ledger path, the opening basis, pids
   with their start times, the probe result, and actor start and exit.
 - **`seal.json`** is written once, by the endpoint: the sealed tips, the closing basis
-  and the seal cause (`stop`, `lease`, `eof`).
+  and the seal cause (`stop`, `lease`, `eof`). A `seal-timeout` writes no `seal.json`:
+  the orchestrator records it in `events.jsonl`, and the closing check reads it
+  there.
 - **`disposition.json`** is written once, by the closing check (§9).
 
 The launch file lives in the run directory with mode 0600. It holds the path of the
@@ -459,8 +484,8 @@ directory.
 - the read-only system binds (`/usr`, `/etc`, and the `/bin`, `/lib`, `/lib64` and
   `/sbin` symlinks);
 - the actor's own toolchain paths, each listed;
-- the scratch directory, bound read-write at its own host path, so a path means the
-  same thing inside the sandbox and to the endpoint;
+- the scratch directory, canonicalized to its real path and bound read-write there,
+  so a path means the same thing inside the sandbox and to the endpoint;
 - the endpoint socket, at the fixed path `/run/va/endpoint.sock`;
 - the token file, bound read-only at `/run/va/token`. Its host copy is mode 0600 in
   the host-side socket directory under `$XDG_RUNTIME_DIR/va/`, never in the run
@@ -484,9 +509,9 @@ environment, the baseline, a log, or any command's output.
 - the operations root;
 - `<state>`, which holds every run directory.
 
-The host-side socket directory holds only the socket and the token file. It is
-outside the denied set by construction, because it is under `$XDG_RUNTIME_DIR` and
-none of the denied roots are.
+The host-side socket directory holds only the socket and the token file. It must lie
+outside the denied set. The static check verifies that, as for every bind, and a
+configuration that puts a denied root under `$XDG_RUNTIME_DIR` fails closed at step 7.
 
 **The static check** refuses a bind whose source's real path, or whose
 `(st_dev, st_ino)` chain, is an ancestor or descendant of any denied path. A bind of
@@ -566,9 +591,15 @@ The ledger is **incomplete** when any of these holds:
 - it has no `session-close`.
 
 Only an incomplete ledger can explain a missing `act` line. Each entry is classified as
-follows. This mirrors `reconcile` (`session-outcome-unknown` only under an incomplete
-ledger, `session-entry-foreign` otherwise), except that an intent that never
-registered is `unwired`, not foreign:
+follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
+`session-entry-foreign`, with three stated divergences:
+
+- incompleteness also counts a torn tail and a missing `session-close`, where
+  `reconcile` counts only open invocations or an unreadable ledger;
+- an intent that never registered is `unwired`, not foreign;
+- act lines are matched by digest, not by `corpus`. `reconcile` matches by `corpus`,
+  so it reports `session-act-unverified` for every store-root act. The plan files that
+  disagreement in `beliefs`.
 
 - **Intent entry:**
   - A member if a ledger `act` line names it as `intent` and its decoded actor is the
@@ -708,13 +739,13 @@ named, never passed.
 | E8 *(pending)* | a write outside the session lands as `entry-foreign` and `quarantined` | mid-run, a bare `CorpusWriter` in another process writes the corpus | the same run without it is `clean` |
 | E9 *(pending)* | after the seal, no act lands, and a write after the release falls outside the interval | an actor writing in a loop; `stop`; then open an attended session and write | the seal-less variant (test hook) puts an entry after `stop` inside the interval |
 | E10 *(pending)* | the lease seals a hung orchestrator; EOF seals a dead one | SIGSTOP the orchestrator past the lease; separately SIGKILL it; a write request is refused `run-sealed` | while renewing, the request lands |
-| E11 *(pending)* | an orphan closes `unwired` with `orchestrator-lost`, and a new run on its corpus is refused until then | SIGKILL the orchestrator; `run` refuses `orphaned-run`; `run close` | a normally closed run allows the next |
+| E11 *(pending)* | an orphan closes `unwired` with `orchestrator-lost`; a new run on its corpus is refused until then; `run close` reads no chain while the endpoint can still write | SIGKILL the orchestrator; `run` refuses `orphaned-run`; `run close` while an act is held inside the seal timeout, and again past it | a normally closed run allows the next; a `run close` that skips the endpoint wait finalizes before the held act's entries land |
 | E12 *(pending)* | world, basis and baseline races are seen | move the world head; change a pack binding between open and seal; write between steps 3 and 5 | an untouched run is `clean` |
 | E13 *(pending, science)* | a host process holding the token is refused `bad-peer`; a request without the token is refused | endpoint test | the actor's own request dispatches |
 | E14 *(pending, science)* | a path input outside the scratch directory, or relative, is refused `path-outside-run` | `run` with `entrypoint` naming a host file; a relative path; a symlink in scratch pointing out | the same file copied into scratch, named by its scratch path, is accepted |
-| E17 | a forged run actor with a complete ledger is `quarantined`; under an incomplete ledger it is `unwired` | unit over constructed evidence | dropping the incomplete-ledger condition makes the forged case `unwired` |
 | E15 *(pending, beliefs)* | a second session on a claimed chain is refused, across processes | kernel test | sequential sessions both open |
-| E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes the drained in-flight act; a held act past the seal timeout gives `seal-timeout` | kernel test with an act held across the seal, released inside and past the timeout | an unsealed session's next act lands; a seal that reads tips without draining leaves the in-flight act after the sealed tip (`act-unverified`) |
+| E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), and a `run` act held mid-execution | an unsealed session's next act lands; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
+| E17 | a forged run actor with a complete ledger is `quarantined`; under an incomplete ledger it is `unwired` | unit over constructed evidence | dropping the incomplete-ledger condition makes the forged case `unwired` |
 
 ## 13. Delivery
 
