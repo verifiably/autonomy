@@ -55,7 +55,8 @@ Plan B, which builds the CLI.
 These five inputs are implied by the spec but exercised by no E row. Each has a test
 in the task named:
 
-1. **A ledger with non-UTF-8 bytes or a CRLF line** must come back as
+1. **A ledger with non-UTF-8 bytes, a CRLF line, or a non-string `line`
+   discriminator** (`[]`, `{}`, a number) must come back as
    `LedgerUnusable("ledger-malformed")`, never as an exception (Task 2).
 2. **An idle run**, with no entries in any interval and no act lines, must be
    `clean` (Task 4).
@@ -510,6 +511,8 @@ git commit -m "feat(tiers): autonomy package, test front door, tiers as permits"
 ```python
 import json
 
+import pytest
+
 from autonomy.ledger import ActLine, Ledger, LedgerUnusable, load_ledger, read_ledger
 
 SID = "a" * 32
@@ -581,6 +584,12 @@ def test_empty_is_malformed():
 
 def test_unknown_line_kind_is_malformed():
     malformed(opening() + line(line="mystery", at="x"))
+
+
+@pytest.mark.parametrize("discriminator", [[], {}, 1, None, True])
+def test_a_non_string_discriminator_is_malformed_not_raised(discriminator):
+    malformed(opening() + line(line=discriminator, at="x"))
+    malformed(line(line=discriminator, at="x"))
 
 
 def test_act_under_an_unopened_invocation_is_malformed():
@@ -754,7 +763,7 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
         if not isinstance(parsed, dict):
             raise _Malformed(f"line {number}: not a JSON object")
         kind = parsed.get("line")
-        if kind not in _KEYS:
+        if type(kind) is not str or kind not in _KEYS:  # an unhashable discriminator must not raise
             raise _Malformed(f"line {number}: unknown line kind {kind!r}")
         expected = _KEYS[kind] | ({"project"} if kind == "session-open" and "project" in parsed else set())
         if set(parsed) != expected:
@@ -1456,7 +1465,7 @@ from autonomy.closing import SEVERITY, close, disposition_of
 from autonomy.ledger import LedgerUnusable
 from autonomy.membership import Finding
 from autonomy.tiers import REPORT_ONLY
-from builders import INCOMPLETE, act, corpus, evidence, intent, ledger, reg, settle
+from builders import INCOMPLETE, LATER, LATER_SID, act, corpus, evidence, intent, ledger, reg, settle
 
 SPEC_ROWS = {
     "baseline-unavailable": "unwired", "ledger-unavailable": "unwired", "read-unavailable": "unwired",
@@ -1527,6 +1536,36 @@ def test_an_unsealed_run_skips_the_basis_comparison():
     assert "read-unavailable" not in codes(v) and "basis-moved" not in codes(v)
 
 
+UNUSABLE = [None, LedgerUnusable("a" * 32, "ledger-malformed", "line 2: bad")]
+
+
+@pytest.mark.parametrize("unusable", UNUSABLE)
+def test_a_rewritten_chain_quarantines_even_without_a_usable_ledger(unusable):
+    v = close(evidence([corpus(on_chain=False)], ledger=unusable))
+    assert "chain-discontinuous" in codes(v)
+    assert v.disposition == "quarantined"  # not hidden behind the ledger's unwired
+
+
+@pytest.mark.parametrize("unusable", UNUSABLE)
+def test_another_actors_intent_quarantines_even_without_a_usable_ledger(unusable):
+    v = close(evidence([corpus(intent("i1"), intent("x1", actor="session:" + "9" * 32))], ledger=unusable))
+    assert [f.ref for f in v.findings if f.code == "entry-foreign"] == ["x1"]
+    assert v.disposition == "quarantined"
+
+
+@pytest.mark.parametrize("unusable", UNUSABLE)
+def test_without_a_usable_ledger_the_runs_own_entries_stay_unwired(unusable):
+    v = close(evidence([corpus(intent("i1"), reg("r1", "i1"), settle("s1", "r1"))], ledger=unusable))
+    assert v.disposition == "unwired" and "entry-foreign" not in codes(v)
+
+
+def test_without_a_usable_ledger_an_orphans_later_session_is_not_foreign():
+    later = ledger(session_id=LATER_SID)
+    v = close(evidence([corpus(intent("L1", actor=LATER))], ledger=None, sealed=False, basis_seal=None,
+                       later_ledgers=(later,)))
+    assert "entry-foreign" not in codes(v) and v.disposition == "unwired"
+
+
 def test_membership_findings_reach_the_verdict():
     v = close(evidence([corpus(intent("x1", actor="session:" + "9" * 32))]))
     assert codes(v) == ["entry-foreign"] and v.disposition == "quarantined"
@@ -1573,7 +1612,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
-from autonomy.evidence import RunEvidence
+from autonomy.evidence import Intent, RunEvidence
 from autonomy.ledger import LedgerUnusable
 from autonomy.membership import Finding, classify
 
@@ -1658,10 +1697,15 @@ def close(evidence: RunEvidence) -> Verdict:
         add("read-unavailable", "chains", "a written chain's interval could not be read")
 
     ledger = evidence.ledger
-    if ledger is None:
-        add("ledger-unavailable", "ledger.v1", "the session ledger is unavailable")
-    elif isinstance(ledger, LedgerUnusable):
-        add(ledger.code, ledger.session_id, ledger.message)
+    if ledger is None or isinstance(ledger, LedgerUnusable):
+        if ledger is None:
+            add("ledger-unavailable", "ledger.v1", "the session ledger is unavailable")
+        else:
+            add(ledger.code, ledger.session_id, ledger.message)
+        if evidence.chains is not None:
+            # membership needs the ledger, but some quarantine evidence does not:
+            # an unusable ledger must never hide it behind `unwired`
+            findings.extend(_ledgerless(evidence))
     else:
         if ledger.torn_tail:
             add("ledger-malformed", ledger.session_id, "a torn tail: the last line has no newline")
@@ -1681,6 +1725,27 @@ def close(evidence: RunEvidence) -> Verdict:
             members = result.members
 
     return Verdict(disposition_of(findings), tuple(findings), members)
+
+
+def _ledgerless(evidence: RunEvidence) -> list[Finding]:
+    """The quarantine evidence that needs no ledger: a rewritten chain, and an intent
+    under an actor that is neither the run's nor, for an orphan with no seal, a later
+    session's. Every other entry needs the ledger to classify, and the ledger finding
+    already makes the run `unwired`."""
+    assert evidence.chains is not None
+    later_actors = {f"session:{other.session_id}" for other in evidence.later_ledgers}
+    out: list[Finding] = []
+    for chain in evidence.chains:
+        if not chain.on_chain:
+            out.append(Finding("chain-discontinuous", chain.chain_id, "the baseline tip is not on this chain"))
+            continue
+        for entry in chain.entries:
+            if not isinstance(entry, Intent) or entry.actor is None or entry.actor == evidence.run_actor:
+                continue
+            if not evidence.sealed and entry.actor in later_actors:
+                continue
+            out.append(Finding("entry-foreign", entry.digest, "an intent under another actor"))
+    return out
 ```
 
 - [ ] **Step 4: Run the tests to see them pass**
@@ -1957,7 +2022,7 @@ git commit -m "feat(sandbox): sandbox spec and static bind check by path and ino
 - Produces:
   - `preflight(which=shutil.which) -> None`, which raises `SandboxUnproven` with code
     `bwrap-missing` or `userns-unavailable`.
-  - `build_argv(spec, argv, *, info_fd: int | None) -> list[str]`.
+  - `build_argv(spec, argv, *, info_fd: int | None, block_fd: int | None = None) -> list[str]`.
   - `probe(spec, denied) -> None`, which raises `SandboxUnproven` with code
     `probe-reachable` or `probe-failed`.
   - `prove(spec, denied, *, which=shutil.which) -> None`: preflight, then the static
@@ -1994,6 +2059,9 @@ def test_argv_shape(layout):
     for flag in ("--die-with-parent", "--new-session", "--clearenv"):
         assert flag in argv
     assert argv[argv.index("--info-fd") + 1] == "7"
+    assert "--block-fd" not in argv
+    held = build_argv(spec, ["/usr/bin/true"], info_fd=7, block_fd=8)
+    assert held[held.index("--block-fd") + 1] == "8"
     assert argv[-2:] == ["--", "/usr/bin/true"]
     scratch = str(layout["scratch"])
     assert ["--bind", scratch, scratch] == argv[argv.index("--bind"):argv.index("--bind") + 3]
@@ -2098,7 +2166,9 @@ def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
         raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
 
 
-def build_argv(spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None) -> list[str]:
+def build_argv(
+    spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None, block_fd: int | None = None
+) -> list[str]:
     args = ["bwrap", "--unshare-all"]
     if spec.network == "host":
         args.append("--share-net")
@@ -2122,6 +2192,10 @@ def build_argv(spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None) -
     args += ["--chdir", str(spec.scratch)]
     if info_fd is not None:
         args += ["--info-fd", str(info_fd)]
+    if block_fd is not None:
+        # bwrap reports the child on --info-fd, then holds the command until this fd
+        # has data: the window in which launch() takes its pidfd (Task 7)
+        args += ["--block-fd", str(block_fd)]
     return [*args, "--", *argv]
 
 
@@ -2176,8 +2250,10 @@ git commit -m "feat(sandbox): bwrap argv, preflight, and the ENOENT denial probe
 **Interfaces:**
 - Consumes: `build_argv` (Task 6); `SandboxSpec` and `SandboxUnproven` (Task 5).
 - Produces:
-  - `launch(spec, argv) -> Sandboxed`, which raises `RuntimeError` off the main thread
-    and `SandboxUnproven("launch-failed")` when bwrap reports no child.
+  - `launch(spec, argv) -> Sandboxed`. It holds the command (`--block-fd`) until its
+    pidfd exists, then releases it. It raises `RuntimeError` off the main thread, and
+    `SandboxUnproven("launch-failed")`, after killing and reaping bwrap, when bwrap
+    reports no child or the held child vanishes before release.
   - `Sandboxed(process: subprocess.Popen, child_pid: int, pidfd: int)`, with
     `.terminate(grace: float = 10.0) -> int`, `.wait(timeout: float | None = None) -> int`
     and `.close() -> None`.
@@ -2296,6 +2372,43 @@ def test_launch_refuses_any_thread_but_the_main_one(tmp_path):
     assert len(caught) == 1 and isinstance(caught[0], RuntimeError)
 
 
+def test_a_fast_child_is_held_until_its_handle_exists(tmp_path, monkeypatch):
+    # the reviewer's reproduction: delay the handle; without --block-fd the child of
+    # /usr/bin/true is gone first and pidfd_open raises ProcessLookupError
+    real = os.pidfd_open
+
+    def slow(pid, *args):
+        time.sleep(0.3)
+        return real(pid, *args)
+
+    monkeypatch.setattr(os, "pidfd_open", slow)
+    sandboxed = launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"])
+    try:
+        assert sandboxed.wait(timeout=10) == 0
+    finally:
+        sandboxed.close()
+
+
+def test_a_child_lost_before_release_is_reaped(tmp_path, monkeypatch):
+    started: list[subprocess.Popen] = []
+    real_popen = subprocess.Popen
+
+    class Recording(real_popen):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            started.append(self)
+
+    def vanished(pid, *args):
+        raise ProcessLookupError(pid)
+
+    monkeypatch.setattr(subprocess, "Popen", Recording)
+    monkeypatch.setattr(os, "pidfd_open", vanished)
+    with pytest.raises(SandboxUnproven) as caught:
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"])
+    assert caught.value.code == "launch-failed"
+    assert len(started) == 1 and started[0].returncode is not None  # killed and reaped
+
+
 def test_a_binary_missing_from_the_sandbox_fails_promptly(tmp_path):  # Review Focus 5
     started = time.monotonic()
     try:
@@ -2385,30 +2498,57 @@ def _read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
         return value if isinstance(value, dict) else None
 
 
+def _abort(process: subprocess.Popen, message: str) -> SandboxUnproven:
+    """Reap a launch that failed before its command was released."""
+    if process.poll() is None:
+        process.kill()  # the outer bwrap; --die-with-parent takes the held child with it
+    process.wait()
+    return SandboxUnproven("launch-failed", "bwrap", f"{message} (exit {process.returncode})")
+
+
 def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
+    """Start the actor so that its handle exists before it can run.
+
+    bwrap writes the child's pid on --info-fd and then holds the command until
+    --block-fd has data. The pidfd is opened inside that window, so a command that
+    exits at once (or a reused pid) can never be missed; only then is the command
+    released. A failure before release kills and reaps the outer bwrap."""
     if threading.current_thread() is not threading.main_thread():
         raise RuntimeError(
             "launch the sandbox from the main thread: --die-with-parent is PR_SET_PDEATHSIG, "
             "which fires when the spawning thread exits"
         )
-    read_fd, write_fd = os.pipe()
+    info_read, info_write = os.pipe()
+    block_read, block_write = os.pipe()
     try:
         process = subprocess.Popen(
-            build_argv(spec, argv, info_fd=write_fd),
-            pass_fds=(write_fd,),
+            build_argv(spec, argv, info_fd=info_write, block_fd=block_read),
+            pass_fds=(info_write, block_read),
             stdin=subprocess.DEVNULL,
         )
+    except BaseException:
+        for fd in (info_read, block_write):
+            os.close(fd)
+        raise
     finally:
-        os.close(write_fd)
+        os.close(info_write)
+        os.close(block_read)
     try:
-        info = _read_info(read_fd, process)
+        try:
+            info = _read_info(info_read, process)
+        finally:
+            os.close(info_read)
+        child = None if info is None else info.get("child-pid")
+        if type(child) is not int:
+            raise _abort(process, "bwrap reported no child")
+        try:
+            pidfd = os.pidfd_open(child)
+        except ProcessLookupError:
+            raise _abort(process, f"the held child {child} vanished before its handle was taken") from None
+        os.write(block_write, b"\x01")  # release the command
     finally:
-        os.close(read_fd)
-    child = None if info is None else info.get("child-pid")
-    if type(child) is not int:
-        process.wait()
-        raise SandboxUnproven("launch-failed", "bwrap", f"bwrap reported no child (exit {process.returncode})")
-    return Sandboxed(process, child, os.pidfd_open(child))
+        os.close(block_write)
+    return Sandboxed(process, child, pidfd)
 ```
 
 - [ ] **Step 4: Run the tests to see them pass**
