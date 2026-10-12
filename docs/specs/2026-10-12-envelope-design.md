@@ -3,8 +3,9 @@
 **Date:** 2026-10-12
 **Status:** draft for review. Revised after review round 1, which found 3 Critical, 9
 Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
-after round 3, which found 2 Important and 5 Minor; and after round 4, which found 2
-Important and 2 Minor. All of them are addressed in
+after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
+Important and 2 Minor; and after round 5, which found 1 Important and 5 Minor. All of
+them are addressed in
 this text.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
@@ -197,20 +198,26 @@ while drafting, and the review may overturn them.
             the fulfil. Between them the confined job runs (`_execute_run`, under
             `bwrap`) without the lock and without writing any chain.
           - **A holdings observation** (`ledgered_seam`) has more: the intent, then
-            `store_genesis`, `store_write`, `store_move` or `store_delete`, then
+            `store_write`, `store_move` or `store_delete`, then
             `publish_fulfilling`. Each holds the lock for its call, so a store
             write in progress is drained and lands before the sealed tip. Each
-            appends a store-chain registration whose `fulfills` is null; the
-            `beliefs` slice ledgers it (§4).
+            store operation appends a store-chain registration whose `fulfills` is
+            null, plus its settlement; the `beliefs` slice ledgers it (§4).
+            `store_genesis` and `read_path` are guarded reads that append nothing.
 
           The check reports a cut route act as `intent-unfulfilled` (§9).
      3. The endpoint kills its own execution subtree. The confined job's outer
         `bwrap` is a direct child of the endpoint, in the endpoint's own process
         group, so a process-group kill would take the endpoint with it. Instead, the
-        endpoint SIGKILLs its direct children, read from
-        `/proc/self/task/*/children`, or runs them in a child cgroup it owns. Killing
-        the outer `bwrap` takes down the job's PID namespace through
+        endpoint runs its jobs in a child cgroup it owns and kills that cgroup.
+        Killing the outer `bwrap` takes down the job's PID namespace through
         `--die-with-parent`, which also covers the endpoint's own death.
+
+        Where no delegated cgroup is available, the endpoint SIGKILLs its direct
+        children (`/proc/self/task/*/children`). That list can miss a `bwrap`
+        spawned concurrently by a run act whose intent preceded the flag. Such a job
+        writes no chain, because its fulfil is refused, and `--die-with-parent`
+        kills it when the endpoint exits.
      4. Holding the lock and still holding the claim, it reads each written chain's
         tip with a detached read. It reports these **sealed tips** on the control
         socket and in `<run dir>/seal.json`, which it writes itself. Only then does
@@ -424,9 +431,12 @@ orchestrator that died.
 - a fix to `reconcile`'s act matching, by `corpus` today, so that store-root acts
   verify (§9);
 - an `act` line for every store-chain registration a holdings act appends
-  (`store_genesis`, `store_write`, `store_move`, `store_delete`). The line's `entry`
-  is the registration, its `intent` the holdings act's intent, and its `records`
-  empty. Without it, every holdings write would be an unledgered registration in a
+  (`store_write`, `store_move`, `store_delete`). The line carries:
+  - `entry`: the registration. It is resolved by the transaction's `txid`, through a
+    read-back inside the same lock hold, because the store outcome returns no
+    registration digest and its null `fulfills` rules out the usual lookup;
+  - `intent`: the holdings act's intent; for a move, the move-source intent;
+  - `records`: empty. Without it, every holdings write would be an unledgered registration in a
   written chain.
 
 Each of these is a design slice in its own repository, frozen in a conformance cut
@@ -637,8 +647,12 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
     - its `fulfills` is that intent; or
     - it is a store-chain registration whose `fulfills` is null. This is a holdings
       store write, ledgered under its holdings act's intent.
-  - A registration fulfilling a run-actor intent that no `act` line names is
-    `outcome-unknown` (`unwired`) when the ledger is incomplete.
+  - Under an incomplete ledger, `outcome-unknown` (`unwired`) covers two cases:
+    - a registration fulfilling a run-actor intent that no `act` line names;
+    - a store-chain registration whose `fulfills` is null and that no `act` line
+      names, when the interval holds a run-actor holdings intent whose location is
+      among the registration's registered paths. This is a crash between a store
+      commit and its `act` line.
   - Otherwise it is `entry-foreign`. This includes a write by a process that forged
     the run's actor string, which can be read from the run directory; with a
     complete ledger, nothing but a foreign writer explains it.
@@ -664,7 +678,7 @@ follows. This mirrors `reconcile`'s split between `session-outcome-unknown` and
 | a baseline tip is not on its chain (the chain was rewritten) | `chain-discontinuous` | `quarantined` |
 | an entry that neither the ledger nor the run's actor explains | `entry-foreign` | `quarantined` |
 | a run-actor registration with no `act` line, under an incomplete ledger | `outcome-unknown` | `unwired` |
-| a run-actor intent with no `act` line and no registration | `intent-unfulfilled` | `unwired` |
+| a run-actor intent with no fulfilling registration (no `act` line, or only store-write lines) | `intent-unfulfilled` | `unwired` |
 | the endpoint could not drain the in-flight act in time | `seal-timeout` | `unwired` |
 | a ledger `act` not verified in the interval | `act-unverified` | `unwired` |
 | the world head moved | `world-moved` | `quarantined` |
@@ -771,7 +785,7 @@ named, never passed.
 | E13 *(pending, science)* | a host process holding the token is refused `bad-peer`; a request without the token is refused | endpoint test | the actor's own request dispatches |
 | E14 *(pending, science)* | a path input outside the scratch directory, or relative, is refused `path-outside-run` | `run` with `entrypoint` naming a host file; a relative path; a symlink in scratch pointing out | the same file copied into scratch, named by its scratch path, is accepted |
 | E15 *(pending, beliefs)* | a second session on a claimed chain is refused, across processes | kernel test | sequential sessions both open |
-| E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), a `run` act held mid-execution, and a holdings act sealed between its store write and its publish | an unsealed session's next act lands; without store-write `act` lines, a clean holdings run is `quarantined`; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
+| E16 *(pending, beliefs, science)* | `seal()` refuses the next act; the sealed tip includes a drained scoped act; a route act held between intent and fulfil is cut (`intent-unfulfilled`) and its job killed; a held act past the seal timeout gives `seal-timeout` | kernel and endpoint tests with a scoped act held across the seal (released inside and past the timeout), a `run` act held mid-execution, and a holdings act sealed between its store write and its publish, and an endpoint killed between a store commit and its `act` line | an unsealed session's next act lands; the kill case is `unwired` (`outcome-unknown`), and without the store clause it is `quarantined`; without store-write `act` lines, a clean holdings run is `quarantined`; a seal that reads tips without draining leaves the scoped act after the sealed tip (`act-unverified`); without the subtree kill, the job outlives the endpoint |
 | E17 | a forged run actor with a complete ledger is `quarantined`; under an incomplete ledger it is `unwired` | unit over constructed evidence | dropping the incomplete-ledger condition makes the forged case `unwired` |
 
 ## 13. Delivery
