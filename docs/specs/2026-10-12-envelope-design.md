@@ -429,9 +429,9 @@ orchestrator that died.
   ended. A commit that became durable just before the death, with no `act` line yet,
   is exactly the effect that needs investigating. So the tail is never dropped:
   - Each interval ends at the **closing head**, read after the endpoint is confirmed
-    dead, and every entry in it is classified by §9's rules. The run's own
-    unledgered commits come out `outcome-unknown`, and anything else unexplained
-    comes out `entry-foreign`.
+    dead, and every entry in it is classified by §9's rules. The run's one crash
+    transaction comes out `outcome-unknown` (§9 *Transactions and the crash
+    allowance*), and anything else unexplained comes out `entry-foreign`.
   - The one exception needs independent boundary evidence: another session's ledger.
     Ledgers are read from `<operations root>/sessions/`, on the host side.
     1. **Find the boundary.** It is the first entry in the tail that carries
