@@ -8,12 +8,13 @@ complexity: high
 process: planned
 owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T11:57:37Z
+updated: 2026-10-12T12:09:45Z
 started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
 agent: claude-code
 spec: docs/specs/2026-10-12-envelope-design.md
+plan: docs/plans/2026-10-12-envelope-plan-a.md
 ---
 
 The first autonomy work, and the condition for any unattended run. Piece of the science-harness-on-pi goal (ops, filed 2026-10-11): its step 3, a bounded unattended run, cannot start before this exists, so the envelope proceeds beside the attended probe rather than after it; the probe discovers practical requirements and this establishes the conditions.
