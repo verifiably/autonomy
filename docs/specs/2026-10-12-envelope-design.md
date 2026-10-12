@@ -391,7 +391,8 @@ orchestrator that died.
 
 - `serve --run <launch file>`;
 - the token and peer-namespace check (§7);
-- the control socket (lease, seal, reports, `seal.json`);
+- the control socket (lease, seal, reports, `seal.json`), and the endpoint's own
+  execution subtree, killed at the seal;
 - the `run-sealed` refusal mapping;
 - the path-input confinement and the dispatch refusal of decision 11;
 - `mcp bridge`, a client-only bridge to a handle;
@@ -405,7 +406,9 @@ orchestrator that died.
 - `WriterSession.seal()`;
 - a detached read of the entries after a tip;
 - the belief-policy and contract identities the basis reads;
-- the confinement denied-set extension that decision 11 names.
+- the confinement denied-set extension that decision 11 names;
+- a fix to `reconcile`'s act matching, by `corpus` today, so that store-root acts
+  verify (§9).
 
 Each of these is a design slice in its own repository, frozen in a conformance cut
 there.
