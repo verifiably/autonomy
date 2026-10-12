@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T11:03:43Z
+updated: 2026-10-12T11:10:25Z
 started: 2026-10-12T10:47:24Z
 depends: []
 tags: [design]
@@ -35,3 +35,4 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
   provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-12T10:57:33Z (envelope-design): spec drafted at docs/specs/2026-10-12-envelope-design.md; drafting decisions: belief basis = derivation context digest (kernel has no concept), run writes one corpus, kernel cross-process corpus claim, lease at endpoint via control socket, bwrap sandbox, autonomy-owned closing comparison
 - 2026-10-12T11:03:43Z (envelope-design): review: spec round 1 — verdict: revise; findings: Critical 3, Important 9, Minor 8; reviewer: claude-code/claude-opus-5-5
+- 2026-10-12T11:10:25Z (envelope-design): review: spec round 2 — verdict: revise; findings: Important 7, Minor 2; reviewer: claude-code/claude-opus-5-5
