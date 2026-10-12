@@ -7,8 +7,8 @@ size: s
 complexity: low
 process: direct
 created: 2026-10-12T12:09:46Z
-updated: 2026-10-12T12:09:46Z
-depends: []
+updated: 2026-10-12T12:09:56Z
+depends: [autonomy-c264b2]
 parent: autonomy-250f4d
 tags: []
 agent: claude-code/claude-opus-5-5
