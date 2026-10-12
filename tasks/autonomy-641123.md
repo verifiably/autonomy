@@ -7,8 +7,8 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-12T12:10:25Z
-depends: []
+updated: 2026-10-12T12:10:26Z
+depends: [beliefs-7a56ef]
 tags: []
 agent: claude-code/claude-opus-5-5
 ---
