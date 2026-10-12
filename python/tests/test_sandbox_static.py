@@ -86,3 +86,29 @@ def test_bind_sources_lists_every_source(layout):
                        socket=sock_dir / "endpoint.sock", token=sock_dir / "token")
     assert spec.bind_sources() == (Path("/usr"), Path("/etc"), layout["tools"], layout["scratch"],
                                    sock_dir / "endpoint.sock", sock_dir / "token")
+
+
+def test_a_symlink_loop_is_typed(layout):
+    loop = layout["tmp"] / "loop"
+    loop.symlink_to(loop)
+    refused(SandboxSpec(scratch=loop), layout, code="bind-unreadable")
+
+
+def test_an_unreadable_bind_source_is_typed(layout):
+    locked = layout["tmp"] / "locked"
+    inner = locked / "scratch"
+    inner.mkdir(parents=True)
+    locked.chmod(0)
+    try:
+        refused(SandboxSpec(scratch=inner), layout, code="bind-unreadable")
+    finally:
+        locked.chmod(0o755)
+
+
+def test_a_missing_denied_path_under_a_bind_is_refused(layout):
+    # the store root is configured but not created yet; the actor could plant it
+    store = layout["scratch"] / "store"
+    with pytest.raises(SandboxUnproven) as caught:
+        check_binds(SandboxSpec(scratch=layout["scratch"]), (*denied(layout), store))
+    assert caught.value.code == "bind-overlaps-denied"
+

@@ -30,24 +30,33 @@ def _ancestry(path: Path) -> set[tuple[int, int]]:
     return {_identity(p) for p in (path, *path.parents)}
 
 
+def _target(path: Path) -> tuple[Path, tuple[int, int] | None, set[tuple[int, int]]]:
+    """A denied path for comparison. One that does not exist yet (an unconfigured
+    store root) or cannot be stat'ed still takes part by path; only the inode
+    comparisons need it to exist."""
+    real = path.resolve(strict=False)
+    try:
+        return real, _identity(real), _ancestry(real)
+    except OSError:
+        return real, None, set()
+
+
 def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
-    targets: list[tuple[Path, tuple[int, int], set[tuple[int, int]]]] = []
-    for path in denied:
-        real = path.resolve()
-        if real.exists():
-            targets.append((real, _identity(real), _ancestry(real)))
+    targets = [_target(path) for path in denied]
     for source in spec.bind_sources():
         try:
             real = source.resolve(strict=True)
-        except (FileNotFoundError, RuntimeError) as caught:
+            identity, ancestry = _identity(real), _ancestry(real)
+        except FileNotFoundError as caught:
             raise SandboxUnproven("bind-missing", str(source), f"a bind source must exist: {caught}") from caught
-        identity, ancestry = _identity(real), _ancestry(real)
+        except (OSError, RuntimeError) as caught:
+            raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must resolve: {caught}") from caught
         for target, target_identity, target_ancestry in targets:
             overlaps = (
                 real == target
                 or real.is_relative_to(target)
                 or target.is_relative_to(real)
-                or target_identity in ancestry
+                or (target_identity is not None and target_identity in ancestry)
                 or identity in target_ancestry
             )
             if overlaps:
