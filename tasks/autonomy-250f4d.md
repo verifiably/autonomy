@@ -1,15 +1,16 @@
 ---
 id: autonomy-250f4d
 title: "Envelope design (sub-project 6): actor sandbox, baseline with log heads, tiers as permits, ledger-checked interval membership, dispositions, lease"
-status: doing
+status: done
 priority: 2
 size: l
 complexity: high
 process: planned
 owner: envelope-design
 created: 2026-10-11T20:43:09Z
-updated: 2026-10-12T15:48:29Z
+updated: 2026-10-12T15:49:05Z
 started: 2026-10-12T10:47:24Z
+completed: 2026-10-12T15:49:05Z
 depends: []
 tags: [design]
 agent: claude-code
@@ -69,3 +70,7 @@ Deliver a reviewed spec under docs/specs/ (the first file there), then a plan.
 - 2026-10-12T15:36:02Z (envelope-design): review: impl round 1 — verdict: revise; findings: Critical 0, Important 5, Minor 8; reviewer: claude-code/claude-opus-5-5
 - 2026-10-12T15:43:32Z (envelope-design): review: impl round 2 — verdict: revise; findings: Important 2, Minor 4; reviewer: claude-code/claude-opus-5-5
 - 2026-10-12T15:48:29Z (envelope-design): review: impl round 3 — verdict: accept; findings: Minor 4; reviewer: claude-code/claude-opus-5-5
+- 2026-10-12T15:49:05Z (envelope-design): done
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-12T15:49:05Z (envelope-design): Envelope spec (docs/specs/2026-10-12-envelope-design.md, approved round 10) and Plan A implemented: tiers, ledger.v1 reader, closing check (membership, crash allowance, orphan tail, rows), bwrap sandbox with static check, probe, gated launch (rows E1–E6, E17); 298 tests; whole-branch review accepted after 2 fix rounds. Follow-ups: beliefs-7a56ef, sci-a1d45f, autonomy-641123 (Plan B), autonomy-6b1f9f (deferred minors).
+  provenance: {"harness_session":"claude-code:cf736119-9fea-4ff1-af51-5dd74be0a1c0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
