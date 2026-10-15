@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T12:03:28Z
+updated: 2026-10-15T12:25:39Z
 started: 2026-10-15T11:36:01Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
@@ -37,4 +37,6 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
 - 2026-10-15T12:01:27Z (spec/stdio): review: spec round 4 — verdict: revise; findings: Important 1, Minor 7; reviewer: claude-code
 - 2026-10-15T12:03:14Z (spec/stdio): review: spec round 5 — verdict: accept; findings: Minor 3; reviewer: claude-code
 - 2026-10-15T12:03:28Z (spec/stdio): parked (waiting on user, review): User reviews the envelope amendment (decision 12 and its §3/§5/§6/§7/§8/§10/§12 E20/§13/§14 edits) on branch spec/stdio in .worktrees/spec-stdio. On approval the agent: marks the header approved, files the crew stop-path task and the sci-a1d45f note (see earlier note), merges spec/stdio, tasks done.
+  provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T12:25:39Z (spec/stdio): resumed
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
