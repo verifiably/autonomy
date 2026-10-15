@@ -1680,6 +1680,17 @@ def test_an_interrupted_disposition_publishes_nothing_and_a_retry_succeeds(tmp_p
     assert json.loads((tmp_path / "disposition.json").read_text())["disposition"] == "unwired"
 
 
+def test_an_interruption_at_the_directory_fsync_leaves_a_complete_record_and_a_retry_is_refused(tmp_path, monkeypatch):
+    with monkeypatch.context() as patch:
+        patch.setattr("autonomy.run.fsync_dir", _interrupted)
+        with pytest.raises(KeyboardInterrupt):
+            write_disposition(tmp_path, "r1", "unwired", [FINDING])
+    assert json.loads((tmp_path / "disposition.json").read_text())["disposition"] == "unwired"
+    assert [p.name for p in tmp_path.iterdir()] == ["disposition.json"]  # no temporary left
+    with pytest.raises(FileExistsError):
+        write_disposition(tmp_path, "r1", "unwired", [FINDING])
+
+
 def test_a_temporary_left_by_a_killed_writer_does_not_block_the_retry(tmp_path):
     (tmp_path / ".disposition.json.0123456789abcdef.tmp").write_text('{"version": 1, "run"')  # torn
     write_disposition(tmp_path, "r1", "unwired", [FINDING])
@@ -1922,10 +1933,12 @@ def endpoint_side_unbuilt(opened: Opened) -> tuple[Finding, ...]:
 def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding]) -> None:
     """Published once and atomically, before the closing line. The record is written
     and fsynced under a temporary name in the run directory, then hard-linked to its
-    final name: `link` refuses a name that exists, so a disposition is never replaced,
-    and an interruption at any point leaves no `disposition.json` and lets a retry
-    succeed. A writer killed outright leaves only its temporary behind. The directory
-    is fsynced last."""
+    final name: `link` refuses a name that exists, so a disposition is never replaced.
+    The contract is absent before publication, complete after it. An interruption
+    before the link leaves no `disposition.json`, and a retry succeeds. An interruption
+    after the link (at the final directory fsync) leaves a complete `disposition.json`,
+    and a retry raises `FileExistsError`. A writer killed outright before the link
+    leaves only its temporary behind. The directory is fsynced last."""
     record = {
         "version": 1,
         "run": run_id,
