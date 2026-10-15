@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T13:05:50Z
+updated: 2026-10-15T13:05:51Z
 started: 2026-10-15T13:05:33Z
 depends: [autonomy-250f4d, autonomy-a41de4]
 tags: []
@@ -22,3 +22,4 @@ Spec §13 item 4, first half: the parts of Plan B that need nothing from the bel
 - 2026-10-15T11:50:33Z (spec/stdio): From autonomy-a41de4's review: the envelope spec leans on a wall-clock bound (§3 Close, decision 12) but gives it no value or option anywhere; Plan B picks one.
 - 2026-10-15T13:05:33Z (main): started
   provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T13:05:51Z (main): split: Plan B as filed was blocked on beliefs-7a56ef and sci-a1d45f (both unstarted). Spec §13 item 4's launch-side half needs neither, so this task keeps it and Plan B2 takes science_reads, baseline, endpoint, steps 3–8, close and run close/stop, E7–E12 and E20's full-run arm. Overlap risk: autonomy-6b1f9f also edits the sandbox launch.
