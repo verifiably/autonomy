@@ -3,7 +3,9 @@
 `autonomy run` never reads fd 0 and never writes fd 1, help and refusals included:
 both belong to the actor. Diagnostics go to fd 2 through a non-blocking channel,
 truncated to one write each, and are for a person only. The record is the exit code,
-the run directory and the report fd."""
+the run directory and the report fd. No exception reaches CPython's default hook,
+whose traceback would be a blocking write to fd 2: `main` returns an exit code on
+every path."""
 
 from __future__ import annotations
 
@@ -12,34 +14,44 @@ import functools
 import math
 import os
 import select
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from autonomy.channel import LineChannel
-from autonomy.run import EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, RunRefused, RunRequest, endpoint_side_unbuilt, execute
+from autonomy.run import (
+    EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, Diag, Progress, RunRefused, RunRequest,
+    endpoint_side_unbuilt, execute,
+)
 from autonomy.tiers import TierRefused, tier
 
-Diag = Callable[[str], None]
 _PREFIX = "autonomy: "
+_FD_LIMIT = 2**31  # a descriptor number is a C int
+_EXIT_LEFT = EXIT_CODES["unwired"]
+"""A run whose directory exists but that ended without its close: left for `run close`."""
 
 
-def _diagnostics() -> Diag:
-    """Diagnostics on fd 2. The channel is opened at the first diagnostic, never
-    before: it may open a descriptor, and one opened while fd 0 is closed would take
-    number 0 and pass step 2's check. Every diagnostic a run that goes on emits
+class _Diagnostics:
+    """Diagnostics on fd 2, a `Diag`. The channel is opened at the first diagnostic,
+    never before: it may open a descriptor, and one opened while fd 0 is closed would
+    take number 0 and pass step 2's check. Every diagnostic a run that goes on emits
     follows step 2; one emitted earlier (a usage error, a refused tier) ends the
-    process."""
-    limit = select.PIPE_BUF - 1  # room for the newline
-    channel: LineChannel | None = None
+    process. `main` closes it before returning: a socket left to interpreter shutdown
+    can warn there, on the blocking `sys.stderr`."""
 
-    def diag(message: str) -> None:
-        nonlocal channel
-        if channel is None:
-            channel = LineChannel(2)
+    _limit = select.PIPE_BUF - 1  # room for the newline
+
+    def __init__(self) -> None:
+        self._channel: LineChannel | None = None
+
+    def __call__(self, message: str) -> None:
+        if self._channel is None:
+            self._channel = LineChannel(2)
         for line in message.splitlines():
-            data = (_PREFIX + line).encode("utf-8", "replace")[:limit]
-            channel.write_line(data.decode("utf-8", "ignore"))  # a dropped diagnostic is ignored
+            data = (_PREFIX + line).encode("utf-8", "replace")[: self._limit]
+            self._channel.write_line(data.decode("utf-8", "ignore"))  # a dropped diagnostic is ignored
 
-    return diag
+    def close(self) -> None:
+        if self._channel is not None:
+            self._channel.close()
 
 
 class _Stop(Exception):
@@ -77,7 +89,7 @@ def _seconds(text: str) -> float:
 
 
 def _fd(text: str) -> int:
-    if not text.isdigit():
+    if not (text.isascii() and text.isdigit()) or int(text) >= _FD_LIMIT:
         raise argparse.ArgumentTypeError(f"{text!r} is not a descriptor number")
     return int(text)
 
@@ -116,7 +128,7 @@ def _parser(diag: Diag) -> _Parser:
     return parser
 
 
-def _run(args: argparse.Namespace, diag: Diag) -> int:
+def _run(args: argparse.Namespace, diag: Diag, progress: Progress) -> int:
     try:
         routes = dict(args.route)
         if len(routes) != len(args.route):
@@ -126,16 +138,41 @@ def _run(args: argparse.Namespace, diag: Diag) -> int:
         except TierRefused as caught:
             raise RunRefused(caught.code, str(caught).removeprefix(f"{caught.code}: ")) from None
         request = RunRequest(chosen, args.lease, args.report_fd, tuple(args.actor))
-        return execute(request, os.environ, endpoint_side_unbuilt, diag=diag)
+        return execute(request, os.environ, endpoint_side_unbuilt, diag=diag, progress=progress)
     except RunRefused as caught:
         diag(f"refused: {caught.code}: {caught.message}")
         return EXIT_REFUSED
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    diag = _diagnostics()
+def _unexpected(caught: BaseException, diag: Diag, progress: Progress) -> int:
+    """The last resort for an exception nothing else handles, SIGINT's
+    `KeyboardInterrupt` included: one diagnostic line, then exit 2 when no run
+    directory exists, or 4 when one does. That run has no `disposition.json` and is
+    left for `run close`, and `execute` has already closed its report fd; without a
+    run directory, the process's exit closes it."""
+    status = EXIT_REFUSED if progress.dirs is None else _EXIT_LEFT
     try:
-        args = _parser(diag).parse_args(argv)
-    except _Stop as stop:
-        return stop.status
-    return _run(args, diag)
+        message = " ".join(str(caught).splitlines())
+        what = f"{type(caught).__name__}: {message}" if message else type(caught).__name__
+        if progress.dirs is None:
+            diag(f"failed: {what}")
+        else:
+            diag(f"run {progress.dirs.run_id} stopped by {what}; {progress.dirs.run_dir} is left for run close")
+    except BaseException:
+        pass  # a diagnostic that cannot be written is ignored (decision 12); the exit code is the record
+    return status
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    diag = _Diagnostics()
+    progress = Progress()
+    try:
+        try:
+            args = _parser(diag).parse_args(argv)
+        except _Stop as stop:
+            return stop.status
+        return _run(args, diag, progress)
+    except BaseException as caught:
+        return _unexpected(caught, diag, progress)
+    finally:
+        diag.close()

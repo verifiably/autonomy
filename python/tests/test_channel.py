@@ -1,3 +1,4 @@
+import errno
 import os
 import socket
 import subprocess
@@ -54,6 +55,18 @@ def test_a_closed_descriptor_drops_every_line():
     os.close(closed)
     line = LineChannel(closed)
     assert line.write_line("lost") is False and line.dropped
+
+
+def test_a_socket_that_cannot_be_duplicated_drops_every_line(monkeypatch):  # I1: EMFILE
+    def no_descriptor_left(fd):
+        raise OSError(errno.EMFILE, os.strerror(errno.EMFILE))
+
+    mine, theirs = socket.socketpair()
+    with mine, theirs:
+        with monkeypatch.context() as patch:
+            patch.setattr(channel.os, "dup", no_descriptor_left)
+            line = LineChannel(mine.fileno())
+        assert line.write_line("lost") is False and line.dropped
 
 
 def test_an_appended_log_is_never_written(tmp_path):  # a reopen would lose O_APPEND and the offset

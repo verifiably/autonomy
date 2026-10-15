@@ -1,5 +1,6 @@
 import json
 import os
+import pwd
 import stat
 from pathlib import Path
 
@@ -9,7 +10,7 @@ import autonomy.channel as channel
 from autonomy.baseline import append_event
 from autonomy.membership import Finding
 from autonomy.run import (
-    RunRefused, RunRequest, allocate, endpoint_side_unbuilt, execute, places, write_disposition,
+    Progress, RunRefused, RunRequest, allocate, endpoint_side_unbuilt, execute, places, write_disposition,
 )
 from autonomy.tiers import REPORT_ONLY
 from channels import drain, fill, one_page_pipe, read_all
@@ -58,7 +59,7 @@ def test_a_run_closes_with_its_disposition_and_both_report_lines(tmp_path, env, 
     read_end, write_end = os.pipe()
     said: list[str] = []
     try:
-        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=said.append, actor_fds=actor)
+        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=said.append, actor_fds=actor, progress=Progress())
         lines = read_all(read_end).decode().splitlines()  # EOF: execute closed the report fd
     finally:
         os.close(read_end)
@@ -84,14 +85,14 @@ def test_the_closing_line_follows_a_durable_disposition(tmp_path, env, actor, mo
     )
     read_end, write_end = os.pipe()
     try:
-        execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor)
+        execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
     finally:
         os.close(read_end)
     assert seen == [[], ["disposition.json"]]
 
 
 def test_without_a_report_fd_only_the_exit_code_tells(tmp_path, env, actor):
-    assert execute(request(), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor) == 4
+    assert execute(request(), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress()) == 4
     assert len(runs(tmp_path)) == 1
 
 
@@ -99,7 +100,7 @@ def test_a_full_report_pipe_never_holds_the_run(tmp_path, env, actor):
     read_end, write_end = one_page_pipe()
     fill(write_end)  # never read
     try:
-        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor)
+        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
     finally:
         os.close(read_end)
     assert code == 4
@@ -110,7 +111,7 @@ def test_a_full_report_pipe_never_holds_the_run(tmp_path, env, actor):
 
 def test_a_lease_below_the_floor_is_refused_before_anything_exists(tmp_path, env, actor):
     with pytest.raises(RunRefused) as caught:
-        execute(request(lease=5.0), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor)
+        execute(request(lease=5.0), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
     assert caught.value.code == "lease-below-floor"
     assert not (tmp_path / "state" / "verifiably-autonomy").exists()
 
@@ -121,7 +122,7 @@ def test_refused_stdio_allocates_nothing_and_writes_nothing_on_the_report_fd(tmp
     try:
         with pytest.raises(RunRefused) as caught:
             execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None,
-                    actor_fds=(actor[0], actor[1], regular))
+                    actor_fds=(actor[0], actor[1], regular), progress=Progress())
         assert drain(read_end) == b""
     finally:
         for fd in (regular, read_end, write_end):
@@ -136,7 +137,7 @@ def test_a_report_fd_on_the_actors_channel_is_refused(tmp_path, env, actor):
     try:
         with pytest.raises(RunRefused) as caught:
             execute(request(duplicate), env, endpoint_side_unbuilt, diag=lambda _: None,
-                    actor_fds=(actor[0], write_end, actor[2]))
+                    actor_fds=(actor[0], write_end, actor[2]), progress=Progress())
     finally:
         for fd in (read_end, write_end, duplicate):
             os.close(fd)
@@ -146,7 +147,7 @@ def test_a_report_fd_on_the_actors_channel_is_refused(tmp_path, env, actor):
 def test_an_unset_runtime_dir_is_refused(tmp_path, env, actor):  # Review Focus 5
     del env["XDG_RUNTIME_DIR"]
     with pytest.raises(RunRefused) as caught:
-        execute(request(), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor)
+        execute(request(), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
     assert caught.value.code == "runtime-dir-unset"
     assert runs(tmp_path) == []
 
@@ -158,6 +159,105 @@ def test_an_empty_or_relative_xdg_directory_is_ignored(tmp_path, env, value):  #
     where = places(env)
     assert where.state == tmp_path / "home" / ".local" / "state" / "verifiably-autonomy"
     assert where.cache == tmp_path / "home" / ".cache" / "verifiably-autonomy"
+
+
+@pytest.mark.parametrize("value", ["", "relative/runtime"])
+def test_an_empty_or_relative_runtime_dir_is_refused_as_unset(env, value):
+    env["XDG_RUNTIME_DIR"] = value
+    with pytest.raises(RunRefused) as caught:
+        places(env)
+    assert caught.value.code == "runtime-dir-unset"
+
+
+def passwd_home(monkeypatch, home: Path | None) -> None:
+    """Stand in for the passwd entry: `home`, or no entry for this uid."""
+    def getpwuid(uid):
+        if home is None:
+            raise KeyError(f"getpwuid(): uid not found: {uid}")
+        return pwd.struct_passwd(("u", "x", uid, uid, "", str(home), "/bin/sh"))
+    monkeypatch.setattr(pwd, "getpwuid", getpwuid)
+
+
+@pytest.mark.parametrize("value", [None, "", "relative/home"])
+def test_an_unset_empty_or_relative_home_falls_back_to_the_passwd_entry(tmp_path, env, monkeypatch, value):  # M4
+    del env["XDG_STATE_HOME"], env["XDG_CACHE_HOME"]
+    if value is None:
+        del env["HOME"]
+    else:
+        env["HOME"] = value
+    passwd_home(monkeypatch, tmp_path / "passwd-home")
+    where = places(env)
+    assert where.state == tmp_path / "passwd-home" / ".local" / "state" / "verifiably-autonomy"
+    assert where.cache == tmp_path / "passwd-home" / ".cache" / "verifiably-autonomy"
+
+
+@pytest.mark.parametrize("entry", [None, Path("relative")])
+def test_no_usable_home_is_refused_when_a_default_needs_it(env, monkeypatch, entry):
+    del env["HOME"], env["XDG_STATE_HOME"]
+    passwd_home(monkeypatch, entry)
+    with pytest.raises(RunRefused) as caught:
+        places(env)
+    assert caught.value.code == "home-unknown"
+
+
+def test_no_home_is_needed_when_the_xdg_directories_are_set(tmp_path, env, monkeypatch):
+    del env["HOME"]
+    passwd_home(monkeypatch, None)
+    assert places(env).state == tmp_path / "state" / "verifiably-autonomy"
+
+
+def unusable_runtime(tmp_path, env) -> None:
+    """An absolute XDG_RUNTIME_DIR that cannot be created: its parent is a file."""
+    (tmp_path / "not-a-directory").write_text("")
+    env["XDG_RUNTIME_DIR"] = str(tmp_path / "not-a-directory" / "runtime")
+
+
+def scratches(tmp_path) -> list[Path]:
+    root = tmp_path / "cache" / "verifiably-autonomy" / "scratch"
+    return sorted(root.iterdir()) if root.exists() else []
+
+
+def test_a_failed_allocation_is_refused_and_keeps_nothing(tmp_path, env):  # I1 (a)
+    unusable_runtime(tmp_path, env)
+    with pytest.raises(RunRefused) as caught:
+        allocate(places(env))
+    assert caught.value.code == "allocation-failed"
+    assert str(tmp_path / "not-a-directory") in caught.value.message
+    assert runs(tmp_path) == [] and scratches(tmp_path) == []
+
+
+def test_a_failed_allocation_writes_nothing_on_the_report_fd_and_closes_it(tmp_path, env, actor):  # I1 (a)
+    unusable_runtime(tmp_path, env)
+    progress = Progress()
+    read_end, write_end = os.pipe()
+    try:
+        with pytest.raises(RunRefused) as caught:
+            execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=progress)
+        assert read_all(read_end) == b""  # EOF, and no line
+    finally:
+        os.close(read_end)
+    assert caught.value.code == "allocation-failed"
+    assert progress.dirs is None
+    assert runs(tmp_path) == [] and scratches(tmp_path) == []
+
+
+def _steps_fail(opened):
+    raise RuntimeError("steps failed")
+
+
+def test_steps_that_raise_leave_the_run_recorded_and_the_report_fd_closed(tmp_path, env, actor):  # I1 (c), (e)
+    progress = Progress()
+    read_end, write_end = os.pipe()
+    try:
+        with pytest.raises(RuntimeError):
+            execute(request(write_end), env, _steps_fail, diag=lambda _: None, actor_fds=actor, progress=progress)
+        lines = read_all(read_end).decode().splitlines()  # EOF: closed on the way out
+    finally:
+        os.close(read_end)
+    (run_dir,) = runs(tmp_path)
+    assert progress.dirs is not None and progress.dirs.run_dir == run_dir
+    assert [json.loads(line)["run"] for line in lines] == [progress.dirs.run_id]  # the first line only
+    assert not (run_dir / "disposition.json").exists()
 
 
 def test_allocate_makes_three_private_directories(tmp_path, env):
@@ -237,7 +337,7 @@ def test_a_report_line_too_long_for_one_write_is_unwritten_and_the_run_closes(tm
     env["XDG_CACHE_HOME"] = str(long_dir(tmp_path, "cache-long"))
     read_end, write_end = os.pipe()
     try:
-        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor)
+        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
         assert read_all(read_end) == b""  # dropped whole, nothing after it, and the fd closed
     finally:
         os.close(read_end)

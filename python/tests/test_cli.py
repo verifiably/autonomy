@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from channels import blocking, drain, fill, one_page_pipe
+from channels import blocking, drain, fill, one_page_pipe, read_all
 
 TESTS = Path(__file__).parent
 
@@ -45,6 +45,7 @@ class Stdio:
     stderr: int
     pass_fds: tuple[int, ...] = ()
     prelude: str = ""
+    epilogue: str = ""  # runs after `main` returns `status`, and may change it
     env: dict[str, str] | None = None
 
 
@@ -55,14 +56,21 @@ def autonomy(tmp_path, args: list[str], io: Stdio, timeout: float = 30) -> tuple
         f"sys.path.insert(0, {str(TESTS)!r})",
         io.prelude,
         "from autonomy.cli import main",
-        "raise SystemExit(main(sys.argv[1:]))",
+        "status = main(sys.argv[1:])",
+        io.epilogue,
+        "raise SystemExit(status)",
     ])
     started = time.monotonic()
     child = subprocess.Popen(
         [sys.executable, "-c", code, *args], stdin=io.stdin, stdout=io.stdout, stderr=io.stderr,
         pass_fds=io.pass_fds, env=io.env or environment(tmp_path),
     )
-    return child.wait(timeout=timeout), time.monotonic() - started
+    try:
+        return child.wait(timeout=timeout), time.monotonic() - started
+    except subprocess.TimeoutExpired:
+        child.kill()  # a hung child fails the test, and never outlives it
+        child.wait()
+        raise
 
 
 RUN = ["run", "--tier", "report-only"]
@@ -338,3 +346,100 @@ def test_a_relative_state_home_falls_back_to_the_default(tmp_path, pipes):  # Re
     status, _ = autonomy(tmp_path, [*RUN, *ACTOR], io)
     assert status == 4
     assert len(runs(tmp_path, state=tmp_path / "home" / ".local" / "state")) == 1
+
+
+def scratches(tmp_path) -> list[Path]:
+    root = tmp_path / "cache" / "verifiably-autonomy" / "scratch"
+    return sorted(root.iterdir()) if root.exists() else []
+
+
+@pytest.mark.parametrize("stderr", ["readable", "a filled one-page pipe"])
+def test_an_unusable_runtime_dir_exits_2_and_keeps_nothing(tmp_path, pipes, held, stderr):  # I1 (a)
+    (tmp_path / "not-a-directory").write_text("")
+    env = environment(tmp_path)
+    env["XDG_RUNTIME_DIR"] = str(tmp_path / "not-a-directory" / "runtime")  # absolute, and cannot be made
+    io = pipes["io"]
+    io.env = env
+    if stderr != "readable":
+        err_read, err_write = one_page_pipe()
+        held.extend([err_read, err_write])
+        fill(err_write)  # never read
+        io.stderr = err_write
+    status, seconds = autonomy(tmp_path, [*RUN, "--report-fd", str(pipes["report_write"]), *ACTOR], io)
+    assert status == 2 and seconds < 10
+    assert runs(tmp_path) == [] and scratches(tmp_path) == []
+    assert drain(pipes["report"]) == b""
+    if stderr == "readable":
+        said = drain(pipes["err"])
+        assert b"refused: allocation-failed" in said and b"Traceback" not in said
+
+
+RAISING_STEPS = """
+import autonomy.cli as cli
+def steps(opened):
+    raise {kind}("steps failed\\nafter allocation")
+cli.endpoint_side_unbuilt = steps
+"""
+
+REPORT_FD_CLOSED = """
+import os
+try:
+    os.fstat({fd})
+except OSError:
+    pass
+else:
+    status = 99  # main returned with the report fd still open
+"""
+
+
+@pytest.mark.parametrize("kind", ["RuntimeError", "KeyboardInterrupt"])
+def test_steps_that_raise_after_allocation_exit_4_with_one_diagnostic(tmp_path, pipes, kind):  # I1 (c), (e)
+    report = pipes["report_write"]
+    io = pipes["io"]
+    io.prelude = RAISING_STEPS.format(kind=kind)
+    io.epilogue = REPORT_FD_CLOSED.format(fd=report)
+    status, _ = autonomy(tmp_path, [*RUN, "--report-fd", str(report), *ACTOR], io)
+    assert status == 4
+    (run_dir,) = runs(tmp_path)
+    assert not (run_dir / "disposition.json").exists()  # left for run close
+    said = drain(pipes["err"]).decode().splitlines()
+    assert said[0].startswith("autonomy: run ")  # the run's own line
+    (failure,) = said[1:]
+    assert kind in failure and "steps failed after allocation" in failure and run_dir.name in failure
+    os.close(pipes["report_write"])
+    (first,) = read_all(pipes["report"]).decode().splitlines()  # the first line, then EOF
+    assert json.loads(first)["run"] == run_dir.name
+
+
+@pytest.mark.parametrize("value", ["99999999999", "2147483648", "\u0663", "-1"])
+def test_a_report_fd_that_is_not_a_descriptor_number_is_a_usage_error(tmp_path, pipes, value):  # I1 (d), M2
+    status, _ = autonomy(tmp_path, [*RUN, "--report-fd", value, *ACTOR], pipes["io"])
+    assert status == 2 and runs(tmp_path) == []
+    said = drain(pipes["err"])
+    assert b"is not a descriptor number" in said and b"Traceback" not in said
+
+
+@pytest.mark.parametrize("args", [
+    ["run", "--tier", "t" * 9000, *ACTOR],  # a refusal naming the tier
+    [*RUN, "--lease", "9" * 8999 + "x", *ACTOR],  # argparse's usage error quoting the value
+])
+def test_a_long_diagnostic_is_truncated_to_one_write(tmp_path, pipes, args):  # M3, Review Focus 4
+    status, _ = autonomy(tmp_path, args, pipes["io"])
+    assert status == 2
+    said = drain(pipes["err"])
+    assert said.endswith(b"\n")
+    lines = said.splitlines()
+    assert all(len(line) + 1 <= 4096 for line in lines)
+    assert max(len(line) for line in lines) == 4095  # the long one, cut to one write
+
+
+def test_the_diagnostic_channel_is_closed_before_exit(tmp_path, pipes, held):  # M1
+    mine, theirs = socket.socketpair()
+    held.extend([mine, theirs])
+    io = pipes["io"]
+    io.stderr = mine.fileno()
+    io.env = {**environment(tmp_path), "PYTHONDEVMODE": "1"}
+    status, _ = autonomy(tmp_path, [*RUN, *ACTOR], io)
+    assert status == 4
+    said = drain(theirs.fileno())
+    assert b"closed unwired" in said and b"ResourceWarning" not in said

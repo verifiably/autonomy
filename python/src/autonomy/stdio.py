@@ -73,6 +73,8 @@ def _socket_kind(fd: int) -> StdioKind:
 def classify(fd: int) -> StdioKind:
     try:
         info = os.fstat(fd)
+    except OverflowError:
+        raise StdioRefused(fd, "beyond any descriptor number") from None
     except OSError as caught:
         if caught.errno == errno.EBADF:
             raise StdioRefused(fd, "closed") from None

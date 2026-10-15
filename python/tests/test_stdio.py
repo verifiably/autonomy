@@ -115,6 +115,13 @@ def test_everything_else_is_refused_naming_the_fd_and_what_it_is(opened, kind, w
     assert caught.value.message == f"fd {fd} is {what}"
 
 
+@pytest.mark.parametrize("fd", [2**31, 99999999999])
+def test_a_number_beyond_any_descriptor_is_refused(fd):  # I1 (d)
+    with pytest.raises(StdioRefused) as caught:
+        classify(fd)
+    assert (caught.value.fd, caught.value.what) == (fd, "beyond any descriptor number")
+
+
 def test_inspecting_a_socket_leaves_its_flags_alone(opened):
     fd = opened("socketpair")
     before = os.get_blocking(fd)

@@ -12,8 +12,10 @@ background process group can stop the process with SIGTTOU.
 
 Each line is one write of at most PIPE_BUF bytes, after waiting at most POLL_WAIT for
 the descriptor to poll writable. A line whose write fails, would block or is short is
-dropped, and so is a line too long for one write, whole. After a drop nothing more is
-written on that descriptor, so a short line is never followed by another.
+dropped, and so is a line too long for one write, whole. Every line is dropped when
+the private descriptor (the reopened pipe, the socket's duplicate) cannot be opened.
+After a drop nothing more is written on that descriptor, so a short line is never
+followed by another.
 
 Constructing a channel may open a descriptor, so a caller constructs it only after
 step 2 has checked fds 0-2: opened while fd 0 is closed, it would take number 0."""
@@ -49,7 +51,10 @@ class LineChannel:
             self.dropped = True
             return
         if stat.S_ISSOCK(info.st_mode):
-            self._socket = socket.socket(fileno=os.dup(fd))
+            try:
+                self._socket = socket.socket(fileno=os.dup(fd))
+            except OSError:
+                self.dropped = True  # no descriptor left (EMFILE): as a failed private open
         elif stat.S_ISCHR(info.st_mode) and info.st_rdev == _NULL_RDEV:
             self._skip = True
         elif stat.S_ISFIFO(info.st_mode):
