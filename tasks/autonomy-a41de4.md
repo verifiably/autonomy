@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T12:01:27Z
+updated: 2026-10-15T12:03:14Z
 started: 2026-10-15T11:36:01Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
@@ -35,3 +35,4 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
 - 2026-10-15T11:56:45Z (spec/stdio): On approval, file: crew task (stop an autonomy-run actor by SIGTERM to autonomy run, allow seal timeout+5 s+10 s grace+closing check before the scope stop; after autonomy-641123); note on sci-a1d45f (endpoint seals on SIGTERM, decision 5; stdout/stderr to endpoint.log).
 - 2026-10-15T11:58:48Z (spec/stdio): review: spec round 3 — verdict: revise; findings: Important 2, Minor 6; reviewer: claude-code
 - 2026-10-15T12:01:27Z (spec/stdio): review: spec round 4 — verdict: revise; findings: Important 1, Minor 7; reviewer: claude-code
+- 2026-10-15T12:03:14Z (spec/stdio): review: spec round 5 — verdict: accept; findings: Minor 3; reviewer: claude-code
