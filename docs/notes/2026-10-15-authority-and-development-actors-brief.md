@@ -169,6 +169,14 @@ the science path if ops-fbc3d9 picks pi-durable. The approved amendment (autonom
 is a prerequisite of Plan B's launch interface. Plan B does not wait on the contract or on the
 development mode.
 
+*Amendment (autonomy-a41de4, under review):* envelope decision 12 takes pass-through. The
+gate is released on its own fd, and `autonomy run` never reads stdin or writes stdout.
+Each of fds 0–2 must be a pipe, a socket or `/dev/null`. stderr starts with a run line and
+is otherwise diagnostic only. Row E20 tests it. Two of the points above went the other
+way. The agent directory and the working directory stay in scratch, set up by the actor
+argv, so the sandbox spec gains neither a read-write bind nor a separate working
+directory. Binds beyond scratch are left to autonomy-d5c1cb.
+
 ## 5. Unanswered questions
 
 1. *Answered by autonomy-c5c566 (§2):* RPC works with stdio held by the caller. A linked

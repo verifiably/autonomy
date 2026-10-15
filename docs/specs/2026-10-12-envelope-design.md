@@ -12,6 +12,9 @@ found 2 P2 and 5 P3; after round 8, a human-directed review that found 3 P2; and
 after round 9, a human-directed review that found 1 P2. All of them are addressed
 in
 this text.
+**Amendment of 2026-10-15** (autonomy-a41de4): the actor's stdio, decision 12, with its
+parts of §3, §6, §7, §10, §12 (row E20), §13 and §14. It follows the probe
+autonomy-c5c566 and is under review.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -340,6 +343,54 @@ while drafting, and the review may overturn them.
     run session that read goes through `openat2` beneath the capture's parent
     directory, with the same flags. An entrypoint such as `../..` is therefore refused
     `path-outside-run` before any intent exists.
+12. **The actor's stdio is the caller's channel, and it carries bytes only.**
+    `autonomy run` hands its own fds 0, 1 and 2 to the actor unchanged, so a caller
+    drives the actor over the stdio of the `autonomy run` it started: crew drives
+    `pi --mode rpc` this way. The probe autonomy-c5c566 ran pi's RPC over
+    passed-through pipes in Plan A's sandbox, abort included.
+
+    - **What the actor holds:** fds 0, 1 and 2, and no other descriptor. The gate
+      takes its release on a dedicated pipe and closes it before it execs the actor
+      (§7).
+    - **What may be passed:** each of the three must be a pipe, a socket, or
+      `/dev/null`, checked at step 2 (§3). Anything else is refused `stdio-refused`,
+      naming the fd and its type. A terminal is a host device, and a regular file is a
+      host file. Passed by descriptor, either one would reach the actor without the
+      static check or the probe seeing it. A pipe or socket ends at a process the
+      caller runs, and what that process does with the bytes is the caller's choice. A
+      person at a terminal runs `autonomy run … </dev/null 2>&1 | cat`.
+    - **stdin:** the actor's alone. `autonomy run` never reads it. Bytes the caller
+      writes before the actor starts wait in the channel, and a run that closes before
+      step 9 never reads them.
+    - **stdout:** the actor's alone. `autonomy run` never writes to it, refusals
+      included, and no other process it starts receives fd 0 or fd 1. The endpoint's
+      stdin is `/dev/null`, and its stdout and stderr go to `autonomy run`'s stderr.
+      `science` reads capture their own output.
+    - **stderr:** shared, and diagnostic only. Once step 2 passes, `autonomy run`'s
+      first line on stderr is the **run line**,
+      `{"run": "<run id>", "run_dir": "<path>", "scratch": "<path>"}`. It is written
+      before the actor exists, so a caller can rely on it. Every later line may
+      interleave with the actor's output, and the actor can imitate it. Nothing reads
+      stderr as evidence. The record is the exit code and the run directory, and the
+      actor's own exit status is in `events.jsonl`.
+    - **What the channel cannot do:** it grants nothing. The tier, the sandbox spec and
+      the handle are fixed before the actor starts, and no byte on stdin widens them.
+      It is not a control channel for the run: the lease, the seal and the kill switch
+      go through `run stop` and the endpoint's control socket. Closing stdin closes the
+      run only when the actor exits on EOF, as pi does. A caller that stops reading
+      stalls the actor, and the wall-clock bound still closes the run.
+    - **What stays the caller's obligation:** a socket can carry descriptors
+      (`SCM_RIGHTS`). A caller that sends one grants the actor whatever it reaches,
+      outside the sandbox spec. The envelope cannot see such a grant, and a caller must
+      never send one. It joins the same-uid obligations of §7.
+    - **Harness state stays in scratch.** pi needs a writable agent directory, a
+      `HOME`, a session directory, and the worktree as its working directory. The actor
+      argv places these under scratch, for example with a wrapper that copies a
+      read-only bound template and changes directory before it execs pi. The probe's
+      separate read-write bind of the agent directory and its working directory apart
+      from scratch are not added to the sandbox spec, so the actor still writes only
+      scratch. Whether a development mode needs binds beyond scratch, such as git
+      metadata, is autonomy-d5c1cb's question.
 
 ## 3. A run, end to end
 
@@ -358,7 +409,11 @@ named disposition, and the actor never starts.
    - the write corpus is not among the world's corpus roots;
    - the lease is below the floor (§8);
    - another run directory on this host names the same written chain without a
-     disposition (`orphaned-run`, §3 *Orphans*).
+     disposition (`orphaned-run`, §3 *Orphans*);
+   - fd 0, 1 or 2 is not a pipe, a socket or `/dev/null` (`stdio-refused`, decision
+     12).
+
+   Once these pass, write the run line on stderr (decision 12).
 3. **Capture the baseline heads** with `science heads --resolve`. This is a
    recovery-resolving read: it settles any work a crashed writer left pending. It
    reads the world head, every mounted corpus's head (genesis and tip), and the store
@@ -368,6 +423,8 @@ named disposition, and the actor never starts.
 
    Write `baseline.json` (§6), fsync it, then fsync its directory.
 4. **Launch the endpoint** as `science serve --run <launch.json>`, a child process.
+   Its stdin is `/dev/null`, and its stdout and stderr go to `autonomy run`'s stderr
+   (decision 12).
    - **Launch file:** names the tier's permit, the written chains, the run
      directory, the scratch directory, the socket and control socket paths, the token
      file, and the lease.
@@ -388,9 +445,11 @@ named disposition, and the actor never starts.
    path, the opening basis, the pids (each with its start time), and the probe
    result.
 9. **Start the actor** from the orchestrator's main thread, under the sandbox, with
-   `--info-fd` to learn the namespace's init pid. Start the heartbeat.
+   `--info-fd` to learn the namespace's init pid. It inherits `autonomy run`'s fds 0, 1
+   and 2, and the gate releases it on its own fd (§7). Start the heartbeat.
 
-**During.** The actor reaches the world only through the handle (§7). The orchestrator
+**During.** The actor reaches the world only through the handle (§7). The caller may
+exchange bytes with it over stdio, which grants nothing (decision 12). The orchestrator
 renews the lease every lease/3.
 
 **Close.** Any one of these triggers the close:
@@ -573,7 +632,7 @@ The serialized permit is `{"kinds": [...sorted], "act_families": [...sorted],
     "written": {"<corpus id>": {"root": "...", "genesis": "<64 hex>", "tip": "<64 hex>"}},
     "mounts": {"<corpus id>": {"root": "...", "genesis": "<64 hex>", "tip": "<64 hex>"}},
     "actor_argv": ["..."],
-    "sandbox": {"binds": [], "network": "host"},
+    "sandbox": {"binds": [], "network": "host", "stdio": ["pipe", "socket", "pipe"]},
     "lease": {"seconds": 60}
   }
   ```
@@ -612,11 +671,21 @@ directory.
 
 **The argv** is `bwrap --unshare-all [--share-net] --die-with-parent --new-session
 --clearenv --proc /proc --dev /dev --tmpfs /tmp --info-fd <n>`, followed by the
-binds, then `--setenv` for non-secret variables only, then the actor argv.
+binds, then `--setenv` for non-secret variables only, then the gate and the actor argv.
+
+**The gate** is a shell that bwrap runs in front of the actor. It reads one line from a
+dedicated pipe, which `autonomy run` passes to bwrap as an extra fd and names in the
+gate's argv. It closes that fd, and then it execs the actor only if the line is `run`.
+EOF exits 125 without running the actor. The orchestrator writes `run` only after it
+holds a pidfd on the namespace's init (§8). The gate never touches stdin, so the release
+cannot come from the caller, and the caller's bytes are never consumed before the actor
+reads them. Plan A's gate took the release on stdin and reopened stdin on `/dev/null`.
+Decision 12 replaces that.
 
 **What the actor is given:** `VERIFIABLY_ENDPOINT=/run/va/endpoint.sock`,
 `VERIFIABLY_TOKEN_FILE=/run/va/token`, and `VERIFIABLY_SCRATCH`, the scratch path,
-which is also the working directory. The token never appears in an argv, the
+which is also the working directory. Its fds 0, 1 and 2 are `autonomy run`'s, and it
+holds no other descriptor (decision 12). The token never appears in an argv, the
 environment, the baseline, a log, or any command's output.
 
 **The denied set** is computed from the world configuration, never from the spec:
@@ -652,7 +721,8 @@ must be `ENOENT`.
   ptraces the actor passes the peer check, and its requests are indistinguishable
   from the actor's. That, and same-uid processes that write the corpora directly, are
   row 4's obligation: the envelope bounds the actor, not the host's own user. Direct
-  writes are still caught as `entry-foreign`.
+  writes are still caught as `entry-foreign`. A caller that sends the actor a descriptor
+  over a socket on its stdio is in the same position (decision 12).
 
 **CLI:** a shell actor runs the `science` CLI as it is. The two handle variables put
 the CLI in handle mode (§4): every command goes through the endpoint, and no host
@@ -900,10 +970,11 @@ Two read commands are new. Both are `read-only` class, and both exist for people
 The basis is not a command. The endpoint computes and reports it itself (decision 6).
 
 **Harness neutrality** follows from the shape of the run: the actor is an argv, the
-handle is two environment variables, and the MCP bridge is optional. pi, Claude Code
-and a shell script run identically under `autonomy run`. Anything specific to a
-harness, such as a pi configuration naming the bridge or a model credential, belongs
-to the caller and never enters the envelope.
+handle is two environment variables, the actor's stdio is the caller's (decision 12),
+and the MCP bridge is optional. pi, Claude Code and a shell script run identically
+under `autonomy run`. Anything specific to a harness belongs to the caller and never
+enters the envelope: a pi configuration naming the bridge, a model credential, or a
+protocol spoken over stdio, such as pi's RPC.
 
 ## 11. A tier as an authorization
 
@@ -951,6 +1022,7 @@ named, never passed.
 | E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; a holdings act that crashed in its second phase (store write ledgered, publish committed without its `act` line); a recorded write to x followed by a failed intent for x; a move fully recorded; a move crashed after its `store_move` commit, and another between its source and destination publishes; a store transaction touching a location outside the act in progress; several null-`fulfills` store registrations matching one holdings intent; orphan tail with and without a later session, including that session's settlements, a failed intent before its first commit, and a session whose only acts failed; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; the second-phase crash is `unwired`, and an allowance keyed to unnamed intents makes it `quarantined`; the several-registrations case is `quarantined`, and an allowance keyed to one intent makes it `unwired`; with location matching across the interval, the write-then-failed-intent case is `quarantined` instead of `unwired` (`intent-unfulfilled`, its write a member); ownership by any matching move intent makes a crashed `store_move` ambiguous; without the one-transaction limit the second sequence is `unwired` rather than `quarantined`; with a boundary found only through `act` lines, the failed-first-intent and failure-only cases quarantine the orphan; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
 | E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a holdings act killed after its publish commit and before that `act` line, with its store write already ledgered; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
 | E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
+| E20 | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, `autonomy run` writes nothing on stdout and the run line first on stderr, and a terminal or regular file on fd 0–2 is refused at open | integration under real `bwrap`: an echo actor driven over pipes and again over a socketpair, with one line written before the release and one after, both echoed and EOF ending it with exit 0; the actor lists `/proc/self/fd`; `autonomy run` with a silent actor leaves stdout empty and starts stderr with the run line (until the endpoint lands, through a run that closes `unwired` at step 4); a pty on fd 1, and separately a regular file on fd 2, each exits 2 `stdio-refused` with no run directory | Plan A's gate (stdin reopened on `/dev/null`) gives the echo actor immediate EOF; a gate that keeps its fd open shows a fourth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a pipe on every fd passes step 2 |
 
 ## 13. Delivery
 
@@ -968,7 +1040,7 @@ because half of it cannot be tested before the slices in `science` and `beliefs`
    `log`, the basis computation; rows E13–E14, E18 and E19. It is filed in `science`, and depends
    on 2.
 4. **Plan B (autonomy, after 2 and 3):** `science_reads`, `baseline`, `endpoint`,
-   `run`, the CLI; rows E7–E12.
+   `run`, the CLI, and the gate's own release fd; rows E7–E12 and E20.
 
 The first unattended run (autonomy-9e8a43) starts after 4.
 
@@ -999,3 +1071,17 @@ The first unattended run (autonomy-9e8a43) starts after 4.
 - **The token in the actor's environment or argv.** Both are readable through `/proc`
   by any same-uid process. A read-only bound file plus the peer-namespace check means
   a stolen token is not enough.
+- **A channel socket bound into scratch for the caller's protocol.** It adds a second
+  channel, with its own path and lifetime, and the probe found no benefit it gives over
+  stdio (decision 12).
+- **pi-durable running in the actor's process.** It moves the caller's driver and
+  metering to the constrained side of the boundary. It remains an option for the
+  science path if ops-fbc3d9 picks pi-durable, and it then needs no stdio channel.
+- **`autonomy run` relaying the actor's stdio.** A relay puts autonomy in the data path
+  of every byte, and it would let a terminal stay connected on the host side. It does
+  nothing that a pipe the caller holds cannot do.
+- **Passing any descriptor through, or checking a regular file against the denied
+  set.** A terminal accepts escape sequences that the emulator may act on. A file
+  opened for writing can be rewritten anywhere in it. Checking a file's path against
+  the denied set by descriptor adds a second form of the static check, and it still
+  hands the actor a host object. A pipe or socket ends at a process the caller chose.
