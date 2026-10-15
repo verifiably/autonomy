@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: plan-b1
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T13:23:54Z
+updated: 2026-10-15T14:18:29Z
 started: 2026-10-15T13:05:33Z
 depends: [autonomy-250f4d, autonomy-a41de4]
 tags: []
@@ -28,4 +28,6 @@ Spec §13 item 4, first half: the parts of Plan B that need nothing from the bel
   provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T13:23:46Z (plan-b1): plan drafted: docs/plans/2026-10-15-envelope-plan-b1.md on branch plan-b1, 5 tasks (children 6eab12, 8ac272, 0aabee, 89240f, bcaab6); awaiting user review before execution
 - 2026-10-15T13:23:54Z (plan-b1): parked (waiting on user, review): User reviews docs/plans/2026-10-15-envelope-plan-b1.md (branch plan-b1) and picks an execution method; then the agent runs it in .worktrees/plan-b1, starting with the baseline just test-fast
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T14:18:29Z (plan-b1): resumed
   provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
