@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: probe/pi-sandbox
 created: 2026-10-15T10:39:25Z
-updated: 2026-10-15T11:00:20Z
+updated: 2026-10-15T11:00:35Z
 started: 2026-10-15T11:00:20Z
 depends: []
 parent: autonomy-d9adef
@@ -35,4 +35,6 @@ Ideas it wakes: On completion, run `tasks note autonomy-d5c1cb --no-reviewed "<f
 ## Notes
 
 - 2026-10-15T11:00:20Z (main): started
+  provenance: {"harness_session":"claude-code:bc6b520d-859e-4019-8e86-348c5b5c5b51","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T11:00:35Z (probe/pi-sandbox): resumed
   provenance: {"harness_session":"claude-code:bc6b520d-859e-4019-8e86-348c5b5c5b51","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
