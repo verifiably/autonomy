@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T11:36:01Z
+updated: 2026-10-15T11:36:13Z
 started: 2026-10-15T11:36:01Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
@@ -26,4 +26,6 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
 ## Notes
 
 - 2026-10-15T11:36:01Z (main): started
+  provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T11:36:13Z (spec/stdio): resumed
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
