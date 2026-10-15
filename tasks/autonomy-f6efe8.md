@@ -7,7 +7,7 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-15T13:05:59Z
-updated: 2026-10-15T15:37:58Z
+updated: 2026-10-15T15:39:32Z
 depends: [beliefs-7a56ef, sci-a1d45f, autonomy-641123, autonomy-413763]
 tags: []
 agent: claude-code/claude-opus-5-5
@@ -20,3 +20,4 @@ Spec §13 item 4, second half: plan and build after the beliefs and science slic
 - 2026-10-15T13:05:59Z (main): concerns: none — split from autonomy-641123 before its plan was written (2026-10-15); the wall-clock bound note on 641123 applies here if B1 leaves it
 - 2026-10-15T13:06:06Z (main): correction: the line above is not an outcome-measure concern (no closed work fell short); this task is a planned split of autonomy-641123
 - 2026-10-15T15:37:58Z (plan-b1): inputs from Plan B1 (autonomy-641123) final review: (1) execute now takes a required progress= argument (the B1 plan's Task 4/5 code blocks show the pre-fix signature; read run.py, not the plan); (2) a steps exception after allocation currently exits 4 through cli.main's last-resort handler with no disposition.json and nothing in events.jsonl — B2 should close such a run unwired with a spec'd finding code; (3) LineChannel's pipe EPIPE handling relies on CPython ignoring SIGPIPE, so the orchestrator must not restore SIGPIPE; (4) an AF_UNIX report fd after shutdown(SHUT_WR) passes step 2 (lines then dropped report-unwritten; spec silent); (5) allocate failing mid-way now rolls back and refuses allocation-failed — check against the orphaned-run scan
+- 2026-10-15T15:39:32Z (plan-b1): input from Plan B1 fix re-review: run.Progress and cli._unexpected assume a set dirs means no disposition.json; if append_event (ENOSPC) or the final fsync_dir raises after write_disposition published, a clean/quarantined run would exit 4 with a wrong 'left for run close' diagnostic — B2 must key the exit on a published disposition
