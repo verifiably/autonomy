@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T12:58:30Z
+updated: 2026-10-15T12:59:15Z
 started: 2026-10-15T11:36:01Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
@@ -47,3 +47,4 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
 - 2026-10-15T12:58:29Z (spec/stdio): resumed
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T12:58:29Z (spec/stdio): review: spec round 7 — verdict: revise; findings: P2 1; reviewer: human
+- 2026-10-15T12:59:15Z (spec/stdio): Round 7 (human) fix in 852399f: caller writes non-blocking per call (MSG_DONTWAIT; private O_NONBLOCK reopen of /proc/self/fd/<n> for pipes; skip on /dev/null), regular-file report fd refused, stop after first drop; E20 competing-writer cases. Verified reopen EAGAIN with original blocking, MSG_DONTWAIT EAGAIN; corrected own ENXIO claim (reopen succeeds without reader; write gives EPIPE).
