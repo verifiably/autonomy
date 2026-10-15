@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import pytest
@@ -104,3 +105,30 @@ def test_non_utf8_probe_output_is_typed(layout, monkeypatch):
     with pytest.raises(SandboxUnproven) as caught:
         probe(SandboxSpec(scratch=layout["scratch"]), (layout["corpus"],))
     assert caught.value.code == "probe-reachable"
+
+
+@pytest.mark.bwrap
+def test_the_preflight_and_the_probe_never_inherit_stdin(layout, monkeypatch):
+    calls: list[dict] = []
+    real = subprocess.run
+
+    def recording(*args, **kwargs):
+        calls.append(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", recording)
+    prove(SandboxSpec(scratch=layout["scratch"]), (layout["corpus"],))
+    assert len(calls) == 2
+    assert all(call.get("stdin") is subprocess.DEVNULL for call in calls)
+
+
+def test_a_child_that_inherits_stdin_consumes_the_callers_bytes():
+    for stdin, left in ((None, b""), (subprocess.DEVNULL, b"early\n")):
+        read_end, write_end = os.pipe()
+        os.write(write_end, b"early\n")
+        os.close(write_end)
+        try:
+            subprocess.run(["/usr/bin/head", "-c", "6"], stdin=read_end if stdin is None else stdin, stdout=subprocess.DEVNULL)
+            assert os.read(read_end, 64) == left
+        finally:
+            os.close(read_end)
