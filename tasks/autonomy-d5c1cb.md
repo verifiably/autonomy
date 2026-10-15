@@ -5,16 +5,22 @@ status: idea
 priority: 2
 reviewed: true
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-15T10:51:33Z
+updated: 2026-10-15T10:51:48Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
 tags: []
 agent: claude-code/claude-opus-5-5
 ---
 
-Why: crew runs pi on development tasks and, later, on science actions through autonomy run. Its design recommends autonomy's envelope, specified to constrain any actor identically, as the owner of limits for unattended development work too (a development tier), with crew as the caller. It also needs to know how the actor's stdio is handled under autonomy run, since crew drives pi over RPC stdio (the answer may favour pi-durable in-process). Named in crew's core design (crew docs/specs/2026-10-13-crew-core-design.md §9; task crew-3fc20c), §10 decision 1 and §8.2.
+Why: crew runs pi on development tasks and, later, on science actions through autonomy run. Its design recommends autonomy's envelope, specified to constrain any actor identically, as the owner of limits for unattended development work too (a development tier), with crew as the caller. Named in crew's core design (crew docs/specs/2026-10-13-crew-core-design.md §9; task crew-3fc20c), §10 decision 1 and §8.2.
 
-Done: a recorded decision on both questions; the stdio answer is also an input to autonomy-641123 (Plan B).
+The second question this idea first carried, how the actor's stdio is handled under autonomy run (crew drives pi over RPC stdio; the answer may favour pi-durable in-process), moved on 2026-10-15 to autonomy-a41de4, an envelope amendment that Plan B (autonomy-641123) depends on.
+
+Direction (user, 2026-10-15; brief §4): a development mode of autonomy run, with no world, the task worktree as scratch, and the sandbox, lease, kill and run directory kept. Pushes, host changes and credential use are prevented at the boundary. quarantined keeps the result and blocks its promotion. A clean boundary verdict is separate from crew's acceptance (tests, review).
+
+Done: a design for the development mode, as an envelope amendment, that says how pushes and host changes are made unavailable, what the closing check still verifies, and what quarantined holds. It is written after the probe autonomy-c5c566 answers.
+
+Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; envelope spec §2, §7, §9.
 
 ## Notes
 
