@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T12:27:15Z
+updated: 2026-10-15T12:27:16Z
 started: 2026-10-15T11:36:01Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
@@ -42,3 +42,5 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T12:25:39Z (spec/stdio): review: spec round 6 — verdict: revise; findings: P2 3; reviewer: human
 - 2026-10-15T12:27:15Z (spec/stdio): Round 6 (human) fixes in 0bfe96d: report and pre-step-9 stderr writes bounded (poll ≤1 s, one write ≤ PIPE_BUF, drop + report-unwritten), report fd kinds restricted; gate moved to python3 -I (dash rejects fd >9; verified python gate on fd 17 under bwrap, dash fails); terminal recipe uses pipefail (verified bash and zsh keep exit 4). Verified POLLOUT leaves room for a PIPE_BUF write on pipes 4K-64K and socketpairs.
+- 2026-10-15T12:27:16Z (spec/stdio): parked (waiting on user, review): User re-reviews the envelope amendment on spec/stdio (.worktrees/spec-stdio), round-6 fixes in 0bfe96d. On approval the agent marks the header approved, files the crew stop-path task and the sci-a1d45f note, merges spec/stdio, tasks done.
+  provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
