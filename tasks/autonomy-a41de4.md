@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T11:36:13Z
+updated: 2026-10-15T11:41:49Z
 started: 2026-10-15T11:36:01Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
@@ -29,3 +29,4 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T11:36:13Z (spec/stdio): resumed
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T11:41:49Z (spec/stdio): Draft amendment on spec/stdio: decision 12 pass-through; fds 0-2 must be pipe/socket//dev/null (stdio-refused); stdout actor-only; stderr run line then diagnostic; gate on own fd; SCM_RIGHTS a caller obligation; rw binds and separate cwd not added (actor argv keeps harness state in scratch; d5c1cb decides binds beyond scratch); row E20 in Plan B. Verified: bwrap --info-fd does not reach the actor; pre-release stdin bytes reach it; Node 'pipe' stdio is a socketpair.
