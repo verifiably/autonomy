@@ -2,6 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** approved 2026-10-15 (human review round 2), after round 1 found 1 P1 and 4 P2,
+all addressed. Round 2 left one P3, corrected during Task 4: `write_disposition`'s
+contract and docstring promise "absent before publication, complete after
+publication". An interruption after the link (at the directory fsync) leaves a
+complete `disposition.json`, and a retry then raises `FileExistsError`.
+Execution: superpowers:subagent-driven-development, Tasks 1–5 in order.
+
 **Goal:** Build the launch side of `autonomy run`, which needs nothing from the
 `beliefs` or `science` slices:
 
