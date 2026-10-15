@@ -77,6 +77,17 @@ E20's launch-arm items and where they land:
 - Every line to a caller's descriptor is one write of at most `PIPE_BUF` (4096) bytes,
   newline included, after at most 1 s of polling. It never blocks, and it never
   changes the caller's file status flags (decision 12, *No write can hang the run*).
+  Only three kinds are ever written: a pipe (through a private non-blocking
+  reopen), a socket (`MSG_DONTWAIT`) and `/dev/null` (skipped). Any other kind,
+  such as a regular file, a terminal or a device, is never written: a reopen of a
+  file loses `O_APPEND` and the offset, a file write can block on the filesystem, and
+  a terminal write from a background process group can stop the process (SIGTTOU).
+- No descriptor of `autonomy run`'s own is opened before step 2 has checked fds 0–2:
+  a private descriptor opened while fd 0 is closed takes number 0 and passes the
+  check.
+- `disposition.json` is published atomically and never replaced: a temporary file in
+  the run directory, written and fsynced, then hard-linked to the final name (`link`
+  fails rather than replace), then the directory fsynced.
 - Report lines, verbatim shapes: `{"run": "<run id>", "run_dir": "<path>", "scratch":
   "<path>"}` once step 2 passes, and `{"run": "<run id>", "disposition":
   "<clean|quarantined|unwired>", "exit": <code>}` after `disposition.json` is durable.
@@ -105,9 +116,12 @@ E20's launch-arm items and where they land:
 3. **A report fd that is the read end of a pipe.** It is an anonymous pipe, so a check
    by kind alone passes it, and every report line is then silently dropped. Step 2
    refuses it `stdio-refused` (Task 2).
-4. **A diagnostic longer than `PIPE_BUF`**, such as one naming a long path. It must
-   be truncated to one write, never split into two writes or refused with a crash
-   (Task 3 refuses an overlong line; Task 5 truncates diagnostics).
+4. **A line longer than `PIPE_BUF`.** Long but valid XDG paths make the report fd's
+   first line exceed 4096 bytes. That line is dropped whole, never truncated (a
+   truncated JSON line would be a lie), and recorded `report-unwritten`, and the run
+   closes normally with its disposition and exit code. A diagnostic is truncated to
+   one write instead, because it is for a person (Task 3 drops an overlong line;
+   Task 4 tests the long-path run; Task 5 truncates diagnostics).
 5. **XDG variables.** A relative or empty `XDG_STATE_HOME` or `XDG_CACHE_HOME` is
    ignored, as the XDG spec requires, and the default applies. An unset
    `XDG_RUNTIME_DIR` is refused `runtime-dir-unset` with exit 2 and no run directory
@@ -186,8 +200,8 @@ passes `**stdio` inside `body`.
 
 - [ ] **Step 2: Write the failing gate tests**
 
-Append to `python/tests/test_sandbox_launch.py` (add `import select` and
-`import socket` to the imports):
+Append to `python/tests/test_sandbox_launch.py` (add `import fcntl`, `import select`
+and `import socket` to the imports):
 
 ```python
 def read_all(fd: int, timeout: float = 10.0) -> bytes:
@@ -372,17 +386,19 @@ reads stdin. Append them too:
 @pytest.mark.skipif(not Path("/usr/bin/dash").exists(), reason="needs /usr/bin/dash")
 def test_a_shell_gate_under_dash_fails_on_an_fd_above_9():
     gate_read, gate_write = os.pipe()
-    os.dup2(gate_read, 12)
+    # a fresh descriptor above 9, never one another fixture or pytest already holds
+    high = fcntl.fcntl(gate_read, fcntl.F_DUPFD_CLOEXEC, 10)
     os.close(gate_read)
     try:
         os.write(gate_write, b"run\n")
         result = subprocess.run(
-            ["/usr/bin/dash", "-c", "read -r go <&12"], pass_fds=(12,), capture_output=True, text=True,
+            ["/usr/bin/dash", "-c", f"read -r go <&{high}"], pass_fds=(high,), capture_output=True, text=True,
             stdin=subprocess.DEVNULL,
         )
     finally:
-        os.close(12)
+        os.close(high)
         os.close(gate_write)
+    assert high > 9
     assert result.returncode != 0 and "Bad fd number" in result.stderr
 
 
@@ -963,9 +979,14 @@ git commit -m "feat(stdio): classify the actor's stdio and the report fd for ste
 - Consumes: nothing.
 - Produces:
   - `LineChannel(fd: int)`, with `.fd`, `.dropped: bool`,
-    `.write_line(line: str) -> bool` (False when dropped; `ValueError` for a line
-    holding a newline or longer than `PIPE_BUF` with its newline), and `.close()`,
+    `.write_line(line: str) -> bool` (False when dropped, including a line longer
+    than `PIPE_BUF` with its newline, which is dropped whole and drops the channel;
+    `ValueError` only for a line holding a newline, a caller's bug), and `.close()`,
     which releases the private path, leaves `fd` open and drops every later line.
+  - A descriptor that is not a pipe, a socket or `/dev/null` is dropped at
+    construction and never written: no reopen, no write.
+  - Constructing a channel may open a descriptor (the private reopen, or a socket's
+    dup), so callers construct it only after step 2 has checked fds 0–2.
   - `POLL_WAIT = 1.0`. The test hook `_before_write: Callable[[int], None] | None`
     is called with `.fd` between the poll and the write.
   - Test helpers in `python/tests/channels.py`: `one_page_pipe() -> tuple[int, int]`,
@@ -1114,6 +1135,39 @@ def test_a_closed_descriptor_drops_every_line():
     assert line.write_line("lost") is False and line.dropped
 
 
+def test_an_appended_log_is_never_written(tmp_path):  # a reopen would lose O_APPEND and the offset
+    log = tmp_path / "existing.log"
+    log.write_bytes(b"earlier lines\n")
+    fd = os.open(log, os.O_WRONLY | os.O_APPEND)  # `2>>existing.log`
+    try:
+        line = LineChannel(fd)
+        assert line.write_line("autonomy: refused: stdio-refused: fd 2 is a regular file") is False
+        assert line.dropped and line._private == -1
+    finally:
+        os.close(fd)
+    assert log.read_bytes() == b"earlier lines\n"
+
+
+@pytest.mark.parametrize("kind", ["terminal", "zero"])
+def test_a_terminal_or_a_device_is_never_written(kind):
+    # a terminal write from a background process group can stop the process (SIGTTOU)
+    if kind == "terminal":
+        master, fd = os.openpty()
+    else:
+        master, fd = None, os.open("/dev/zero", os.O_WRONLY)
+    try:
+        line = LineChannel(fd)
+        assert line.write_line("never") is False and line._private == -1
+        if master is not None:
+            os.set_blocking(master, False)
+            with pytest.raises(BlockingIOError):
+                os.read(master, 64)  # nothing reached the terminal (read while its slave is open)
+    finally:
+        os.close(fd)
+        if master is not None:
+            os.close(master)
+
+
 def test_a_full_pipe_drops_the_line_within_the_poll_wait_and_nothing_follows():
     read_end, write_end = one_page_pipe()
     try:
@@ -1162,15 +1216,25 @@ def test_a_pipe_with_no_reader_drops_the_line():
         os.close(write_end)
 
 
-def test_a_line_must_fit_one_write_and_hold_no_newline():  # Review Focus 4
+def test_a_line_longer_than_pipe_buf_is_dropped_whole():  # Review Focus 4
+    read_end, write_end = os.pipe()
+    try:
+        line = LineChannel(write_end)
+        assert line.write_line("x" * 4095) is True  # 4096 bytes with its newline: one write
+        assert line.write_line("x" * 4096) is False  # 4097: dropped, never truncated or split
+        assert line.dropped
+        assert line.write_line("short") is False  # after a drop, nothing more
+        assert drain(read_end) == b"x" * 4095 + b"\n"
+    finally:
+        os.close(read_end)
+        os.close(write_end)
+
+
+def test_a_line_holding_a_newline_is_a_callers_bug():
     null = os.open(os.devnull, os.O_WRONLY)
     try:
-        line = LineChannel(null)
         with pytest.raises(ValueError):
-            line.write_line("x" * 4096)  # 4097 bytes with its newline
-        with pytest.raises(ValueError):
-            line.write_line("two\nlines")
-        assert line.write_line("x" * 4095) is True
+            LineChannel(null).write_line("two\nlines")
     finally:
         os.close(null)
 
@@ -1237,14 +1301,21 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'autonomy.channel'`.
 decision 12): the report fd's two lines, and diagnostics on stderr before the actor
 starts.
 
-The caller's open file description is never changed. A pipe (or a terminal, or a
-file) is written through a private descriptor opened on /proc/self/fd/<n> with
-O_NONBLOCK: a new description of the same object, whereas a dup would share, and
-change, the caller's flags. A socket is written with MSG_DONTWAIT on each send.
-/dev/null is skipped. Each line is one write of at most PIPE_BUF bytes, after waiting
-at most POLL_WAIT for the descriptor to poll writable. A line whose write fails, would
-block or is short is dropped, and nothing more is written on that descriptor, so a
-short line is never followed by another."""
+The caller's open file description is never changed. A pipe is written through a
+private descriptor opened on /proc/self/fd/<n> with O_NONBLOCK: a new description of
+the same pipe, whereas a dup would share, and change, the caller's flags. A socket is
+written with MSG_DONTWAIT on each send. /dev/null is skipped. Nothing else is ever
+written: a reopened regular file loses O_APPEND and its offset and would overwrite the
+caller's log, a file write can block on the filesystem, and a terminal write from a
+background process group can stop the process with SIGTTOU.
+
+Each line is one write of at most PIPE_BUF bytes, after waiting at most POLL_WAIT for
+the descriptor to poll writable. A line whose write fails, would block or is short is
+dropped, and so is a line too long for one write, whole. After a drop nothing more is
+written on that descriptor, so a short line is never followed by another.
+
+Constructing a channel may open a descriptor, so a caller constructs it only after
+step 2 has checked fds 0-2: opened while fd 0 is closed, it would take number 0."""
 
 from __future__ import annotations
 
@@ -1280,22 +1351,23 @@ class LineChannel:
             self._socket = socket.socket(fileno=os.dup(fd))
         elif stat.S_ISCHR(info.st_mode) and info.st_rdev == _NULL_RDEV:
             self._skip = True
-        else:
+        elif stat.S_ISFIFO(info.st_mode):
             try:
-                self._private = os.open(
-                    f"/proc/self/fd/{fd}", os.O_WRONLY | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC
-                )
+                self._private = os.open(f"/proc/self/fd/{fd}", os.O_WRONLY | os.O_NONBLOCK | os.O_CLOEXEC)
             except OSError:
                 self.dropped = True
+        else:
+            self.dropped = True  # a file, a terminal, a device: never written
 
     def write_line(self, line: str) -> bool:
         """Write `line` and a newline in one write; False when the line was dropped."""
         data = line.encode("utf-8") + b"\n"
         if b"\n" in data[:-1]:
             raise ValueError("a line holds no newline")
-        if len(data) > select.PIPE_BUF:
-            raise ValueError(f"a line is at most {select.PIPE_BUF} bytes, its newline included")
         if self.dropped:
+            return False
+        if len(data) > select.PIPE_BUF:
+            self.close()  # dropped whole: a truncated line would say something false
             return False
         if self._skip:
             return True
@@ -1369,7 +1441,9 @@ git commit -m "feat(channel): write report and diagnostic lines that never block
   - `refuse(request: RunRequest, *, actor_fds=ACTOR_FDS) -> tuple[StdioKind, StdioKind, StdioKind]`.
   - `Opened(request: RunRequest, dirs: RunDirs, stdio: tuple[StdioKind, StdioKind, StdioKind])`.
   - `Steps = Callable[[Opened], Sequence[Finding]]`.
-  - `write_disposition(run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding]) -> None`.
+  - `write_disposition(run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding]) -> None`:
+    published atomically under its final name, never replacing one (`FileExistsError`);
+    an interrupted call leaves no `disposition.json`, and a retry succeeds.
   - `execute(request, env, steps, *, diag: Callable[[str], None], actor_fds=ACTOR_FDS) -> int`.
   - `endpoint_side_unbuilt(opened: Opened) -> tuple[Finding, ...]`.
 
@@ -1561,12 +1635,70 @@ def test_allocate_makes_three_private_directories(tmp_path, env):
     assert allocate(places(env)).run_id != dirs.run_id
 
 
-def test_disposition_json_is_written_once(tmp_path):
-    finding = Finding("baseline-unavailable", "science", "unavailable")
-    write_disposition(tmp_path, "r1", "unwired", [finding])
+FINDING = Finding("baseline-unavailable", "science", "unavailable")
+
+
+def test_disposition_json_is_published_once_and_never_replaced(tmp_path):
+    write_disposition(tmp_path, "r1", "unwired", [FINDING])
+    first = (tmp_path / "disposition.json").read_bytes()
     with pytest.raises(FileExistsError):
         write_disposition(tmp_path, "r1", "clean", [])
+    assert (tmp_path / "disposition.json").read_bytes() == first
     assert stat.S_IMODE((tmp_path / "disposition.json").stat().st_mode) == 0o600
+    assert [p.name for p in tmp_path.iterdir()] == ["disposition.json"]  # no temporary left
+
+
+def _half_then_interrupted(fd, data):
+    os.write(fd, data[: len(data) // 2])
+    raise KeyboardInterrupt  # an interruption mid-record, not an error
+
+
+def _interrupted(*args, **kwargs):
+    raise KeyboardInterrupt
+
+
+@pytest.mark.parametrize(
+    ("module", "name", "replacement"),
+    [("autonomy.run", "write_all", _half_then_interrupted), ("os", "fsync", _interrupted), ("os", "link", _interrupted)],
+)
+def test_an_interrupted_disposition_publishes_nothing_and_a_retry_succeeds(tmp_path, monkeypatch, module, name, replacement):
+    with monkeypatch.context() as patch:
+        patch.setattr(f"{module}.{name}", replacement)
+        with pytest.raises(KeyboardInterrupt):
+            write_disposition(tmp_path, "r1", "unwired", [FINDING])
+    assert not (tmp_path / "disposition.json").exists()
+    write_disposition(tmp_path, "r1", "unwired", [FINDING])
+    assert json.loads((tmp_path / "disposition.json").read_text())["disposition"] == "unwired"
+
+
+def test_a_temporary_left_by_a_killed_writer_does_not_block_the_retry(tmp_path):
+    (tmp_path / ".disposition.json.0123456789abcdef.tmp").write_text('{"version": 1, "run"')  # torn
+    write_disposition(tmp_path, "r1", "unwired", [FINDING])
+    assert json.loads((tmp_path / "disposition.json").read_text())["run"] == "r1"
+
+
+def long_dir(root: Path, name: str) -> Path:
+    """A valid directory path of about 2,300 bytes: nine 250-byte components."""
+    path = root / name
+    for digit in range(9):
+        path = path / (str(digit) * 250)
+    path.mkdir(parents=True)
+    return path
+
+
+def test_a_report_line_too_long_for_one_write_is_unwritten_and_the_run_closes(tmp_path, env, actor):  # Review Focus 4
+    env["XDG_STATE_HOME"] = str(long_dir(tmp_path, "state-long"))
+    env["XDG_CACHE_HOME"] = str(long_dir(tmp_path, "cache-long"))
+    read_end, write_end = os.pipe()
+    try:
+        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor)
+        assert read_all(read_end) == b""  # dropped whole, nothing after it, and the fd closed
+    finally:
+        os.close(read_end)
+    assert code == 4
+    (run_dir,) = (Path(env["XDG_STATE_HOME"]) / "verifiably-autonomy" / "runs").iterdir()
+    assert json.loads((run_dir / "disposition.json").read_text())["disposition"] == "unwired"
+    assert [(e["event"], e["line"]) for e in events(run_dir)] == [("report-unwritten", "run"), ("report-unwritten", "closing")]
 
 
 def test_events_are_appended_one_line_each(tmp_path):
@@ -1779,7 +1911,12 @@ def endpoint_side_unbuilt(opened: Opened) -> tuple[Finding, ...]:
 
 
 def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding]) -> None:
-    """Written once (O_EXCL), fsynced with its directory, before the closing line."""
+    """Published once and atomically, before the closing line. The record is written
+    and fsynced under a temporary name in the run directory, then hard-linked to its
+    final name: `link` refuses a name that exists, so a disposition is never replaced,
+    and an interruption at any point leaves no `disposition.json` and lets a retry
+    succeed. A writer killed outright leaves only its temporary behind. The directory
+    is fsynced last."""
     record = {
         "version": 1,
         "run": run_id,
@@ -1789,12 +1926,17 @@ def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, find
         "members": {},
         "closing_heads": None,
     }
-    fd = os.open(run_dir / DISPOSITION, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+    temporary = run_dir / f".{DISPOSITION}.{secrets.token_hex(8)}.tmp"
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
     try:
-        write_all(fd, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"))
-        os.fsync(fd)
+        try:
+            write_all(fd, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.link(temporary, run_dir / DISPOSITION)
     finally:
-        os.close(fd)
+        temporary.unlink()
     fsync_dir(run_dir)
 
 
@@ -2003,17 +2145,21 @@ def test_dev_null_and_a_socketpair_pass_step_2(tmp_path, pipes, held):
     assert drain(caller_end.fileno()) == b""
 
 
-def refusal(name: str, tmp_path: Path, pipes: dict, held: list) -> tuple[Stdio, list[str], int | None]:
-    """The E20 step-2 cases: (stdio, extra args, report read end to check, if any)."""
+def refusal(name: str, tmp_path: Path, pipes: dict, held: list) -> tuple[Stdio, list[str], int | None, int | None]:
+    """The E20 step-2 cases: (stdio, extra args, report read end to check, stderr read
+    end to check). A None read end means that channel is not the test's to read."""
     io = pipes["io"]
     report = ["--report-fd", str(pipes["report_write"])]
+    err = pipes["err"]
     if name == "a pty on fd 1":
         master, slave = os.openpty()
         held.extend([master, slave])
         io.stdout = slave
-    elif name == "a regular file on fd 2":
-        io.stderr = os.open(tmp_path / "stderr", os.O_WRONLY | os.O_CREAT, 0o600)
+    elif name == "an appended log on fd 2":
+        (tmp_path / "existing.log").write_bytes(b"earlier lines\n")
+        io.stderr = os.open(tmp_path / "existing.log", os.O_WRONLY | os.O_APPEND)  # `2>>existing.log`
         held.append(io.stderr)
+        err = None
     elif name == "/dev/zero on fd 0":
         io.stdin = os.open("/dev/zero", os.O_RDONLY)
         held.append(io.stdin)
@@ -2042,11 +2188,18 @@ def refusal(name: str, tmp_path: Path, pipes: dict, held: list) -> tuple[Stdio, 
         io.stdout = client.fileno()
     elif name == "a closed fd 0":
         io.prelude = "import os; os.close(0)"
+    elif name == "a closed fd 0, with a socket on fd 2":
+        # the socket path dups: a channel opened before step 2 would take fd 0
+        mine, theirs = socket.socketpair()
+        held.extend([mine, theirs])
+        io.stderr = mine.fileno()
+        err = theirs.fileno()
+        io.prelude = "import os; os.close(0)"
     elif name == "--report-fd 1":
-        return io, ["--report-fd", "1"], None
+        return io, ["--report-fd", "1"], None, err
     elif name == "--report-fd 3 duplicated from fd 2":
         io.prelude = "import os; os.dup2(2, 3)"
-        return io, ["--report-fd", "3"], None
+        return io, ["--report-fd", "3"], None, err
     elif name in ("a report fd that is a tty", "a report fd that is a regular file", "a report fd that is a read end"):
         if name.endswith("tty"):
             master, fd = os.openpty()
@@ -2057,16 +2210,17 @@ def refusal(name: str, tmp_path: Path, pipes: dict, held: list) -> tuple[Stdio, 
         else:
             fd = pipes["report"]
         io.pass_fds = (fd,)
-        return io, ["--report-fd", str(fd)], None
+        return io, ["--report-fd", str(fd)], None, err
     else:
         raise AssertionError(name)
-    return io, report, pipes["report"]
+    return io, report, pipes["report"], err
 
 
 REFUSALS = [
-    "a pty on fd 1", "a regular file on fd 2", "/dev/zero on fd 0", "a named FIFO on fd 0",
+    "a pty on fd 1", "an appended log on fd 2", "/dev/zero on fd 0", "a named FIFO on fd 0",
     "an unconnected UDP socket on fd 1", "an unconnected AF_UNIX stream socket on fd 0",
-    "a listening AF_UNIX socket on fd 0", "a connected AF_INET socket on fd 1", "a closed fd 0",
+    "a listening AF_UNIX socket on fd 0", "a connected AF_INET socket on fd 1",
+    "a closed fd 0", "a closed fd 0, with a socket on fd 2",
     "--report-fd 1", "--report-fd 3 duplicated from fd 2", "a report fd that is a tty",
     "a report fd that is a regular file",
     "a report fd that is a read end",  # Review Focus 3
@@ -2075,7 +2229,7 @@ REFUSALS = [
 
 @pytest.mark.parametrize("name", REFUSALS)
 def test_step_2_refuses_stdio_it_cannot_vouch_for(tmp_path, pipes, held, name):
-    io, extra, report_read = refusal(name, tmp_path, pipes, held)
+    io, extra, report_read, err_read = refusal(name, tmp_path, pipes, held)
     status, _ = autonomy(tmp_path, [*RUN, *extra, *ACTOR], io)
     assert status == 2
     assert runs(tmp_path) == []
@@ -2083,8 +2237,10 @@ def test_step_2_refuses_stdio_it_cannot_vouch_for(tmp_path, pipes, held, name):
         assert drain(pipes["out"]) == b""
     if report_read is not None:
         assert drain(report_read) == b""
-    said = (tmp_path / "stderr").read_bytes() if name == "a regular file on fd 2" else drain(pipes["err"])
-    assert b"stdio-refused" in said
+    if err_read is not None:
+        assert b"stdio-refused" in drain(err_read)
+    if name == "an appended log on fd 2":
+        assert (tmp_path / "existing.log").read_bytes() == b"earlier lines\n"  # never overwritten, never appended
 
 
 def test_a_filled_stderr_never_holds_a_refusal(tmp_path, pipes, held):
@@ -2237,10 +2393,19 @@ Diag = Callable[[str], None]
 _PREFIX = "autonomy: "
 
 
-def _diagnostics(channel: LineChannel) -> Diag:
+def _diagnostics() -> Diag:
+    """Diagnostics on fd 2. The channel is opened at the first diagnostic, never
+    before: it may open a descriptor, and one opened while fd 0 is closed would take
+    number 0 and pass step 2's check. Every diagnostic a run that goes on emits
+    follows step 2; one emitted earlier (a usage error, a refused tier) ends the
+    process."""
     limit = select.PIPE_BUF - 1  # room for the newline
+    channel: LineChannel | None = None
 
     def diag(message: str) -> None:
+        nonlocal channel
+        if channel is None:
+            channel = LineChannel(2)
         for line in message.splitlines():
             data = (_PREFIX + line).encode("utf-8", "replace")[:limit]
             channel.write_line(data.decode("utf-8", "ignore"))  # a dropped diagnostic is ignored
@@ -2339,7 +2504,7 @@ def _run(args: argparse.Namespace, diag: Diag) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    diag = _diagnostics(LineChannel(2))
+    diag = _diagnostics()
     try:
         args = _parser(diag).parse_args(argv)
     except _Stop as stop:
