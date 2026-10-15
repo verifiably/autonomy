@@ -3,6 +3,7 @@ and (Task 7) launch and kill."""
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import select
@@ -200,6 +201,29 @@ the actor intact. Not a shell: the pipe's number is often above 9, which dash re
 disposition survives exec, so the gate restores both before it execs."""
 
 
+def _pipe_above_stdio() -> tuple[int, int]:
+    """`os.pipe()` with both ends above fd 2. The lowest free descriptors go first, so
+    in a caller whose fd 0, 1 or 2 is closed an end would land there, and Popen's
+    dup2 of the actor's explicit stdio would overwrite it (or the gate would read the
+    caller's stdin)."""
+    ends = os.pipe()
+    moved: list[int] = []
+    try:
+        for fd in ends:
+            moved.append(fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 3) if fd < 3 else fd)
+    except BaseException:
+        for fd in (*ends, *moved):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        raise
+    for fd, new in zip(ends, moved):
+        if new != fd:
+            os.close(fd)
+    return moved[0], moved[1]
+
+
 def _require_open(**streams: int) -> None:
     for name, fd in streams.items():
         try:
@@ -249,8 +273,8 @@ def launch(spec: SandboxSpec, argv: Iterable[str], *, stdin: int, stdout: int, s
             "held by a handle that survives pid reuse",
         )
     _require_open(stdin=stdin, stdout=stdout, stderr=stderr)
-    info_read, info_write = os.pipe()
-    gate_read, gate_write = os.pipe()
+    info_read, info_write = _pipe_above_stdio()
+    gate_read, gate_write = _pipe_above_stdio()
     gated = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_read), *argv]
     try:
         process = subprocess.Popen(

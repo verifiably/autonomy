@@ -495,3 +495,33 @@ def test_a_gate_that_reopens_stdin_gives_the_actor_immediate_eof():
     finally:
         os.close(in_read)
     assert result.returncode == 0 and result.stdout == b""
+
+
+def test_launch_survives_a_caller_with_fds_0_1_2_closed(tmp_path):
+    # os.pipe() takes the lowest free fds: with 0-2 closed the gate's and bwrap's pipes
+    # would land there and be overwritten by the actor's explicit stdio
+    out = tmp_path / "outcome"
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    orchestrator = textwrap.dedent(f"""
+        import os
+        from pathlib import Path
+        import autonomy.sandbox.bwrap as bwrap
+        from autonomy.sandbox.spec import SandboxSpec
+        bwrap.LAUNCH_TIMEOUT = 5
+        import fcntl
+        null = [fcntl.fcntl(os.open(os.devnull, os.O_RDWR), fcntl.F_DUPFD, 10) for _ in range(3)]
+        for fd in (0, 1, 2):
+            os.close(fd)
+        try:
+            s = bwrap.launch(SandboxSpec(scratch=Path({str(scratch)!r})),
+                             ["/usr/bin/sh", "-c", "echo ran > ran"], stdin=null[0], stdout=null[1], stderr=null[2])
+            result = str(s.wait(timeout=10))
+            s.close()
+        except BaseException as caught:
+            result = repr(caught)
+        Path({str(out)!r}).write_text(result)
+    """)
+    subprocess.run([sys.executable, "-c", orchestrator], stdin=subprocess.DEVNULL, timeout=60)
+    assert out.read_text() == "0"
+    assert (scratch / "ran").exists()
