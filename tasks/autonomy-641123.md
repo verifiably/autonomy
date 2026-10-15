@@ -1,13 +1,15 @@
 ---
 id: autonomy-641123
 title: "Envelope Plan B: science_reads, baseline, endpoint, run supervisor and CLI (rows E7–E12, E1's CLI arm)"
-status: todo
+status: doing
 priority: 2
 size: l
 complexity: high
 process: planned
+owner: main
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T11:50:33Z
+updated: 2026-10-15T13:05:33Z
+started: 2026-10-15T13:05:33Z
 depends: [beliefs-7a56ef, sci-a1d45f, autonomy-250f4d, autonomy-a41de4]
 tags: []
 agent: claude-code/claude-opus-5-5
@@ -18,3 +20,5 @@ Spec §13 item 4: plan and build after the beliefs and science slices land. Cons
 ## Notes
 
 - 2026-10-15T11:50:33Z (spec/stdio): From autonomy-a41de4's review: the envelope spec leans on a wall-clock bound (§3 Close, decision 12) but gives it no value or option anywhere; Plan B picks one.
+- 2026-10-15T13:05:33Z (main): started
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
