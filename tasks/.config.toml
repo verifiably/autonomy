@@ -1,4 +1,5 @@
 prefix = "autonomy"
+color = "#d2647a"
 
 [git]
 commit = true
