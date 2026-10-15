@@ -169,7 +169,7 @@ the science path if ops-fbc3d9 picks pi-durable. The approved amendment (autonom
 is a prerequisite of Plan B's launch interface. Plan B does not wait on the contract or on the
 development mode.
 
-*Amendment (autonomy-a41de4, under review):* envelope decision 12 takes pass-through. The
+*Amendment (autonomy-a41de4, approved 2026-10-15):* envelope decision 12 takes pass-through. The
 gate is released on its own fd, and `autonomy run` never reads stdin or writes stdout.
 Each of fds 0–2 must be an anonymous pipe, a connected `AF_UNIX` stream socket or
 `/dev/null`. Once the actor starts, `autonomy run` leaves the channel. A program learns

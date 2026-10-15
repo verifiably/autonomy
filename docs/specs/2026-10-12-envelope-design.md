@@ -12,9 +12,10 @@ found 2 P2 and 5 P3; after round 8, a human-directed review that found 3 P2; and
 after round 9, a human-directed review that found 1 P2. All of them are addressed
 in
 this text.
-**Amendment of 2026-10-15** (autonomy-a41de4): the actor's stdio, decision 12, with its
-parts of §3, §6, §7, §10, §12 (row E20), §13 and §14. It follows the probe
-autonomy-c5c566 and is under review.
+**Amendment of 2026-10-15** (autonomy-a41de4): the actor's stdio. It adds decision 12,
+adds SIGTERM to decision 5's seal triggers, and changes §3, §6, §7, §8, §10, §12 (row
+E20), §13 and §14 to match. It follows the probe autonomy-c5c566. Approved 2026-10-15
+(human review round 8), after five agent review rounds and three human ones.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -554,7 +555,8 @@ named disposition, and the actor never starts.
    inherits `autonomy run`'s fds 0, 1 and 2, and the gate releases it on its own fd
    (§7). Then replace the
    orchestrator's own fds 0 and 1 with `/dev/null` and its fd 2 with
-   `<run dir>/orchestrator.log` (decision 12). Start the heartbeat.
+   `<run dir>/orchestrator.log`, and close the private non-blocking stderr descriptor
+   with them (decision 12). Start the heartbeat.
 
 **During.** The actor reaches the world only through the handle (§7). The caller may
 exchange bytes with it over stdio, which grants nothing (decision 12). The orchestrator
