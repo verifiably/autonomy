@@ -4,8 +4,9 @@ title: "Authorization model: what a flow gate never grants (spend, publication, 
 status: idea
 priority: 2
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-11T20:44:08Z
+updated: 2026-10-15T10:40:02Z
 depends: []
+parent: autonomy-d9adef
 tags: []
 source: ops-cb9749
 agent: claude-code
