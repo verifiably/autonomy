@@ -35,6 +35,49 @@ envelope does not yet provide for.
   (`sandbox/bwrap.py`, `_GATE`). stdout and stderr are inherited from the orchestrator.
   crew's `pi-cli-rpc` runtime spawns pi with piped stdio and speaks RPC over those pipes
   (crew `src/scopes.ts`, `src/runtime/pi-rpc.ts`). The launch as built cannot carry it.
+- **Probe results (autonomy-c5c566, 2026-10-15).** The probe used pi 1.1.0 and
+  `claude-haiku-5-5`. It reused Plan A's `SandboxSpec`, `build_argv` and `prove()` with
+  `--share-net`. A copy of the launch took the gate's release on its own fd, and the
+  caller's pipes went to pi as its stdin and stdout. The scratch dir held a throwaway
+  repository's linked worktree. Three runs together cost about US$0.005. The script is
+  attached to the task.
+  - **RPC works across the sandbox.** `get_state` answered in 0.6 s. One prompt ran six
+    bash steps and settled in 15–39 s. An abort during `sleep 60` settled in 0.01–0.03 s
+    with `aborted: true`. Closing stdin ended pi with exit 0.
+  - **Binds and environment.** Beyond `/usr` and `/etc`, pi needed:
+    - the node install and the pi install, both read-only;
+    - the agent directory, read-write: pi's credential store locks with `mkdir
+      auth.json.lock` beside `auth.json`, so a read-only agent dir fails every prompt with
+      `EROFS`, and pi also writes `models-store.json` there;
+    - the scratch dir, holding the worktree, the session directory and `HOME`.
+
+    The environment was `PATH` with node's bin, `HOME`, `PI_CODING_AGENT_DIR`,
+    `PI_SKIP_VERSION_CHECK`, `PI_TELEMETRY=0`, the git identity variables and `LANG`.
+    hq's launcher was bypassed, because its version and lock check reads hq's checkout.
+    The envelope's `--chdir` names the scratch root, so the actor's working directory had
+    to be set to the worktree separately.
+  - **A linked worktree needs metadata from outside it.**
+    - Worktree only: every git command fails ("gitfile does not point to a valid
+      repository"), while file edits land.
+    - Main `.git` read-only plus the worktree's admin dir read-write: `status`, `log` and
+      `rev-parse` work, and `git add` fails on the read-only object store.
+    - Adding `objects`, `refs/heads` and `logs` read-write lets the actor commit. git
+      then prints a non-fatal `packed-refs.lock` error. That bind set lets the actor move
+      every branch, `main` included, and rewrite reflogs. A single branch ref cannot be
+      bound on its own, because git updates a ref through a `.lock` file and a rename in
+      its directory. The config and the hooks stay read-only; a writable hook would run
+      on the host's next git command.
+    - Plan A's static check refuses a bind of the main checkout's `.git` while the main
+      checkout is denied (`bind-overlaps-denied`). Its ancestry rule cannot express "deny
+      the working files, allow `.git`".
+  - **Credential.** It is readable inside: a plain shell in the identical sandbox read
+    the 153-byte `auth.json`. This is inherent while pi holds the key in its own process.
+    Separately, the key appeared nowhere in pi's session files, RPC records, stdout,
+    stderr or `models-store.json` (47 files scanned in each run). Keeping it out of the
+    actor's reach needs a proxy that substitutes the credential, as pi's
+    containerization guide describes. That belongs to autonomy-9e8a43's credential
+    custody. Passing it with `--setenv` would also put it in bwrap's command line,
+    visible to every same-uid process.
 - **crew computes its own grants.** A grant is the kind's request intersected with the
   user's `policy.toml`, which lives outside every repository. Each attempt records the
   policy digest and every narrowing. Each limit is recorded as enforced or advisory, and
@@ -112,27 +155,40 @@ development. In that mode:
 3. pi-durable running in the actor's process inside the sandbox, which moves crew's
    driver and metering to the constrained side.
 
-*Lean:* 1, pending autonomy-c5c566. The approved amendment (autonomy-a41de4) is a
-prerequisite of Plan B's launch interface. Plan B does not wait on the contract or on the
+*Recommendation (autonomy-c5c566):* 1, pass-through. It worked unchanged across bwrap
+`--new-session --unshare-all`, abort included. The amendment must also say:
+- the gate's release travels on its own fd;
+- pi reserves stdout for protocol records, so `autonomy run` never writes to the actor's
+  stdout;
+- the actor's working directory is named separately from the scratch root;
+- the spec allows read-write binds beyond scratch (pi's agent dir, at least), each one
+  under the static check.
+
+Alternative 2 adds a channel without a benefit the probe found. Alternative 3 remains for
+the science path if ops-fbc3d9 picks pi-durable. The approved amendment (autonomy-a41de4)
+is a prerequisite of Plan B's launch interface. Plan B does not wait on the contract or on the
 development mode.
 
 ## 5. Unanswered questions
 
-1. Does pi over RPC run in the sandbox with stdio held by the caller? Can it inspect and
-   edit a linked worktree, whose `.git` file points at metadata outside the worktree? What
-   must be bound? Is the credential readable inside, and does it appear in any log?
-   *autonomy-c5c566.*
-2. How does the development mode make pushes and host changes unavailable: no network
-   beyond the model endpoint, no push credentials, git metadata bound read-only except
-   the branch ref? What does its closing check still verify? *Design in autonomy-d5c1cb,
-   after autonomy-c5c566.*
+1. *Answered by autonomy-c5c566 (§2):* RPC works with stdio held by the caller. A linked
+   worktree needs its admin dir and the shared metadata. The credential is readable
+   inside and appeared in no log.
+2. How does the development mode make pushes and host changes unavailable? Its network
+   must reach only the model endpoint, and push credentials stay out. Shared git metadata
+   cannot be narrowed to one branch: committing needs `refs/heads` writable, which
+   exposes every branch. One option, not yet tested: give the actor a clone in scratch
+   (`git clone --shared` reads objects through alternates, with the shared object store
+   bound read-only), and have the host fetch the branch only after a clean verdict. Then
+   no shared metadata is writable. What does the closing check still verify? *Design in
+   autonomy-d5c1cb.*
 3. Is credential custody shared between development and science runs? *autonomy-9e8a43's
    spec.*
 
 ## 6. Proposed decomposition
 
 - autonomy-d9adef, the goal, holds everything below.
-- autonomy-c5c566 is the probe of RPC, workspace and credentials. It wakes
+- autonomy-c5c566, the probe of RPC, workspace and credentials, is done (§2). It wakes
   autonomy-d5c1cb, and autonomy-a41de4 depends on it.
 - autonomy-a41de4 is the actor stdio amendment to the envelope spec. autonomy-641123
   (Plan B) depends on it.
