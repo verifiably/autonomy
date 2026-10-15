@@ -4,8 +4,8 @@ title: "Decide whether the envelope covers unattended development actors, and ho
 status: idea
 priority: 2
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-15T10:40:01Z
-depends: []
+updated: 2026-10-15T10:40:02Z
+depends: [autonomy-c5c566]
 parent: autonomy-d9adef
 tags: []
 agent: claude-code/claude-opus-5-5
