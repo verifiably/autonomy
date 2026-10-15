@@ -1450,7 +1450,9 @@ git commit -m "feat(channel): write report and diagnostic lines that never block
   - `Steps = Callable[[Opened], Sequence[Finding]]`.
   - `write_disposition(run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding]) -> None`:
     published atomically under its final name, never replacing one (`FileExistsError`);
-    an interrupted call leaves no `disposition.json`, and a retry succeeds.
+    absent before publication, complete after it: an interruption before the link leaves no
+    `disposition.json` and a retry succeeds; one after the link (at the directory fsync)
+    leaves a complete `disposition.json` and a retry raises `FileExistsError`.
   - `execute(request, env, steps, *, diag: Callable[[str], None], actor_fds=ACTOR_FDS) -> int`.
   - `endpoint_side_unbuilt(opened: Opened) -> tuple[Finding, ...]`.
 
