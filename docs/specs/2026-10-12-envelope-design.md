@@ -193,7 +193,15 @@ while drafting, and the review may overturn them.
      uncaught `SessionClosed`.
    - **What triggers it:** the endpoint seals on lease expiry, on `stop`, on EOF of
      its control socket, or on SIGTERM, which a stop of the caller's whole process
-     group or scope delivers (decision 12). It seals from a control thread that does not wait on the
+     group or scope delivers (decision 12).
+     - **SIGTERM is taken by the control thread,** with SIGTERM blocked in every other
+       thread and received by `sigwait` or a signalfd. A handler on the main thread
+       could wait behind a hung request.
+     - **Terminal signals never reach the endpoint.** It runs in its own session, so a
+       Ctrl-C at the caller's terminal reaches only the orchestrator, which treats
+       SIGINT as SIGTERM (§8).
+     - **The first trigger wins.** A later trigger joins the seal in progress. The
+       first trigger's cause is recorded, and `seal.json` is written once. It seals from a control thread that does not wait on the
      dispatcher lock, so a hung handler cannot block the kill switch.
    - **Sealed tips:** sealing has three steps.
      1. The endpoint sets the flag without taking the session lock.
@@ -376,8 +384,9 @@ while drafting, and the review may overturn them.
       actor's lines appear under the unit's name. What that process does with the bytes
       is the caller's choice. A person at a terminal runs
       `autonomy run … </dev/null 2>&1 | cat -v`. From step 9 on, the person sees only
-      the actor's output. The run's id is in the diagnostics before step 9, and its
-      outcome is in the exit code and `run show <id>`. The kinds are recorded in
+      the actor's output. The exit code is the outcome. The run's id in the
+      diagnostics before step 9 is a convenience for `run show <id>`, because the actor
+      can read and forge stderr. The kinds are recorded in
       `baseline.json` (§6).
     - **What the actor holds.** Fds 0, 1 and 2, and no other descriptor. The gate takes
       its release on a dedicated pipe and closes it before it execs the actor (§7).
@@ -422,9 +431,11 @@ while drafting, and the review may overturn them.
       the handle are fixed before the actor starts, and no byte on stdin widens them.
       It is not a control channel for the run.
       - **Stopping.** A caller stops a run with `run stop` or a SIGTERM to the
-        `autonomy run` pid, which is the same path (§8). It then allows the stop to
-        finish before it stops anything harder: the seal timeout plus 5 s, the 10 s
-        grace, and the closing check.
+        `autonomy run` pid, which is the same path (§8). It then waits for
+        `autonomy run` to exit. It escalates only past a deadline of its own, no
+        shorter than the seal timeout plus 15 s (45 s by default), which covers the seal
+        and the actor's grace. The closing check reads chains and has no fixed bound,
+        so a caller that escalates before the exit may leave a run for `run close`.
       - **A harder stop.** A SIGTERM to the whole process group or scope also reaches
         the endpoint, which seals on it (decision 5). A SIGKILL before the close
         finishes leaves a run that `run close` settles, and until then a new run on its
@@ -434,7 +445,9 @@ while drafting, and the review may overturn them.
     - **What stays the caller's obligation.** A stream socket can carry descriptors
       (`SCM_RIGHTS`). A caller that sends one grants the actor whatever it reaches,
       outside the sandbox spec. The envelope cannot see such a grant, and a caller must
-      never send one. It joins the same-uid obligations of §7.
+      never send one. Nor may a caller pass the peer end of the actor's own socketpair
+      as the report fd. Step 2 cannot tell it apart, and the report would then flow to
+      the actor. It joins the same-uid obligations of §7.
     - **Harness state stays in scratch.** pi needs a writable agent directory, a
       `HOME`, a session directory, and the worktree as its working directory. The actor
       argv places these under scratch, for example with a wrapper that copies a
@@ -479,8 +492,8 @@ named disposition, and the actor never starts.
 
    Write `baseline.json` (§6), fsync it, then fsync its directory.
 4. **Launch the endpoint** as `science serve --run <launch.json>`, a child process.
-   Its stdin is `/dev/null`, and its stdout and stderr go to `<run dir>/endpoint.log`
-   (decision 12).
+   It runs in its own session. Its stdin is `/dev/null`, and its stdout and stderr go
+   to `<run dir>/endpoint.log` (decision 5, decision 12).
    - **Launch file:** names the tier's permit, the written chains, the run
      directory, the scratch directory, the socket and control socket paths, the token
      file, and the lease.
@@ -513,14 +526,19 @@ renews the lease every lease/3.
 **Close.** Any one of these triggers the close:
 
 - the actor exits;
-- `autonomy run stop <run-id>`;
+- `autonomy run stop <run-id>`, or SIGTERM or SIGINT to `autonomy run`;
+- the endpoint seals or exits on its own, seen as a refused renewal or through its
+  pidfd;
 - the wall-clock bound.
 
 Then:
 
 1. **Seal.** Send `seal` on the control socket. The endpoint seals (decision 5),
    reports the sealed tips and `basis_seal`, writes `seal.json`, writes
-   `session-close` and exits.
+   `session-close` and exits. An endpoint that has already sealed on its own (lease,
+   EOF or SIGTERM) has written `seal.json`, and the orchestrator reads that instead
+   (§8). Only when neither arrives within the seal timeout plus 5 s does it kill the
+   endpoint, and the run closes through `seal-missing`.
 2. **Kill the actor's namespace** if it is still alive (§8).
 3. **Run the closing check** (§9) over the intervals from the baseline heads to the
    sealed tips.
@@ -700,7 +718,7 @@ The serialized permit is `{"kinds": [...sorted], "act_families": [...sorted],
   exist only after step 3: the session id, the ledger path, the opening basis, pids
   with their start times, the probe result, and actor start and exit.
 - **`seal.json`** is written once, by the endpoint: the sealed tips, the closing basis
-  and the seal cause (`stop`, `lease`, `eof`). A `seal-timeout` writes no `seal.json`:
+  and the seal cause (`stop`, `lease`, `eof`, `term`). A `seal-timeout` writes no `seal.json`:
   the orchestrator records it in `events.jsonl`, and the closing check reads it
   there.
 - **`disposition.json`** is written once, by the closing check (§9).
@@ -809,7 +827,8 @@ bridge reads the handle from the environment and opens no session.
     the bound when the orchestrator is hung rather than dead.
 - **The kill switch** is `autonomy run stop <run-id>`. It locates the orchestrator
   through `events.jsonl`, by pid plus start time, opened as a pidfd so a reused pid is
-  never signalled. It sends SIGTERM. The orchestrator then:
+  never signalled. It sends SIGTERM. The orchestrator treats SIGINT the same way. It
+  then:
   1. seals the endpoint and waits for its sealed-tips report, for at most the seal
      timeout plus 5 s. An endpoint that has already sealed on its own (lease, EOF or
      SIGTERM) has written `seal.json`, and the orchestrator reads that instead. If
@@ -1091,7 +1110,7 @@ named, never passed.
 | E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; a holdings act that crashed in its second phase (store write ledgered, publish committed without its `act` line); a recorded write to x followed by a failed intent for x; a move fully recorded; a move crashed after its `store_move` commit, and another between its source and destination publishes; a store transaction touching a location outside the act in progress; several null-`fulfills` store registrations matching one holdings intent; orphan tail with and without a later session, including that session's settlements, a failed intent before its first commit, and a session whose only acts failed; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; the second-phase crash is `unwired`, and an allowance keyed to unnamed intents makes it `quarantined`; the several-registrations case is `quarantined`, and an allowance keyed to one intent makes it `unwired`; with location matching across the interval, the write-then-failed-intent case is `quarantined` instead of `unwired` (`intent-unfulfilled`, its write a member); ownership by any matching move intent makes a crashed `store_move` ambiguous; without the one-transaction limit the second sequence is `unwired` rather than `quarantined`; with a boundary found only through `act` lines, the failed-first-intent and failure-only cases quarantine the orphan; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
 | E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a holdings act killed after its publish commit and before that `act` line, with its store write already ledgered; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
 | E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
-| E20 *(full-run arm pending, science)* | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, no other child holds the caller's descriptors, step 2 accepts only the three kinds, `autonomy run` never writes stdout and leaves the channel once the actor starts, the report fd carries the run and its disposition out of the actor's reach, and a group stop leaves a sealed run | launch, under real `bwrap`: an echo actor driven over anonymous pipes and again over a socketpair, one line written before the release and one after, both echoed, and EOF ends it with exit 0; the actor lists `/proc/self/fd` and sees 0–3 (3 is the listing's own); step 2: `/dev/null` and a socketpair pass, and each of these exits 2 `stdio-refused` with no run directory, an empty stdout and nothing on the report fd: a pty on fd 1, a regular file on fd 2, `/dev/zero` on fd 0, a named FIFO, an unconnected UDP socket, an unconnected `AF_UNIX` stream socket, a listening `AF_UNIX` socket, a connected `AF_INET` socket, a closed fd 0, a `--report-fd` of 1, and a `--report-fd 3` duplicated from fd 2; children: the recorded spawn arguments give the preflight, the probe, each `science` read and the endpoint stdin from `/dev/null`, and the endpoint shows `/dev/null` at `/proc/<pid>/fd/0`; a run that closes `unwired` at step 4 still writes the closing line after `disposition.json`; full run with `--report-fd`: the actor's `/proc/self/fd` listing shows 0–3 only; bytes written on stdin before step 7 reach the actor intact; a silent actor leaves stdout empty; with the seal reply held by a test hook, the caller sees EOF on stdout and stderr once the namespace is gone while `autonomy run` has not exited; the report fd carries the run line and then the closing line, whose disposition and exit match `disposition.json` and the exit code; an actor that reopens fd 2 for reading gets neither line; SIGTERM to every process of the run leaves `seal.json`, and `run close` settles the run | a gate that reads its release on fd 0 consumes the first line, or exits 125 on it; a gate that reopens stdin on `/dev/null` gives immediate EOF; a gate that keeps its fd shows a fifth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a check that accepts any character device but a tty passes `/dev/zero`; a check by `S_ISSOCK` alone passes the UDP socket, and its actor reaches a host listener under network `none`; a check by `SO_PEERCRED` alone passes the unconnected `AF_UNIX` socket; a report-fd check by number alone passes `3>&2`; a launch that passes the report fd into the sandbox shows a fifth descriptor; a probe that inherits stdin and reads it consumes the early bytes; an orchestrator that keeps its fds holds stdout open until it exits; an endpoint that ignores SIGTERM leaves no `seal.json` |
+| E20 *(full-run arm pending, science)* | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, no other child holds the caller's descriptors, step 2 accepts only the three kinds, `autonomy run` never writes stdout and leaves the channel once the actor starts, the report fd carries the run and its disposition out of the actor's reach, and a group stop leaves a sealed run | launch, under real `bwrap`: an echo actor driven over anonymous pipes and again over a socketpair, one line written before the release and one after, both echoed, and EOF ends it with exit 0; the actor lists `/proc/self/fd` and sees 0–3 (3 is the listing's own); step 2: `/dev/null` and a socketpair pass, and each of these exits 2 `stdio-refused` with no run directory, an empty stdout and nothing on the report fd: a pty on fd 1, a regular file on fd 2, `/dev/zero` on fd 0, a named FIFO, an unconnected UDP socket, an unconnected `AF_UNIX` stream socket, a listening `AF_UNIX` socket, a connected `AF_INET` socket, a closed fd 0, a `--report-fd` of 1, and a `--report-fd 3` duplicated from fd 2; children: the recorded spawn arguments give the preflight, the probe, each `science` read and the endpoint stdin from `/dev/null`, and the endpoint shows `/dev/null` at `/proc/<pid>/fd/0`; a run that closes `unwired` at step 4 still writes the closing line after `disposition.json`; full run with `--report-fd`: the actor's `/proc/self/fd` listing shows 0–3 only; bytes written on stdin before step 7 reach the actor intact; a silent actor leaves stdout empty; with the seal reply held by a test hook, the caller sees EOF on stdout and stderr once the namespace is gone while `autonomy run` has not exited; the report fd carries the run line and then the closing line, whose disposition and exit match `disposition.json` and the exit code; an actor that reopens fd 2 for reading gets neither line; with the orchestrator SIGSTOPped (no seal request, no EOF), SIGTERM to the endpoint gives `seal.json` with cause `term` and `session-close`; SIGTERM to every process of the run closes it through the orchestrator, whose exit code matches `disposition.json` and whose closing line arrives on the report fd; the same with the orchestrator SIGKILLed once `seal.json` appears leaves a run that `run close` settles `unwired` (`orchestrator-lost`) from that `seal.json`; SIGINT to the orchestrator's process group reaches the orchestrator alone, which closes the run | a gate that reads its release on fd 0 consumes the first line, or exits 125 on it; a gate that reopens stdin on `/dev/null` gives immediate EOF; a gate that keeps its fd shows a fifth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a check that accepts any character device but a tty passes `/dev/zero`; a check by `S_ISSOCK` alone passes the UDP socket, and its actor reaches a host listener under network `none`; a check by `SO_PEERCRED` alone passes the unconnected `AF_UNIX` socket; a report-fd check by number alone passes `3>&2`; a launch that passes the report fd into the sandbox shows a fifth descriptor; a probe that inherits stdin and reads it consumes the early bytes; an orchestrator that keeps its fds holds stdout open until it exits; an endpoint with the default SIGTERM disposition dies in the SIGSTOP case with no `seal.json`; a close step 1 without the already-sealed clause records `seal-missing` in the group-stop case; an endpoint in the caller's session dies on the SIGINT with no `seal.json` |
 
 ## 13. Delivery
 
