@@ -1,15 +1,16 @@
 ---
 id: autonomy-a41de4
 title: Amend the envelope spec with how the actor's stdio is handled under autonomy run
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: spec/stdio
 created: 2026-10-15T10:51:01Z
-updated: 2026-10-15T13:01:39Z
+updated: 2026-10-15T13:02:31Z
 started: 2026-10-15T11:36:01Z
+completed: 2026-10-15T13:02:31Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
 tags: []
@@ -53,3 +54,7 @@ Where: the brief at docs/notes/2026-10-15-authority-and-development-actors-brief
 - 2026-10-15T13:01:38Z (spec/stdio): resumed
   provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T13:01:38Z (spec/stdio): review: spec round 8 — verdict: accept; findings: none; reviewer: human
+- 2026-10-15T13:02:31Z (spec/stdio): done
+  provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T13:02:31Z (spec/stdio): Envelope spec amended with decision 12 (actor stdio): pass-through with the gate released on its own fd under python3; fds 0-2 limited to anonymous pipe, connected AF_UNIX stream socket or /dev/null; autonomy run leaves the channel at step 9; run id and disposition on a caller-supplied --report-fd with non-blocking writes; endpoint seals on SIGTERM and runs in its own session; row E20, implemented in Plan B. Approved by the user after 5 agent and 3 human review rounds. Follow-ups: crew-9a86e7, note on sci-a1d45f.
+  provenance: {"harness_session":"claude-code:5012b356-782b-4ff4-b554-9cd759e28012","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
