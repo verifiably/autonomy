@@ -344,42 +344,74 @@ while drafting, and the review may overturn them.
     directory, with the same flags. An entrypoint such as `../..` is therefore refused
     `path-outside-run` before any intent exists.
 12. **The actor's stdio is the caller's channel, and it carries bytes only.**
-    `autonomy run` hands its own fds 0, 1 and 2 to the actor unchanged, so a caller
-    drives the actor over the stdio of the `autonomy run` it started: crew drives
+    `autonomy run` hands its own fds 0, 1 and 2 to the actor, so a caller drives the
+    actor over the stdio of the `autonomy run` it started: crew drives
     `pi --mode rpc` this way. The probe autonomy-c5c566 ran pi's RPC over
     passed-through pipes in Plan A's sandbox, abort included.
 
-    - **What the actor holds:** fds 0, 1 and 2, and no other descriptor. The gate
-      takes its release on a dedicated pipe and closes it before it execs the actor
-      (§7).
-    - **What may be passed:** each of the three must be a pipe, a socket, or
-      `/dev/null`, checked at step 2 (§3). Anything else is refused `stdio-refused`,
-      naming the fd and its type. A terminal is a host device, and a regular file is a
-      host file. Passed by descriptor, either one would reach the actor without the
-      static check or the probe seeing it. A pipe or socket ends at a process the
-      caller runs, and what that process does with the bytes is the caller's choice. A
-      person at a terminal runs `autonomy run … </dev/null 2>&1 | cat`.
-    - **stdin:** the actor's alone. `autonomy run` never reads it. Bytes the caller
-      writes before the actor starts wait in the channel, and a run that closes before
-      step 9 never reads them.
-    - **stdout:** the actor's alone. `autonomy run` never writes to it, refusals
-      included, and no other process it starts receives fd 0 or fd 1. The endpoint's
-      stdin is `/dev/null`, and its stdout and stderr go to `autonomy run`'s stderr.
-      `science` reads capture their own output.
-    - **stderr:** shared, and diagnostic only. Once step 2 passes, `autonomy run`'s
-      first line on stderr is the **run line**,
-      `{"run": "<run id>", "run_dir": "<path>", "scratch": "<path>"}`. It is written
-      before the actor exists, so a caller can rely on it. Every later line may
-      interleave with the actor's output, and the actor can imitate it. Nothing reads
-      stderr as evidence. The record is the exit code and the run directory, and the
-      actor's own exit status is in `events.jsonl`.
-    - **What the channel cannot do:** it grants nothing. The tier, the sandbox spec and
+    - **What may be passed.** Step 2 (§3) checks each of fds 0, 1 and 2 with `fstat`
+      and `fstatfs`, and each must be one of these:
+      - `pipe`: an anonymous pipe (on pipefs). A named FIFO is refused, because the
+        actor could reopen it through `/proc/self/fd` and reach its other users.
+      - `socket`: a connected `AF_UNIX` `SOCK_STREAM` socket, not listening, whose
+        peer `SO_PEERCRED` reports. Node's `'pipe'` stdio is such a socketpair.
+      - `null`: `/dev/null`, identified by `S_ISCHR` and `st_rdev` 1:3, never by
+        path.
+
+      Anything else is refused `stdio-refused`, naming the fd and what it is: a closed
+      fd, a terminal or other device, a regular file, a directory, a listening or
+      datagram socket, or a socket of another family. Each of these hands the actor a
+      host object by descriptor, past the static check and the probe:
+      - A terminal gives the actor the person's keystrokes, its ioctls and its
+        termios.
+      - A file can be reopened read-write through `/proc/self/fd`, even when it was
+        passed read-only.
+      - An `AF_INET` or unconnected socket reaches the host's network namespace,
+        whatever the spec's network mode.
+
+      A connected stream ends at a process the caller runs. What that process does with
+      the bytes is the caller's choice. A person at a terminal runs
+      `autonomy run … </dev/null 2>&1 | cat -v`. The kinds are recorded in
+      `baseline.json` (§6).
+    - **What the actor holds.** Fds 0, 1 and 2, and no other descriptor. The gate takes
+      its release on a dedicated pipe and closes it before it execs the actor (§7).
+    - **The channel is the actor's alone once it starts.** `autonomy run` never reads
+      fd 0 and never writes fd 1, refusals included. It writes diagnostics on fd 2 only
+      before step 9, and it ignores a failed write there. Once the actor has started, it
+      replaces its own fds 0 and 1 with `/dev/null` and its fd 2 with
+      `<run dir>/orchestrator.log`. From then on:
+      - nothing on its lease or kill path can block on a caller that stops reading, or
+        fail on one that closes;
+      - the caller sees EOF when the actor's namespace is gone.
+
+      No other process that `autonomy run` starts receives the caller's descriptors.
+      The preflight, the probe and the `science` reads get stdin from `/dev/null` and
+      have their output captured. The endpoint gets stdin from `/dev/null`, and its
+      stdout and stderr go to `<run dir>/endpoint.log`, so its confined jobs inherit no
+      descriptor of the caller's either.
+    - **stderr is not evidence.** The actor can read back what was written on a pipe
+      it holds, by reopening it through `/proc/self/fd`, and it can write anything
+      there. So nothing relies on stderr: diagnostics before step 9 are for a person.
+      The record is the exit code, the run directory, and the report fd.
+    - **The report fd** is how a program learns which run it started.
+      `autonomy run --report-fd <n>` names a descriptor that the caller opened and that
+      the actor never holds. On it, `autonomy run` writes one JSON line once step 2
+      passes, `{"run": "<run id>", "run_dir": "<path>", "scratch": "<path>"}`, and a
+      second line after `disposition.json` is durable,
+      `{"run": "<run id>", "disposition": "<clean|quarantined|unwired>", "exit": <code>}`.
+      Then it closes the descriptor. Each line is a single write of at most `PIPE_BUF`
+      bytes, and a failed write is ignored, because the run directory is the record. A
+      caller checks that `run_dir` is `<state>/runs/<run>`. Without `--report-fd`, a
+      program finds the run through `run show`.
+    - **What the channel cannot do.** It grants nothing. The tier, the sandbox spec and
       the handle are fixed before the actor starts, and no byte on stdin widens them.
-      It is not a control channel for the run: the lease, the seal and the kill switch
-      go through `run stop` and the endpoint's control socket. Closing stdin closes the
-      run only when the actor exits on EOF, as pi does. A caller that stops reading
-      stalls the actor, and the wall-clock bound still closes the run.
-    - **What stays the caller's obligation:** a socket can carry descriptors
+      It is not a control channel for the run. A caller stops a run with `run stop` or
+      a SIGTERM to `autonomy run`, which is the same path (§8), and never by signalling
+      the process group or scope. That would kill the endpoint without a seal and leave
+      an orphan for `run close` (§3 *Orphans*). Closing stdin closes the run only when
+      the actor exits on EOF, as pi does. A caller that stops reading stalls the actor
+      but not the run, and the wall-clock bound still closes it.
+    - **What stays the caller's obligation.** A stream socket can carry descriptors
       (`SCM_RIGHTS`). A caller that sends one grants the actor whatever it reaches,
       outside the sandbox spec. The envelope cannot see such a grant, and a caller must
       never send one. It joins the same-uid obligations of §7.
@@ -389,8 +421,11 @@ while drafting, and the review may overturn them.
       read-only bound template and changes directory before it execs pi. The probe's
       separate read-write bind of the agent directory and its working directory apart
       from scratch are not added to the sandbox spec, so the actor still writes only
-      scratch. Whether a development mode needs binds beyond scratch, such as git
-      metadata, is autonomy-d5c1cb's question.
+      scratch. The template is a curated directory, never the host's live pi agent
+      directory. Its copy, credential included, outlives the run in scratch, and a token
+      that pi refreshes there can invalidate the template's. Both are autonomy-9e8a43's
+      credential custody, along with scratch's lifetime. Whether a development mode
+      needs binds beyond scratch, such as git metadata, is autonomy-d5c1cb's question.
 
 ## 3. A run, end to end
 
@@ -410,10 +445,11 @@ named disposition, and the actor never starts.
    - the lease is below the floor (§8);
    - another run directory on this host names the same written chain without a
      disposition (`orphaned-run`, §3 *Orphans*);
-   - fd 0, 1 or 2 is not a pipe, a socket or `/dev/null` (`stdio-refused`, decision
-     12).
+   - fd 0, 1 or 2 is not an anonymous pipe, a connected `AF_UNIX` stream socket or
+     `/dev/null`, or the `--report-fd` descriptor is closed or is one of them
+     (`stdio-refused`, decision 12).
 
-   Once these pass, write the run line on stderr (decision 12).
+   Once these pass, write the first line on the report fd (decision 12).
 3. **Capture the baseline heads** with `science heads --resolve`. This is a
    recovery-resolving read: it settles any work a crashed writer left pending. It
    reads the world head, every mounted corpus's head (genesis and tip), and the store
@@ -423,7 +459,7 @@ named disposition, and the actor never starts.
 
    Write `baseline.json` (§6), fsync it, then fsync its directory.
 4. **Launch the endpoint** as `science serve --run <launch.json>`, a child process.
-   Its stdin is `/dev/null`, and its stdout and stderr go to `autonomy run`'s stderr
+   Its stdin is `/dev/null`, and its stdout and stderr go to `<run dir>/endpoint.log`
    (decision 12).
    - **Launch file:** names the tier's permit, the written chains, the run
      directory, the scratch directory, the socket and control socket paths, the token
@@ -446,7 +482,9 @@ named disposition, and the actor never starts.
    result.
 9. **Start the actor** from the orchestrator's main thread, under the sandbox, with
    `--info-fd` to learn the namespace's init pid. It inherits `autonomy run`'s fds 0, 1
-   and 2, and the gate releases it on its own fd (§7). Start the heartbeat.
+   and 2, and the gate releases it on its own fd (§7). Then replace the
+   orchestrator's own fds 0 and 1 with `/dev/null` and its fd 2 with
+   `<run dir>/orchestrator.log` (decision 12). Start the heartbeat.
 
 **During.** The actor reaches the world only through the handle (§7). The caller may
 exchange bytes with it over stdio, which grants nothing (decision 12). The orchestrator
@@ -466,8 +504,9 @@ Then:
 2. **Kill the actor's namespace** if it is still alive (§8).
 3. **Run the closing check** (§9) over the intervals from the baseline heads to the
    sealed tips.
-4. **Write `disposition.json`** (§9), fsync it, and exit with the disposition's code:
-   0 `clean`, 3 `quarantined`, 4 `unwired`.
+4. **Write `disposition.json`** (§9), fsync it, write the closing line on the report
+   fd (decision 12), and exit with the disposition's code: 0 `clean`, 3 `quarantined`,
+   4 `unwired`.
 
 **Orphans.** A run directory with a baseline and no disposition belongs to an
 orchestrator that died.
@@ -645,11 +684,17 @@ The serialized permit is `{"kinds": [...sorted], "act_families": [...sorted],
   the orchestrator records it in `events.jsonl`, and the closing check reads it
   there.
 - **`disposition.json`** is written once, by the closing check (§9).
+- **`orchestrator.log`** and **`endpoint.log`** hold diagnostics: the orchestrator's
+  stderr from step 9 on, and the endpoint's stdout and stderr (decision 12). They are
+  appended, not evidence, and never read by the closing check.
+
+`baseline.json`'s `sandbox.stdio` lists the kinds step 2 found on fds 0, 1 and 2, each
+`pipe`, `socket` or `null` (decision 12).
 
 The launch file lives in the run directory with mode 0600. It holds the path of the
 token file, never the token.
 
-None of these is ever rewritten. Together they are the baseline record that governing
+None of the records is ever rewritten. Together they are the baseline record that governing
 §7.1 places outside any corpus the actor can write: the sandbox never binds the run
 directory.
 
@@ -674,13 +719,15 @@ directory.
 binds, then `--setenv` for non-secret variables only, then the gate and the actor argv.
 
 **The gate** is a shell that bwrap runs in front of the actor. It reads one line from a
-dedicated pipe, which `autonomy run` passes to bwrap as an extra fd and names in the
-gate's argv. It closes that fd, and then it execs the actor only if the line is `run`.
+dedicated pipe, which the launch passes to bwrap as an extra fd and writes into the gate
+script as a literal number, because a POSIX shell closes only a literal fd. It closes
+that fd, and then it execs the actor only if the line is `run`.
 EOF exits 125 without running the actor. The orchestrator writes `run` only after it
 holds a pidfd on the namespace's init (§8). The gate never touches stdin, so the release
 cannot come from the caller, and the caller's bytes are never consumed before the actor
 reads them. Plan A's gate took the release on stdin and reopened stdin on `/dev/null`.
-Decision 12 replaces that.
+Decision 12 replaces that. The launch takes the actor's three descriptors explicitly and
+refuses a closed one, so a library caller never passes a stray descriptor.
 
 **What the actor is given:** `VERIFIABLY_ENDPOINT=/run/va/endpoint.sock`,
 `VERIFIABLY_TOKEN_FILE=/run/va/token`, and `VERIFIABLY_SCRATCH`, the scratch path,
@@ -1022,7 +1069,7 @@ named, never passed.
 | E17 | a forged run actor with a complete ledger is `quarantined`; a crash's intent, registration and settlement with no `act` line, under an incomplete ledger, are all `outcome-unknown` and the run is `unwired`; with no seal, the uncertain tail is classified, and only entries another session's ledger names become `after-run` | unit over constructed evidence for each sequence: corpus act; holdings act with store registration; a holdings act that crashed in its second phase (store write ledgered, publish committed without its `act` line); a recorded write to x followed by a failed intent for x; a move fully recorded; a move crashed after its `store_move` commit, and another between its source and destination publishes; a store transaction touching a location outside the act in progress; several null-`fulfills` store registrations matching one holdings intent; orphan tail with and without a later session, including that session's settlements, a failed intent before its first commit, and a session whose only acts failed; two unledgered run-actor sequences under an incomplete ledger | dropping the incomplete-ledger condition makes the forged case `unwired`; classifying the intent without propagation makes the crash case `quarantined`; truncating the tail at the last member hides the crash commit; the second-phase crash is `unwired`, and an allowance keyed to unnamed intents makes it `quarantined`; the several-registrations case is `quarantined`, and an allowance keyed to one intent makes it `unwired`; with location matching across the interval, the write-then-failed-intent case is `quarantined` instead of `unwired` (`intent-unfulfilled`, its write a member); ownership by any matching move intent makes a crashed `store_move` ambiguous; without the one-transaction limit the second sequence is `unwired` rather than `quarantined`; with a boundary found only through `act` lines, the failed-first-intent and failure-only cases quarantine the orphan; without the settlement clause of `after-run` the later session's settlements quarantine the orphan |
 | E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a holdings act killed after its publish commit and before that `act` line, with its store write already ledgered; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
 | E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
-| E20 | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, `autonomy run` writes nothing on stdout and the run line first on stderr, and a terminal or regular file on fd 0–2 is refused at open | integration under real `bwrap`: an echo actor driven over pipes and again over a socketpair, with one line written before the release and one after, both echoed and EOF ending it with exit 0; the actor lists `/proc/self/fd`; `autonomy run` with a silent actor leaves stdout empty and starts stderr with the run line (until the endpoint lands, through a run that closes `unwired` at step 4); a pty on fd 1, and separately a regular file on fd 2, each exits 2 `stdio-refused` with no run directory | Plan A's gate (stdin reopened on `/dev/null`) gives the echo actor immediate EOF; a gate that keeps its fd open shows a fourth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a pipe on every fd passes step 2 |
+| E20 *(full-run arm pending, science)* | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, no other child holds the caller's descriptors, step 2 accepts only the three kinds, `autonomy run` never writes stdout and leaves the channel once the actor starts, and the report fd carries the run and its disposition out of the actor's reach | launch, under real `bwrap`: an echo actor driven over anonymous pipes and again over a socketpair, one line written before the release and one after, both echoed, and EOF ends it with exit 0; the actor lists `/proc/self/fd` and sees 0–3 (3 is the listing's own); step 2: `/dev/null` and a socketpair pass, and each of these exits 2 `stdio-refused` with no run directory and an empty stdout: a pty on fd 1, a regular file on fd 2, `/dev/zero` on fd 0, a named FIFO, an unconnected UDP socket, a listening `AF_UNIX` socket, a connected `AF_INET` socket, a closed fd 0, a `--report-fd` of 1; full run: the preflight, the probe and the endpoint each show `/dev/null` at `/proc/<pid>/fd/0`, and bytes written on stdin before step 7 reach the actor intact; a silent actor leaves stdout empty; the caller sees EOF on stdout and stderr once the namespace is gone while `autonomy run` is still closing; the report fd carries the run line and then the closing line, whose disposition and exit match `disposition.json` and the exit code; an actor that reopens fd 2 for reading gets neither line | a gate that reads its release on fd 0 consumes the first line, or exits 125 on it; a gate that reopens stdin on `/dev/null` gives immediate EOF; a gate that keeps its fd shows a fifth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a check that accepts any character device but a tty passes `/dev/zero`; a check by `S_ISSOCK` alone passes the UDP socket, and its actor reaches a host listener under network `none`; a probe that inherits stdin consumes the early bytes; an orchestrator that keeps its fds holds stdout open until it exits |
 
 ## 13. Delivery
 
@@ -1040,7 +1087,8 @@ because half of it cannot be tested before the slices in `science` and `beliefs`
    `log`, the basis computation; rows E13–E14, E18 and E19. It is filed in `science`, and depends
    on 2.
 4. **Plan B (autonomy, after 2 and 3):** `science_reads`, `baseline`, `endpoint`,
-   `run`, the CLI, and the gate's own release fd; rows E7–E12 and E20.
+   `run`, the CLI, the gate's own release fd, the stdio check and `--report-fd`, and
+   `/dev/null` as stdin for the preflight and the probe; rows E7–E12 and E20.
 
 The first unattended run (autonomy-9e8a43) starts after 4.
 
@@ -1081,7 +1129,13 @@ The first unattended run (autonomy-9e8a43) starts after 4.
   of every byte, and it would let a terminal stay connected on the host side. It does
   nothing that a pipe the caller holds cannot do.
 - **Passing any descriptor through, or checking a regular file against the denied
-  set.** A terminal accepts escape sequences that the emulator may act on. A file
-  opened for writing can be rewritten anywhere in it. Checking a file's path against
-  the denied set by descriptor adds a second form of the static check, and it still
-  hands the actor a host object. A pipe or socket ends at a process the caller chose.
+  set.** A terminal gives the actor the person's keystrokes, ioctls and termios. A file
+  passed read-only can be reopened read-write through `/proc/self/fd`, and a socket of
+  the host's network namespace bypasses the network mode. Checking a file's path
+  against the denied set by descriptor adds a second form of the static check, and it
+  still hands the actor a host object. A connected stream ends at a process the caller
+  chose.
+- **The run line on stderr.** The actor can reopen a stderr pipe through
+  `/proc/self/fd`, read the line and write a forged one in its place. A forged
+  `run_dir` could point into scratch, at a `disposition.json` the actor wrote. The
+  report fd is never the actor's.

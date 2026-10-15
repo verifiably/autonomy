@@ -171,8 +171,10 @@ development mode.
 
 *Amendment (autonomy-a41de4, under review):* envelope decision 12 takes pass-through. The
 gate is released on its own fd, and `autonomy run` never reads stdin or writes stdout.
-Each of fds 0–2 must be a pipe, a socket or `/dev/null`. stderr starts with a run line and
-is otherwise diagnostic only. Row E20 tests it. Two of the points above went the other
+Each of fds 0–2 must be an anonymous pipe, a connected `AF_UNIX` stream socket or
+`/dev/null`. Once the actor starts, `autonomy run` leaves the channel. A program learns
+its run and disposition on `--report-fd`, never from stderr, which the actor can read and
+forge. Row E20 tests it. Two of the points above went the other
 way. The agent directory and the working directory stay in scratch, set up by the actor
 argv, so the sandbox spec gains neither a read-write bind nor a separate working
 directory. Binds beyond scratch are left to autonomy-d5c1cb.
