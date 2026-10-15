@@ -7,7 +7,7 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-15T13:05:59Z
-updated: 2026-10-15T13:06:00Z
+updated: 2026-10-15T13:06:06Z
 depends: [beliefs-7a56ef, sci-a1d45f, autonomy-641123]
 tags: []
 agent: claude-code/claude-opus-5-5
@@ -18,3 +18,4 @@ Spec §13 item 4, second half: plan and build after the beliefs and science slic
 ## Notes
 
 - 2026-10-15T13:05:59Z (main): concerns: none — split from autonomy-641123 before its plan was written (2026-10-15); the wall-clock bound note on 641123 applies here if B1 leaves it
+- 2026-10-15T13:06:06Z (main): correction: the line above is not an outcome-measure concern (no closed work fell short); this task is a planned split of autonomy-641123
