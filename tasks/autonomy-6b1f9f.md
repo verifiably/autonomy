@@ -7,7 +7,7 @@ size: s
 complexity: low
 process: direct
 created: 2026-10-12T15:48:46Z
-updated: 2026-10-12T15:48:46Z
+updated: 2026-10-15T15:37:56Z
 depends: []
 tags: []
 source: autonomy-250f4d
@@ -31,3 +31,7 @@ Deferred minors from Plan A's whole-branch review and its fix rounds (fresh revi
 - an empty actor argv makes the gate exit 0, so launch reports a clean run of nothing; refuse empty argv.
 - on Python 3.11/3.12 Path.resolve(strict=False) raises RuntimeError on a denied-path symlink loop, which escapes untyped from _target (3.14 is typed).
 - _abort could leak the pidfd and skip killing bwrap if pidfd_send_signal raised anything but ProcessLookupError (cannot happen for our own child today); try/finally would make it airtight.
+
+## Notes
+
+- 2026-10-15T15:37:56Z (plan-b1): from Plan B1 (autonomy-641123): the gate is now Python under /usr/bin/python3 -I, so the sh-gate items (PWD/SHLVL env, exec "$@" leading dash) need re-checking against the new gate; an empty actor argv now makes the gate raise IndexError (traceback, exit 1) rather than exit 0 — still refuse it in launch. Add B1's fd nits here: _pipe_above_stdio's error path closes an end ≥3 twice; stdio._socket_kind and LineChannel's socket branch os.dup before try leak the dup if socket() raises (EMFILE)

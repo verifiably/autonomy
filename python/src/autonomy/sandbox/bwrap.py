@@ -3,6 +3,7 @@ and (Task 7) launch and kill."""
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import select
@@ -38,7 +39,7 @@ def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
         "--", "/usr/bin/true",
     ]
     try:
-        result = subprocess.run(trial, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise SandboxUnproven("userns-unavailable", "bwrap", "the trial sandbox did not exit in 30 s") from None
     if result.returncode != 0:
@@ -78,7 +79,7 @@ def probe(spec: SandboxSpec, denied: Iterable[Path]) -> None:
     paths = [str(p.resolve()) for p in denied]
     argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
     try:
-        result = subprocess.run(argv, capture_output=True, timeout=60)
+        result = subprocess.run(argv, capture_output=True, timeout=60, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise SandboxUnproven("probe-failed", "bwrap", "the probe did not exit in 60 s") from None
     stdout = result.stdout.decode("utf-8", errors="replace")
@@ -171,17 +172,70 @@ def _read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
 RELEASE = b"run\n"
 """The one line that lets the gate exec the actor."""
 
-_GATE = 'read -r go; exec </dev/null; [ "$go" = run ] || exit 125; exec "$@"'
-"""The command bwrap runs: it reads one line from stdin (the gate pipe) and execs the
-actor only on an explicit `run`. EOF (any failure or death of the launcher) makes it
-exit without running the actor. Stdin is reopened on /dev/null first, so the actor
-never sees the gate."""
+_GATE = r"""
+import os, signal, sys
+gate = int(sys.argv[1])
+line = b""
+while len(line) < 4 and not line.endswith(b"\n"):
+    chunk = os.read(gate, 1)
+    if not chunk:
+        break
+    line += chunk
+os.close(gate)
+if line != b"run\n":
+    os._exit(125)
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+signal.signal(signal.SIGXFSZ, signal.SIG_DFL)
+try:
+    os.execvp(sys.argv[2], sys.argv[2:])
+except OSError as caught:
+    os.write(2, f"va-gate: {sys.argv[2]}: {caught.strerror}\n".encode("utf-8", "replace"))
+    os._exit(127)
+"""
+"""The program bwrap runs in front of the actor, under `/usr/bin/python3 -I` (spec §7).
+It reads one line from its own pipe, named by number in its argv, closes that pipe,
+and execs the actor only on `run`. EOF exits 125 without running the actor. It never
+touches stdin, so the release cannot come from the caller and the caller's bytes reach
+the actor intact. Not a shell: the pipe's number is often above 9, which dash rejects
+(`Bad fd number`). CPython ignores SIGPIPE and SIGXFSZ at startup, and an ignored
+disposition survives exec, so the gate restores both before it execs."""
+
+
+def _pipe_above_stdio() -> tuple[int, int]:
+    """`os.pipe()` with both ends above fd 2. The lowest free descriptors go first, so
+    in a caller whose fd 0, 1 or 2 is closed an end would land there, and Popen's
+    dup2 of the actor's explicit stdio would overwrite it (or the gate would read the
+    caller's stdin)."""
+    ends = os.pipe()
+    moved: list[int] = []
+    try:
+        for fd in ends:
+            moved.append(fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 3) if fd < 3 else fd)
+    except BaseException:
+        for fd in (*ends, *moved):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        raise
+    for fd, new in zip(ends, moved):
+        if new != fd:
+            os.close(fd)
+    return moved[0], moved[1]
+
+
+def _require_open(**streams: int) -> None:
+    for name, fd in streams.items():
+        try:
+            os.fstat(fd)
+        except OSError as caught:
+            raise ValueError(f"the actor's {name}, fd {fd}, is not open: {caught.strerror}") from caught
 
 
 def _abort(process: subprocess.Popen, pidfd: int) -> None:
     """Undo a launch whose gate was never released: kill the namespace through the
     pidfd when one is held (never by pid), kill and reap bwrap, close the pidfd. The
-    gate's write end closes after this, and EOF makes the gate exit without running
+    gate's write end closes after this, and EOF makes the gate exit 125 without running
     the actor even if something survived."""
     if pidfd >= 0:
         try:
@@ -194,13 +248,18 @@ def _abort(process: subprocess.Popen, pidfd: int) -> None:
     process.wait()
 
 
-def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
+def launch(spec: SandboxSpec, argv: Iterable[str], *, stdin: int, stdout: int, stderr: int) -> Sandboxed:
     """Start the actor so that its handle exists before it can run.
 
-    bwrap runs a gate (`_GATE`) that waits on stdin; bwrap reports the namespace's
-    init on --info-fd, the pidfd is opened while the gate still waits, and only then
-    is `RELEASE` written. Every failure before that aborts through the pidfd or by
-    killing bwrap, and the gate, seeing EOF, never runs the actor."""
+    bwrap runs the gate (`_GATE`) holding the read end of a dedicated pipe. bwrap
+    reports the namespace's init on --info-fd, the pidfd is opened while the gate still
+    waits, and only then is `RELEASE` written. Every failure before that aborts through
+    the pidfd or by killing bwrap, and the gate, seeing EOF, never runs the actor.
+
+    The actor's fds 0, 1 and 2 are `stdin`, `stdout` and `stderr`, and it holds no
+    other descriptor (decision 12). A closed one is refused, so a library caller never
+    passes a stray descriptor. bwrap starts in a process group of its own, so a signal
+    to the caller's group cannot kill the actor before the seal (§3 step 9)."""
     if threading.current_thread() is not threading.main_thread():
         raise RuntimeError(
             "launch the sandbox from the main thread: --die-with-parent is PR_SET_PDEATHSIG, "
@@ -213,14 +272,18 @@ def launch(spec: SandboxSpec, argv: Iterable[str]) -> Sandboxed:
             "this interpreter lacks os.pidfd_open or signal.pidfd_send_signal; the actor cannot be "
             "held by a handle that survives pid reuse",
         )
-    info_read, info_write = os.pipe()
-    gate_read, gate_write = os.pipe()
-    gated = ["/usr/bin/sh", "-c", _GATE, "va-gate", *argv]
+    _require_open(stdin=stdin, stdout=stdout, stderr=stderr)
+    info_read, info_write = _pipe_above_stdio()
+    gate_read, gate_write = _pipe_above_stdio()
+    gated = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_read), *argv]
     try:
         process = subprocess.Popen(
             build_argv(spec, gated, info_fd=info_write),
-            pass_fds=(info_write,),
-            stdin=gate_read,
+            pass_fds=(info_write, gate_read),
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            process_group=0,
         )
     except BaseException:
         os.close(info_read)

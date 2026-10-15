@@ -1,18 +1,20 @@
 ---
 id: autonomy-641123
 title: "Envelope Plan B1: the run CLI's launch side, independent of the slices (step 1–2 refusals incl. stdio-refused, report fd, gate release fd, /dev/null child stdin; E1 CLI arm, E20 launch arm)"
-status: doing
+status: done
 priority: 2
 size: m
 complexity: high
 process: planned
-owner: main
+owner: plan-b1
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T13:05:51Z
+updated: 2026-10-15T15:39:48Z
 started: 2026-10-15T13:05:33Z
+completed: 2026-10-15T15:39:48Z
 depends: [autonomy-250f4d, autonomy-a41de4]
 tags: []
 agent: claude-code/claude-opus-5-5
+plan: docs/plans/2026-10-15-envelope-plan-b1.md
 ---
 
 Spec §13 item 4, first half: the parts of Plan B that need nothing from the beliefs or science slices, so they can land before beliefs-7a56ef and sci-a1d45f. Scope: the `autonomy run` CLI shell and argument parsing; step 1 (run, scratch and socket directories); step 2's configuration refusals (publishes = E1's CLI arm, lease floor, orphaned-run scan, stdio-refused per decision 12); the report fd's first and closing lines with non-blocking writes to it and to stderr; the gate's own release fd under python3; /dev/null as stdin for the preflight and the probe; the orchestrator's fd hand-off at step 9; row E20's launch arm. A run in this plan closes unwired at step 3 when science is unavailable, which exercises the closing-line path. Also picks the wall-clock bound value the spec leaves open (§3 Close, decision 12) if the CLI surface needs it. The endpoint side is the sibling Plan B2 task.
@@ -23,3 +25,28 @@ Spec §13 item 4, first half: the parts of Plan B that need nothing from the bel
 - 2026-10-15T13:05:33Z (main): started
   provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T13:05:51Z (main): split: Plan B as filed was blocked on beliefs-7a56ef and sci-a1d45f (both unstarted). Spec §13 item 4's launch-side half needs neither, so this task keeps it and Plan B2 takes science_reads, baseline, endpoint, steps 3–8, close and run close/stop, E7–E12 and E20's full-run arm. Overlap risk: autonomy-6b1f9f also edits the sandbox launch.
+- 2026-10-15T13:06:15Z (plan-b1): resumed
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T13:23:46Z (plan-b1): plan drafted: docs/plans/2026-10-15-envelope-plan-b1.md on branch plan-b1, 5 tasks (children 6eab12, 8ac272, 0aabee, 89240f, bcaab6); awaiting user review before execution
+- 2026-10-15T13:23:54Z (plan-b1): parked (waiting on user, review): User reviews docs/plans/2026-10-15-envelope-plan-b1.md (branch plan-b1) and picks an execution method; then the agent runs it in .worktrees/plan-b1, starting with the baseline just test-fast
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T14:18:29Z (plan-b1): resumed
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T14:18:29Z (plan-b1): review: plan round 1 — verdict: revise; findings: P1 1, P2 4; reviewer: human
+- 2026-10-15T14:23:09Z (plan-b1): plan revised for round 1: diagnostic channel writes only pipes, sockets and /dev/null (an appended log stays untouched; terminals skipped for SIGTTOU); channel opened lazily after step 2; an overlong report line is dropped and recorded report-unwritten; disposition.json published by temp+fsync+link; dash test uses F_DUPFD_CLOEXEC. Plan code extracted to a scratch copy: 103 tests pass (Tasks 2–5), dash test passes
+- 2026-10-15T14:23:09Z (plan-b1): parked (waiting on user, review): User re-reviews docs/plans/2026-10-15-envelope-plan-b1.md (branch plan-b1, round 2) and picks an execution method; then the agent runs it in .worktrees/plan-b1, starting with the baseline just test-fast
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T14:49:08Z (plan-b1): resumed
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T14:49:09Z (plan-b1): review: plan round 2 — verdict: accept; findings: P3 1; reviewer: human
+- 2026-10-15T14:49:09Z (plan-b1): plan approved by user 2026-10-15 (round 2). Execute with superpowers:subagent-driven-development in .worktrees/plan-b1: baseline checks first; Tasks 1–5 sequentially, a fresh implementer per task, each followed by independent spec-compliance and code-quality reviews and the task's prescribed checks; then a final whole-branch review. During Task 4, correct write_disposition's contract and docstring to 'absent before publication, complete after publication' (an interruption at the directory fsync leaves a complete disposition.json and a retry raises FileExistsError); no further plan review needed for that wording
+- 2026-10-15T14:49:09Z (plan-b1): parked (waiting on agent, session): In a fresh session in .worktrees/plan-b1: tasks start autonomy-641123, run the baseline just test-fast, then execute docs/plans/2026-10-15-envelope-plan-b1.md with superpowers:subagent-driven-development, Tasks 1–5 in order (children 6eab12, 8ac272, 0aabee, 89240f, bcaab6), fixing the Task 4 disposition wording per the approval note
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T14:50:13Z (plan-b1): resumed
+  provenance: {"harness_session":"claude-code:c14b5173-fa0b-42f9-bdfc-91ab64cb07e5","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T15:24:56Z (plan-b1): review: impl round 1 — verdict: revise; findings: Important 1, Minor 6; reviewer: claude-code/opus
+- 2026-10-15T15:39:31Z (plan-b1): review: impl round 2 — verdict: accept; findings: Minor 3; reviewer: claude-code/opus
+- 2026-10-15T15:39:48Z (plan-b1): done
+  provenance: {"harness_session":"claude-code:c14b5173-fa0b-42f9-bdfc-91ab64cb07e5","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T15:39:48Z (plan-b1): Plan B1 landed: Python gate on its own fd with explicit actor stdio and /dev/null child stdin (E20 launch arm); stdio.py step-2 classification (stdio-refused); channel.py non-blocking line channel; run.py run frame (steps 1-2, publish-once disposition.json, report lines, exit codes 0/2/3/4, allocation rollback); cli.py autonomy run (E1 CLI arm) with a last-resort handler; README usage; spec status. just test 443 passed. Follow-ups: autonomy-413763, autonomy-0fcb62, autonomy-6e59a4
+  provenance: {"harness_session":"claude-code:c14b5173-fa0b-42f9-bdfc-91ab64cb07e5","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
