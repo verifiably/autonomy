@@ -18,8 +18,9 @@ Part of **verifiably**: verifiably builds understanding of the world from small,
   — the governing design, in the kernel repository: §7 is this layer, §8 orders the
   sub-projects. Work here starts at sub-project #6, the envelope, after the command
   framework, and ends with #7, the loop and the priority function (`science.priority.v1`).
-- This repository's own designs and plans will live under docs/ (specs and plans) once
-  written; nothing is there today.
+- This repository's own designs and plans are under [docs/specs](docs/specs) and
+  [docs/plans](docs/plans); the envelope's design is
+  `docs/specs/2026-10-12-envelope-design.md`.
 - This layer is split from `science` on code-lineage independence: the envelope must
   not share a package with the surface it constrains, so its only seam is `science`'s
   commands as tools.
