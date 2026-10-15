@@ -1,15 +1,16 @@
 ---
 id: autonomy-641123
 title: "Envelope Plan B1: the run CLI's launch side, independent of the slices (step 1–2 refusals incl. stdio-refused, report fd, gate release fd, /dev/null child stdin; E1 CLI arm, E20 launch arm)"
-status: doing
+status: done
 priority: 2
 size: m
 complexity: high
 process: planned
 owner: plan-b1
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T15:39:31Z
+updated: 2026-10-15T15:39:48Z
 started: 2026-10-15T13:05:33Z
+completed: 2026-10-15T15:39:48Z
 depends: [autonomy-250f4d, autonomy-a41de4]
 tags: []
 agent: claude-code/claude-opus-5-5
@@ -45,3 +46,7 @@ Spec §13 item 4, first half: the parts of Plan B that need nothing from the bel
   provenance: {"harness_session":"claude-code:c14b5173-fa0b-42f9-bdfc-91ab64cb07e5","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T15:24:56Z (plan-b1): review: impl round 1 — verdict: revise; findings: Important 1, Minor 6; reviewer: claude-code/opus
 - 2026-10-15T15:39:31Z (plan-b1): review: impl round 2 — verdict: accept; findings: Minor 3; reviewer: claude-code/opus
+- 2026-10-15T15:39:48Z (plan-b1): done
+  provenance: {"harness_session":"claude-code:c14b5173-fa0b-42f9-bdfc-91ab64cb07e5","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T15:39:48Z (plan-b1): Plan B1 landed: Python gate on its own fd with explicit actor stdio and /dev/null child stdin (E20 launch arm); stdio.py step-2 classification (stdio-refused); channel.py non-blocking line channel; run.py run frame (steps 1-2, publish-once disposition.json, report lines, exit codes 0/2/3/4, allocation rollback); cli.py autonomy run (E1 CLI arm) with a last-resort handler; README usage; spec status. just test 443 passed. Follow-ups: autonomy-413763, autonomy-0fcb62, autonomy-6e59a4
+  provenance: {"harness_session":"claude-code:c14b5173-fa0b-42f9-bdfc-91ab64cb07e5","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
