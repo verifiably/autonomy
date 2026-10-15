@@ -7,10 +7,14 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T10:51:02Z
+updated: 2026-10-15T11:50:33Z
 depends: [beliefs-7a56ef, sci-a1d45f, autonomy-250f4d, autonomy-a41de4]
 tags: []
 agent: claude-code/claude-opus-5-5
 ---
 
 Spec §13 item 4: plan and build after the beliefs and science slices land. Consumes Plan A's tiers, ledger reader, closing check and sandbox.
+
+## Notes
+
+- 2026-10-15T11:50:33Z (spec/stdio): From autonomy-a41de4's review: the envelope spec leans on a wall-clock bound (§3 Close, decision 12) but gives it no value or option anywhere; Plan B picks one.
