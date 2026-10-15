@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: plan-b1
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T13:23:35Z
+updated: 2026-10-15T13:23:46Z
 started: 2026-10-15T13:05:33Z
 depends: [autonomy-250f4d, autonomy-a41de4]
 tags: []
@@ -26,3 +26,4 @@ Spec §13 item 4, first half: the parts of Plan B that need nothing from the bel
 - 2026-10-15T13:05:51Z (main): split: Plan B as filed was blocked on beliefs-7a56ef and sci-a1d45f (both unstarted). Spec §13 item 4's launch-side half needs neither, so this task keeps it and Plan B2 takes science_reads, baseline, endpoint, steps 3–8, close and run close/stop, E7–E12 and E20's full-run arm. Overlap risk: autonomy-6b1f9f also edits the sandbox launch.
 - 2026-10-15T13:06:15Z (plan-b1): resumed
   provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-15T13:23:46Z (plan-b1): plan drafted: docs/plans/2026-10-15-envelope-plan-b1.md on branch plan-b1, 5 tasks (children 6eab12, 8ac272, 0aabee, 89240f, bcaab6); awaiting user review before execution
