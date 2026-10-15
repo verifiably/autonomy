@@ -1,11 +1,13 @@
 ---
 id: autonomy-1aac03
-title: "Authorization model: what a flow gate never grants (spend, publication, host changes, unattended operation)"
-status: idea
+title: "Design autonomy's authorization contract: who may grant what, how delegation narrows it, and where each limit is enforced"
+status: todo
 priority: 2
-reviewed: true
+size: m
+complexity: high
+process: planned
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-15T10:40:03Z
+updated: 2026-10-15T10:51:31Z
 depends: []
 parent: autonomy-d9adef
 tags: []
@@ -13,7 +15,16 @@ source: ops-cb9749
 agent: claude-code
 ---
 
-The agent layer split hands autonomy this boundary (ops docs/specs/2026-10-03-agent-layer-split-design.md §5.5, §9).
+Why: designs across the stack name autonomy as the owner of authority to act: spending, publication, host changes, unattended operation (ops docs/specs/2026-10-03-agent-layer-split-design.md §5.5 and §9; relay's typed-interaction spec §4.3; crew core design §4.2-4.3 and §10 decision 1; goal ops-cb50a8). The only grant autonomy defines today is a tier on a science run (envelope spec §11). The agent-layer split handed autonomy this boundary (source ops-cb9749).
+
+Decided by the user, 2026-10-15 (brief §4):
+1. Contract first, enforcement class by class. The contract states who may grant what, how delegation narrows authority, and where each limit is enforced. The tier is the first enforced class and the budget allowance (autonomy-9e8a43) the next. No general grant service until a consumer needs one.
+2. crew's grant sits beneath an autonomy grant: effective permission = autonomy ceiling ∩ the user's crew policy ∩ the kind's request. crew narrows and never enlarges. The user, as operator, owns the policy, outside actor-writable storage, and each attempt records its snapshot.
+3. A relay answer grants nothing for now. The contract separates the approval surface from the issuer: a future authenticated approval through relay may ask autonomy to issue a bounded grant, with relay only carrying the decision. Running an autonomy command never establishes authority by itself: an orchestrator needs delegated permission beforehand, and an actor that invokes the CLI gains nothing.
+
+Done: a design spec under docs/specs/, reviewed and approved by the user. It defines the parts of a grant (shape from harness-engineering's authority thesis, see the note of 2026-10-11: identity, operation and resource, scope, lifetime and revocation, approval, audit receipt, rollback); the issuers and how delegation narrows from operator to orchestrator to actor; the consequence classes (unattended operation, spend, publication, host changes), each with its enforcement point or a statement that it stays attended; the distinction between a gate, an approval surface and a grant; and the tier recast as the contract's first instance. A plan is needed only for the code the spec asks for. Consumers named: crew's policy grant, relay's authorization class, flows' gates, the budget allowance.
+
+Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; envelope spec §5 and §11; the documents above.
 
 ## Notes
 
