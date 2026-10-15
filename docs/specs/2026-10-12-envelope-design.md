@@ -3,9 +3,9 @@
 **Date:** 2026-10-12
 **Status:** approved 2026-10-12 (human review round 10). Plan A (§13 item 1) implemented
 the same day: `docs/plans/2026-10-12-envelope-plan-a.md`, rows E1–E6 and E17. Items 2–3
-are open: beliefs-7a56ef, sci-a1d45f. Item 4 is split: Plan B1, the launch side that
+are open: beliefs-7a56ef, sci-a1d45f. Item 4 stays open until B2 lands; it is split: Plan B1, the launch side that
 needs neither slice (autonomy-641123, `docs/plans/2026-10-15-envelope-plan-b1.md`),
-implemented on 2026-10-15, and Plan B2, the endpoint side (autonomy-f6efe8). Revised after review round 1, which found 3 Critical, 9
+implemented on 2026-10-15, and Plan B2, the endpoint side (autonomy-f6efe8), open. Revised after review round 1, which found 3 Critical, 9
 Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
 after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
 Important and 2 Minor; after round 5, which found 1 Important and 5 Minor; and after
