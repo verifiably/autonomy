@@ -1,11 +1,11 @@
 ---
 id: autonomy-d5c1cb
-title: "Decide whether the envelope covers unattended development actors, and how an actor's stdio is handled under autonomy run"
+title: "Design a development mode of autonomy run: unattended development actors confined by the envelope, with acceptance left to crew"
 status: idea
 priority: 2
 reviewed: true
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-15T10:40:03Z
+updated: 2026-10-15T10:51:32Z
 depends: [autonomy-c5c566]
 parent: autonomy-d9adef
 tags: []
