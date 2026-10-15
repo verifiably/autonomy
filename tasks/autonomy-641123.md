@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: plan-b1
 created: 2026-10-12T12:10:25Z
-updated: 2026-10-15T14:23:09Z
+updated: 2026-10-15T14:23:10Z
 started: 2026-10-15T13:05:33Z
 depends: [autonomy-250f4d, autonomy-a41de4]
 tags: []
@@ -33,3 +33,5 @@ Spec §13 item 4, first half: the parts of Plan B that need nothing from the bel
   provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-15T14:18:29Z (plan-b1): review: plan round 1 — verdict: revise; findings: P1 1, P2 4; reviewer: human
 - 2026-10-15T14:23:09Z (plan-b1): plan revised for round 1: diagnostic channel writes only pipes, sockets and /dev/null (an appended log stays untouched; terminals skipped for SIGTTOU); channel opened lazily after step 2; an overlong report line is dropped and recorded report-unwritten; disposition.json published by temp+fsync+link; dash test uses F_DUPFD_CLOEXEC. Plan code extracted to a scratch copy: 103 tests pass (Tasks 2–5), dash test passes
+- 2026-10-15T14:23:09Z (plan-b1): parked (waiting on user, review): User re-reviews docs/plans/2026-10-15-envelope-plan-b1.md (branch plan-b1, round 2) and picks an execution method; then the agent runs it in .worktrees/plan-b1, starting with the baseline just test-fast
+  provenance: {"harness_session":"claude-code:7c29ea9f-08a9-4ac1-a899-6dcc9586cd0a","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
