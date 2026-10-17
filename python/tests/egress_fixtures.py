@@ -13,6 +13,7 @@ import struct
 import subprocess
 import threading
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -316,3 +317,93 @@ class FakeUpstream:
             conn.close()
             total += received
         return total
+
+
+CANARY = "sk-canary-6b1f0e9d2c7a"
+
+
+def raw_request(*, method: str = "POST", target: str = "/v1/messages?beta=true",
+                headers: Iterable[tuple[str, str]] = (), body: bytes | dict = b"") -> bytes:
+    data = json.dumps(body).encode() if isinstance(body, dict) else body
+    lines = [f"{method} {target} HTTP/1.1", "host: 127.0.0.1:4780",
+             "anthropic-version: 2023-06-01", "content-type: application/json"]
+    lines += [f"{name}: {value}" for name, value in headers]
+    if not any(name.lower() in ("content-length", "transfer-encoding") for name, _ in headers):
+        lines.append(f"content-length: {len(data)}")
+    return ("\r\n".join(lines) + "\r\n\r\n").encode("latin-1") + data
+
+
+def message(**extra) -> dict:
+    return {"model": MODEL, "max_tokens": 16, "stream": True,
+            "messages": [{"role": "user", "content": "hi"}], **extra}
+
+
+def exchange(port: int, data: bytes, *, timeout: float = 10) -> bytes:
+    """Send `data` on a fresh connection to 127.0.0.1:`port`, read until the proxy closes."""
+    with socket.create_connection(("127.0.0.1", port), timeout=timeout) as sock:
+        sock.sendall(data)
+        received = b""
+        while chunk := sock.recv(65536):
+            received += chunk
+    return received
+
+
+def status_and_body(answer: bytes) -> tuple[int, bytes]:
+    head, _, body = answer.partition(b"\r\n\r\n")
+    return int(head.split(b" ", 2)[1]), body
+
+
+@dataclass
+class Served:
+    server: "object"
+    port: int
+    upstream: FakeUpstream
+    other: FakeUpstream
+    records_path: Path
+    canary: str
+
+    def records(self) -> list[dict]:
+        return [json.loads(line) for line in self.records_path.read_text().splitlines()]
+
+
+def make_served(tmp_path: Path, tls: Tls, *, mode: str = "json", hooks=None, allowance=None, route_changes=None) -> Served:
+    from autonomy.egress.route import parse_route
+    from autonomy.egress.server import Hooks, ProxyServer, Recorder
+    from autonomy.egress.upstream import tls_context
+
+    upstream = FakeUpstream(tls, mode=mode)
+    other = FakeUpstream(tls)
+    upstream.location = other.origin + "/elsewhere"
+    doc = pi_route(credential=tmp_path / "credential", upstream=upstream.origin, ca_file=tls.cert)
+    if route_changes is not None:
+        route_changes(doc)
+    route = parse_route(to_toml(doc).encode())
+    records_path = tmp_path / "egress.jsonl"
+    fd = os.open(records_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    server = ProxyServer(route, CANARY, Recorder(fd), context=tls_context(tls.cert), run="run-test",
+                         allowance=allowance, hooks=hooks or Hooks())
+    listener = socket.create_server(("127.0.0.1", 0))
+    server.serve(listener)
+    return Served(server, listener.getsockname()[1], upstream, other, records_path, CANARY)
+
+
+@pytest.fixture
+def serve(tmp_path, tls):
+    made: list[Served] = []
+
+    def factory(**keywords) -> Served:
+        root = tmp_path / f"served-{len(made)}"
+        root.mkdir()
+        made.append(make_served(root, tls, **keywords))
+        return made[-1]
+
+    yield factory
+    for s in made:
+        s.server.close("close")
+        s.upstream.stop()
+        s.other.stop()
+
+
+@pytest.fixture
+def served(serve):
+    return serve()
