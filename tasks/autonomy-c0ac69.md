@@ -1,15 +1,17 @@
 ---
 id: autonomy-c0ac69
 title: Point Pyright at python/.venv so editor diagnostics show real type errors
-status: doing
+status: done
 priority: 4
 size: xs
 complexity: low
 process: direct
 owner: main
 created: 2026-10-15T15:44:10Z
-updated: 2026-10-17T21:22:34Z
+updated: 2026-10-17T21:23:38Z
 started: 2026-10-17T20:25:13Z
+completed: 2026-10-17T21:23:38Z
+closed: 2026-10-17T21:23:38Z
 depends: []
 tags: []
 source: autonomy-641123
@@ -46,4 +48,8 @@ During Plan B1 the editor's Pyright reported every autonomy.* import and tests/c
 - 2026-10-17T21:16:49Z (main): parked (waiting on user, decision): Person: approve prepared original independent minimal D merge, source-task closure and recoverable removal of all4set6 attempt trees/branches, or retain/handback. A=yes B=yes C=no D=yes/B excluded with exacthumanreason already recorded17362c9; actualpersonsystemPyrightvalidation preserved. All4clean, 79archivehashes/fourbundles verified; no dirtydiscard proposed. Agent refreshes safety/refs/identities beforeexecution; no source code merged/changed/removed yet.
   provenance: {"harness_session":"codex:01a14293-c4c7-7d80-856c-cae65758e666","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-17T21:22:34Z (main): resumed
+  provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-17T21:23:38Z (main): done
+  provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-17T21:23:38Z (main): Integrated person-approved original independent minimal D8d79dfea628b030c6d5e66df40779f5e33b7818a via ancestry-preserving mergebc9500627755956e9cd647257452c47bb1c46c2a, tree0cdeeaee98c455ceab717f5b59a87e222c84cbf7, parents88a6d56+8d79dfe. Actual merged-tree justcheck0 and justtest-fast0 with testmon changed0/unchanged44/0tests collected; not a fresh790/suitepass. uv hardlink/fullcopy warning preserved, no repair/suppression. Prior captured D justgate790pass and person actual systemPyrightmain/all4worktree validation are distinct evidence. Manifest11ae1e7 recorded mergedD ONLYafter actualmerge, exactfullhuman Ayes/Byes/Cno/Dyes and Bmergeabletrue/inclusionfalse/fullreason retained, no new independentreview claimed. Explicitnewpersonapproval covers recoverable removal all4currentlyclean source6trees/branches; no dirtydiscard/restore authorized, stopnewedits. Original79archive/bundles/completepatches intact; source3trans4 retained.
   provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
