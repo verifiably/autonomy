@@ -3,11 +3,12 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** draft, for the user's review. Two agent review rounds (round 1: P1 5, P2 7;
-round 2: P2 2) and one human round (round 3: P2 6, P3 1), all addressed. Four dry runs
-applied the plan's code to a scratch copy. The last, at 09dd506's text, passed 771 tests
-in 82 s with no flakiness, alone and pinned to one busy CPU. Its mutation pass found
-three fixes whose tests could not catch their mutant; those tests are strengthened
-here, each verified against its mutant in that run.
+round 2: P2 2) and two human ones (round 3: P2 6, P3 1; round 4: P2 3), all addressed.
+Five dry runs applied the plan's code to a scratch copy. The last, at e9fcf00's text,
+applied all ten tasks unchanged and passed 774 tests in 81 s with no flakiness, alone
+and pinned to one busy CPU. Every boundary fix's mutation was caught. One half-mutation
+it found uncaught (no actor watch on the TCP connect) now has the test it wrote and
+verified against that mutant.
 
 **Goal:** Build decision 13's model route and proxy as a library that Plan B2 wires
 into the run, and prove it under real `bwrap`:
@@ -119,6 +120,8 @@ B2 composes it:
   where every test needs it). Tests that need the `openssl` CLI get it from the
   `tls` fixture in `tests/egress_fixtures.py`, which fails, not skips, when it is
   missing.
+- Imports a step adds go at the top of the file, whatever position its code block
+  shows them in.
 - Commit messages are conventional commits. No AI attribution.
 
 ## Review Focus
@@ -2386,7 +2389,8 @@ import pytest
 
 from egress_fixtures import FakeUpstream, tls  # noqa: F401  (tls is a fixture)
 from autonomy.egress.upstream import (
-    POLL, Gate, Response, RouteClosed, UpstreamError, connect, read_response, response_head, send_all, tls_context,
+    POLL, ActorGone, Gate, Response, RouteClosed, UpstreamError, connect, read_response, response_head, send_all,
+    tls_context,
 )
 
 
@@ -2475,6 +2479,24 @@ def test_no_connection_is_opened_after_the_close(tls, monkeypatch):
     time.sleep(0.2)
     assert calls == [] and upstream.connections == 0
     upstream.stop()
+
+
+def test_an_actor_that_hangs_up_during_the_tcp_connect_ends_it(tls):
+    # A listener whose accept queue is full drops SYNs, so the TCP connect hangs: the
+    # actor's hangup ends it, not the connect timeout.
+    listener = socket.create_server(("127.0.0.1", 0), backlog=0)
+    port = listener.getsockname()[1]
+    filler = socket.create_connection(("127.0.0.1", port), timeout=5)  # fills the queue
+    actor, peer = socket.socketpair()
+    threading.Timer(0.5, peer.close).start()
+    started = time.monotonic()
+    try:
+        with pytest.raises(ActorGone):
+            connect(Gate(), "127.0.0.1", port, tls_context(tls.cert), timeout=10, watch=actor)
+        assert time.monotonic() - started < 3
+    finally:
+        for sock in (actor, filler, listener):
+            sock.close()
 
 
 def test_each_write_attempt_carries_at_most_a_slice():
