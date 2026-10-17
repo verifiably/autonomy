@@ -6,3 +6,4 @@
 __pycache__/
 # pytest-testmon selection data for `just test-fast`; per checkout, never committed.
 python/.testmondata
+python/.testmondata-*
