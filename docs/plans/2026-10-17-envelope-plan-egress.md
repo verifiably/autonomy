@@ -73,8 +73,8 @@ B2 composes it:
 | `baseline.json`'s `egress` block | Task 3 (`Opened.route`: name, digest, upstream) | writes it |
 | the actor's `VERIFIABLY_MODEL_URL` (absent without a route) | Task 8 (`MODEL_URL`) | puts it in the actor's `SandboxSpec.env` |
 | E21 and E22 launch arms | Tasks 4–9 | — |
-| E21's negatives | Tasks 6, 7 and 9: deny-list headers, a model-only check, a check keyed on `url`, a first-line-only beta check, a lenient parser, a normalizing matcher, a buffering proxy, `--setenv`. Routing by `Host` and forwarding the actor's framing have no mutation: the proxy never reads either to route, and the positive tests pin that | — |
-| E22's negatives | Tasks 1, 6, 7, 8 and 9 | the two close and seal ordering negatives |
+| E21's negatives | Tasks 5, 6, 7 and 9: deny-list headers, a model-only check, a check keyed on `url`, a whole-body walk, a first-line-only beta check, a lenient parser, a normalizing matcher, a buffering proxy, `--setenv`. Routing by `Host` and forwarding the actor's framing have no mutation: the proxy never reads either to route, and the positive tests pin that | — |
+| E22's negatives | Tasks 1, 6, 7, 8 and 9, the rereading proxy included | the two close and seal ordering negatives |
 | crew's configuration of pi (§13 item 5) | filed as crew-718636 | — |
 | E21's live pi recipe | Task 10 | — |
 | E21 and E22 full-run arms | — | B2 |
@@ -168,8 +168,9 @@ B2 composes it:
 - Modify `python/src/autonomy/run.py`: `Places.config`, `RunRequest.model_route`,
   `Opened.route`, and route loading in `execute`.
 - Modify `python/src/autonomy/cli.py`: `--model-route NAME`.
-- Create `python/tests/egress_fixtures.py`: `tls` (openssl certificates),
-  `FakeUpstream`, `write_route`, `PI_ROUTE`.
+- Create `python/tests/egress_fixtures.py`: `pi_route`, `to_toml`, `write_route`,
+  `write_credential`, `tls` (openssl certificates), `FakeUpstream`, and the request
+  helpers and `serve` fixtures of Task 7.
 - Create the tests `python/tests/test_egress_route.py`, `test_egress_request.py`,
   `test_egress_dialect.py`, `test_egress_upstream.py`, `test_egress_server.py`,
   `test_egress_proxy.py`, `test_egress_helper.py` and `test_egress_session.py`.
@@ -425,7 +426,7 @@ def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: It
     files under a denied ancestor such as `<config>` (decision 13). The exemption is
     exact, so their directories are still refused."""
     targets = [_target(path) for path in denied]
-    skip = {path.resolve(strict=False) for path in exempt}
+    skip = {path.resolve(strict=False) for path in exempt if not path.is_symlink()}
     for source in sources:
         try:
             real = source.resolve(strict=True)
@@ -434,7 +435,7 @@ def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: It
             raise SandboxUnproven("bind-missing", str(source), f"a bind source must exist: {caught}") from caught
         except (OSError, RuntimeError) as caught:
             raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must resolve: {caught}") from caught
-        if real in skip:
+        if real in skip and not source.is_symlink():
             continue
         for target, target_identity, target_ancestry in targets:
             overlaps = (
@@ -1909,6 +1910,28 @@ def test_a_tool_use_input_is_the_clients_data():
     check_body(parse_body(json.dumps(body(messages=[message])).encode()), OP)
 
 
+def test_a_whole_body_walk_would_refuse_the_clients_data():
+    # Negative (E21): the positions are closed, not the whole body. A walker that refuses
+    # every {"type": "url"} anywhere refuses this request, which check_body passes.
+    message = {"role": "assistant", "content": [
+        {"type": "tool_use", "id": "t", "name": "fetch", "input": {"type": "url", "url": "https://x"}}]}
+    data = body(messages=[message])
+
+    def walk(value):
+        if isinstance(value, dict):
+            if value.get("type") == "url":
+                raise Refused("body-refused", "a url anywhere")
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    check_body(parse_body(json.dumps(data).encode()), OP)
+    with pytest.raises(Refused):
+        walk(data)
+
+
 def test_a_base64_image_passes():
     message = {"role": "user", "content": [
         {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AAAA"}}]}
@@ -2107,6 +2130,8 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
     `is_open`, and the attributes `cause: str | None` and `last_seq: int`;
   - `RouteClosed(sent: int = 0, attempted: bool = False)`, with `.sent` and
     `.attempted`;
+  - `SendFailed(sent, attempted, message)`, an `UpstreamError` for a write that failed
+    after an attempt;
   - `cut(sock, how=socket.SHUT_RDWR) -> None`;
   - `UpstreamError`;
   - `send_all(gate: Gate, sock, data: bytes) -> None`, which raises `RouteClosed`;
@@ -2127,7 +2152,7 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
 
 - [ ] **Step 1: Add the TLS fixtures**
 
-Append to `python/tests/egress_fixtures.py` (add `import shutil, socket, ssl,
+Append to `python/tests/egress_fixtures.py` (add `import shutil, socket, ssl, struct,
 subprocess, threading, time`, `from dataclasses import dataclass` and `import pytest`
 to its imports):
 
@@ -2171,13 +2196,19 @@ class FakeUpstream:
     - `continue`: a 100 Continue, then as `json`;
     - `redirect`: 302 to `location`;
     - `stall`: read the head, then never read again (the body fills the buffers);
+    - `reset`: read the head, then reset the connection (an abortive close);
     - `garbage`, `hugehead`, `badchunk`: malformed answers.
     Every request it reads is in `seen`, and `connections` counts every accept."""
 
     def __init__(self, tls: Tls, *, mode: str = "json") -> None:
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(tls.cert, tls.key)
-        self.listener = socket.create_server(("127.0.0.1", 0))
+        self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # A small receive buffer (inherited by accepted sockets), so a stalled upload
+        # fills the buffers whatever the host's tcp_rmem/tcp_wmem allow.
+        self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 64 * 1024)
+        self.listener.bind(("127.0.0.1", 0))
+        self.listener.listen(64)
         self.port = self.listener.getsockname()[1]
         self.mode = mode
         self.events = 5
@@ -2230,6 +2261,11 @@ class FakeUpstream:
                 name, _, value = line.partition(":")
                 headers.setdefault(name.strip().lower(), []).append(value.strip())
             seen = Seen(method, target, headers, body)
+            if self.mode == "reset":
+                with self._lock:
+                    self.seen.append(seen)
+                conn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+                return
             if self.mode == "stall":
                 with self._lock:
                     self.seen.append(seen)
@@ -2577,6 +2613,16 @@ class UpstreamError(Exception):
     something that is not HTTP/1.1."""
 
 
+class SendFailed(UpstreamError):
+    """A write failed (a reset, a broken pipe, a TLS error) after `sent` bytes, with
+    `attempted` saying whether any write was tried: the record's `forwarded`."""
+
+    def __init__(self, sent: int, attempted: bool, message: str) -> None:
+        super().__init__(message)
+        self.sent = sent
+        self.attempted = attempted
+
+
 class Gate:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -2650,6 +2696,8 @@ def send_all(gate: Gate, sock: socket.socket, data: bytes) -> None:
             attempted, readable = True, True
         except (ssl.SSLWantWriteError, BlockingIOError, InterruptedError):
             attempted, readable = True, False
+        except OSError as caught:  # after the SSLWant*/BlockingIOError clauses, which are OSErrors too
+            raise SendFailed(sent, True, f"the write upstream failed: {caught}") from caught
         else:
             if written is None:
                 raise RouteClosed(sent, attempted)
@@ -2684,7 +2732,11 @@ def _open(gate: Gate, host: str, port: int, deadline: float) -> socket.socket:
         raise UpstreamError(f"cannot resolve {host}: {caught}") from caught
     last: OSError | None = None
     for family, kind, proto, _, address in infos:
-        sock = socket.socket(family, kind, proto)
+        try:
+            sock = socket.socket(family, kind, proto)
+        except OSError as caught:  # an address family this kernel lacks: try the next
+            last = caught
+            continue
         sock.setblocking(False)
         try:
             code = gate.call(lambda: sock.connect_ex(address))
@@ -2695,6 +2747,9 @@ def _open(gate: Gate, host: str, port: int, deadline: float) -> socket.socket:
             if code:
                 raise OSError(code, os.strerror(code))
             return sock
+        except TimeoutError:  # an OSError too: the deadline ends every address, not just this one
+            sock.close()
+            raise
         except OSError as caught:
             sock.close()
             last = caught
@@ -2722,6 +2777,8 @@ def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeou
                 readable = False
             except ssl.SSLError as caught:
                 raise UpstreamError(f"TLS with {host}: {caught}") from caught
+            except OSError as caught:
+                raise UpstreamError(f"the TLS handshake with {host} failed: {caught}") from caught
             try:
                 _wait(gate, tls, readable=readable, deadline=deadline)
             except TimeoutError:
@@ -2895,7 +2952,7 @@ git commit -m "feat(egress): the close transition's gate and a non-blocking TLS 
 - Consumes:
   - Tasks 2, 4, 5 and 6: `Route`, `Operation`, `parse_head`, `forwarded_headers`,
     `frame`, `refusal`, `MAX_HEAD`, `parse_body`, `check_body`, `Gate`, `RouteClosed`,
-    `UpstreamError`, `connect`, `read_response`, `response_head`, `send_all`,
+    `UpstreamError`, `connect`, `cut`, `read_response`, `response_head`, `send_all`,
     `tls_context` and `Refused`;
   - from `autonomy.baseline`: `utc_now` and `write_all`.
 - Produces:
@@ -2904,7 +2961,9 @@ git commit -m "feat(egress): the close transition's gate and a non-blocking TLS 
     more, so the closing line is always last;
   - the protocol `Allowance` with `admit(run, operation, model, request_bytes,
     in_flight) -> str | None` and `settle(seq, upstream_request_id, usage) -> None`,
-    where `settle` runs for every forwarded request, however its stream ended;
+    where `settle` runs for every forwarded request, however its stream ended. This
+    plan passes `usage=None`; reading the usage the stream reports is
+    autonomy-9e8a43's, with the allowance;
   - `NoAllowance`;
   - `Hooks(hold: Callable[[str, int], None])`, with the stages `parsed`,
     `body-checked`, `admit`, `connecting` and `before-send`;
@@ -3314,6 +3373,26 @@ def test_an_upstream_that_answers_garbage(serve, mode, status):  # Review Focus 
     assert (line["ended"], line["forwarded"]) == ("upstream-error", True)
 
 
+def test_an_upload_the_upstream_resets_is_recorded_forwarded_and_settled(serve):
+    settled = []
+
+    class Spy:
+        def admit(self, run, operation, model, request_bytes, in_flight):
+            return None
+
+        def settle(self, seq, upstream_request_id, usage):
+            settled.append(seq)
+
+    s = serve(mode="reset", allowance=Spy())
+    big = json.dumps(message(system="x" * 6_000_000)).encode()
+    answer = exchange(s.port, raw_request(body=big), timeout=30)
+    s.server.close("close")
+    assert status_and_body(answer)[0] == 502
+    line = s.records()[0]
+    assert (line["ended"], line["forwarded"]) == ("upstream-error", True)
+    assert settled == [1]
+
+
 # Negatives (E21): each mutation shows a check the positive tests depend on. The two the
 # spec also lists, routing by Host and forwarding the actor's framing, have no mutation:
 # the proxy never reads Host or the actor's framing to route, and the positive tests
@@ -3337,9 +3416,11 @@ def test_a_model_only_check_would_forward_what_reaches_out(serve, monkeypatch):
     monkeypatch.setattr(server_module, "check_body", model_only)
     s = serve()
     for body in (message(mcp_servers=[{"type": "url", "url": "https://x", "name": "x"}]),
-                 message(tools=[{"type": "web_fetch_20250910", "name": "web_fetch"}])):
+                 message(tools=[{"type": "web_fetch_20250910", "name": "web_fetch"}]),
+                 message(messages=[{"role": "user", "content": [
+                     {"type": "image", "source": {"type": "url", "url": "https://x/i.png"}}]}])):
         exchange(s.port, raw_request(body=body))
-    assert len(s.upstream.seen) == 2
+    assert len(s.upstream.seen) == 3
 
 
 def test_a_check_keyed_on_url_alone_would_forward_a_file_source(serve, monkeypatch):
@@ -3568,12 +3649,21 @@ class ProxyServer:
             cut(sock)
         for sock in actors:
             cut(sock, socket.SHUT_RD)
-        deadline = time.monotonic() + JOIN_TIMEOUT
+        self._join(threads, JOIN_TIMEOUT)
+        with self._lock:
+            survivors = list(self._actors)
+        for sock in survivors:  # a worker blocked writing to an actor that stopped reading
+            cut(sock)
+        self._join(threads, 0.5)
+        self.recorder.line({"at": utc_now(), "closed": cause, "last_seq": self.gate.last_seq})
+        return True
+
+    @staticmethod
+    def _join(threads: list[threading.Thread], seconds: float) -> None:
+        deadline = time.monotonic() + seconds
         for thread in threads:
             if thread is not threading.current_thread():
                 thread.join(max(0.0, deadline - time.monotonic()))
-        self.recorder.line({"at": utc_now(), "closed": cause, "last_seq": self.gate.last_seq})
-        return True
 
     def _start(self, target: Callable[..., None], *args: object) -> None:
         thread = threading.Thread(target=target, args=args, daemon=True)
@@ -3751,6 +3841,8 @@ class ProxyServer:
                 if not record["forwarded"]:
                     closed_before_upstream()  # the close shut only our read side: the answer still goes
         except (UpstreamError, OSError) as caught:
+            if getattr(caught, "attempted", False):
+                record["forwarded"] = True
             if not self.gate.is_open:
                 record["ended"] = "route-closed"
                 if not record["forwarded"]:
@@ -3785,7 +3877,7 @@ Expected: PASS.
 Run: `just test-fast`. Expected: PASS.
 
 ```bash
-git add python/src/autonomy/egress/server.py python/src/autonomy/egress/upstream.py python/tests/egress_fixtures.py python/tests/test_egress_server.py
+git add python/src/autonomy/egress/server.py python/tests/egress_fixtures.py python/tests/test_egress_server.py
 git commit -m "feat(egress): the proxy server: checked, framed, streamed and recorded requests"
 ```
 
@@ -3870,6 +3962,21 @@ def test_a_credential_that_is_not_one_visible_line(tmp_path, data):  # Review Fo
     with pytest.raises(EgressUnproven) as caught:
         read_credential(path)
     assert caught.value.code == "credential-invalid"
+
+
+@pytest.fixture(autouse=True)
+def stop_upstreams(monkeypatch):
+    made = []
+    real_init = FakeUpstream.__init__
+
+    def tracking(self, *args, **kwargs):
+        real_init(self, *args, **kwargs)
+        made.append(self)
+
+    monkeypatch.setattr(FakeUpstream, "__init__", tracking)
+    yield
+    for upstream in made:
+        upstream.stop()
 
 
 def fresh(tmp_path, tls, *, mode="json", hooks=Hooks()):
@@ -4106,6 +4213,7 @@ CLIENT = textwrap.dedent(f"""
 
 def test_the_listener_lives_in_the_actors_network_namespace(tmp_path):
     held = {}
+    # The test closes the listener at the end: it holds the actor's network namespace.
 
     def hook(child_pid, pidfd):
         held["listener"] = make_listener(child_pid, pidfd)
@@ -4128,6 +4236,8 @@ def test_the_listener_lives_in_the_actors_network_namespace(tmp_path):
         sandbox.close()
         os.close(out_read)
         os.close(null)
+        if "listener" in held:
+            held["listener"].close()
     with pytest.raises(ConnectionRefusedError):  # the host's own loopback has nothing there
         socket.create_connection(("127.0.0.1", MODEL_PORT), timeout=2)
 
@@ -4472,6 +4582,7 @@ def test_egress_findings_are_reported_and_unproven_is_unwired():
 `python/tests/test_egress_session.py`:
 
 ```python
+import dataclasses
 import json
 import os
 import signal
@@ -4827,6 +4938,21 @@ def test_e21_the_route_enforced_is_the_one_loaded(world):
     session.close()
     assert report["haiku"]["status"] == "200"  # the loaded bytes, not the edit
     assert load_route(world.config, "anthropic").digest != loaded.digest
+
+
+def test_a_proxy_that_rereads_the_route_file_would_enforce_the_edit(world):
+    # Negative (E22): a proxy given the file as it is now, not the bytes step 2 read and
+    # digested, enforces an edit that baseline.json's digest does not show.
+    loaded = world.loaded()
+    doc = pi_route(credential=world.credential, upstream=world.upstream.origin, ca_file=loaded.route.ca_file)
+    doc["operations"][0]["models"] = ["claude-opus-5-5"]
+    write_route(world.config, "anthropic", doc)
+    reread = dataclasses.replace(loaded, data=loaded.path.read_bytes())
+    session = EgressSession.start(reread, world.run_dir, lease=30, denied=world.denied(loaded))
+    world.sessions.append(session)
+    report, _ = run_actor(world, session, [ask("haiku")])
+    session.close()
+    assert json.loads(report["haiku"]["body"])["error"]["code"] == "model-refused"
 
 
 # -- E22 -----------------------------------------------------------------------------
@@ -5474,6 +5600,24 @@ def _main(argv: list[str]) -> int:
     denied = egress_denied(where.config, loaded)
     prove(spec, denied)
     session = EgressSession.start(loaded, run_dir, lease=120, denied=denied)
+    try:
+        settled = _prompt(spec, session, pi_dir, model, scratch, root)
+        closed = session.close()
+    except BaseException:
+        if session.pidfd >= 0:
+            session.kill()  # a failure after the start must not leave the proxy up for its lease
+        raise
+    lines = [json.loads(line) for line in (run_dir / "egress.jsonl").read_text().splitlines()]
+    for line in lines:
+        print(json.dumps(line))
+    print(f"settled: {settled is not None}; route closed: {closed.cause}; findings: {[f.code for f in closed.findings()]}")
+    print(f"records: {root}")
+    served = [line for line in lines if line.get("status") == 200 and line.get("ended") == "complete"]
+    refused = [line for line in lines if line.get("refused")]
+    return 0 if served and not refused and settled is not None else 1
+
+
+def _prompt(spec: SandboxSpec, session: EgressSession, pi_dir: Path, model: str, scratch: Path, root: Path):
     pi = [
         str(pi_dir / "node_modules/.bin/pi"), "--mode", "rpc", "--provider", "anthropic", "--model", model,
         "--thinking", "off", "--session-dir", str(scratch / "sessions"),
@@ -5489,35 +5633,27 @@ def _main(argv: list[str]) -> int:
     os.write(to_pi, json.dumps({"id": "p1", "type": "prompt", "message": "Reply with the single word: ok"}).encode() + b"\n")
     buffer, settled, renewed = b"", None, time.monotonic()
     deadline = time.monotonic() + 240
-    while settled is None and time.monotonic() < deadline:
-        if time.monotonic() - renewed > 30:
-            session.renew()
-            renewed = time.monotonic()
-        if not select.select([from_pi], [], [], 5)[0]:
-            continue
-        chunk = os.read(from_pi, 65536)
-        if not chunk:
-            break
-        buffer += chunk
-        while b"\n" in buffer:
-            line, buffer = buffer.split(b"\n", 1)
-            if line.strip() and json.loads(line).get("type") == "agent_settled":
-                settled = json.loads(line)
-    os.close(to_pi)
     try:
+        while settled is None and time.monotonic() < deadline:
+            if time.monotonic() - renewed > 30:
+                session.renew()
+                renewed = time.monotonic()
+            if not select.select([from_pi], [], [], 5)[0]:
+                continue
+            chunk = os.read(from_pi, 65536)
+            if not chunk:
+                break
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                if line.strip() and json.loads(line).get("type") == "agent_settled":
+                    settled = json.loads(line)
+        os.close(to_pi)
         actor.wait(timeout=30)
     finally:
         actor.close()
         os.close(from_pi)
-    closed = session.close()
-    lines = [json.loads(line) for line in (run_dir / "egress.jsonl").read_text().splitlines()]
-    for line in lines:
-        print(json.dumps(line))
-    print(f"settled: {settled is not None}; route closed: {closed.cause}; findings: {[f.code for f in closed.findings()]}")
-    print(f"records: {root}")
-    served = [line for line in lines if line.get("status") == 200 and line.get("ended") == "complete"]
-    refused = [line for line in lines if line.get("refused")]
-    return 0 if served and not refused and settled is not None else 1
+    return settled
 
 
 if __name__ == "__main__":
