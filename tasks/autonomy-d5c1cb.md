@@ -4,7 +4,7 @@ title: "Design a development mode of autonomy run: unattended development actors
 status: idea
 priority: 2
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-17T09:40:09Z
+updated: 2026-10-17T09:40:50Z
 depends: [autonomy-c5c566, autonomy-a94e95]
 parent: autonomy-d9adef
 tags: []
@@ -17,7 +17,7 @@ The second question this idea first carried, how the actor's stdio is handled un
 
 Direction (user, 2026-10-15; brief §4): a development mode of autonomy run, with no world, the task worktree as scratch, and the sandbox, lease, kill and run directory kept. Pushes, host changes and credential use are prevented at the boundary. quarantined keeps the result and blocks its promotion. A clean boundary verdict is separate from crew's acceptance (tests, review).
 
-Done: a design for the development mode, as an envelope amendment, that says how pushes and host changes are made unavailable, what the closing check still verifies, and what quarantined holds. It is written after the probe autonomy-c5c566 answers.
+Done: a design for the development mode, as an envelope amendment, that says how pushes and host changes are made unavailable, what the closing check still verifies, and what quarantined holds. It is written after autonomy-a94e95 (shared clone in scratch and a host import route that runs nothing the actor wrote) answers and the brief's §5 question 4 (when egress and credential custody are designed, ahead of or within autonomy-9e8a43) is settled. autonomy-c5c566 answered the first probe (brief §2): pi RPC works in the sandbox, and a linked worktree cannot commit without exposing every branch.
 
 Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; envelope spec §2, §7, §9.
 
