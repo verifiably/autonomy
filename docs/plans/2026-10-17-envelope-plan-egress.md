@@ -2143,16 +2143,16 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
   - `SendFailed(sent, attempted, message)`, an `UpstreamError` for a write that failed
     after an attempt;
   - `ActorGone(attempted: bool = False)`: the actor hung up while the proxy waited;
-  - `watch` is the actor's connection: `send_all`, `read_response` and their waits
-    raise `ActorGone` when it hangs up;
+  - `watch` is the actor's connection: `connect`, `send_all`, `read_response` and
+    their waits raise `ActorGone` when it hangs up;
   - `cut(sock, how=socket.SHUT_RDWR) -> None`;
   - `UpstreamError`;
   - `send_all(gate: Gate, sock, data: bytes, *, watch=None) -> None`, which raises
     `RouteClosed`, `SendFailed` or `ActorGone`;
   - `tls_context(ca_file: Path | None) -> ssl.SSLContext`;
   - `connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *,
-    timeout: float = 30.0) -> ssl.SSLSocket`, which returns a non-blocking socket and
-    raises `UpstreamError` or `RouteClosed`;
+    timeout: float = 30.0, watch=None) -> ssl.SSLSocket`, which returns a
+    non-blocking socket and raises `UpstreamError`, `RouteClosed` or `ActorGone`;
   - `Response`, with fields `status: int`, `reason: str`,
     `headers: tuple[tuple[str, str], ...]` and `body: Iterator[bytes]`, and the
     property `request_id`;
@@ -2213,6 +2213,7 @@ class FakeUpstream:
     - `reset`: read the head, then reset the connection (an abortive close);
     - `silent`: send a streaming head, then nothing; `peer_closed` is set when the
       proxy closes the connection;
+    - `nohandshake`: accept TCP and never answer TLS; `peer_closed` as for `silent`;
     - `garbage`, `hugehead`, `badchunk`: malformed answers.
     Every request it reads is in `seen`, and `connections` counts every accept."""
 
@@ -2253,7 +2254,17 @@ class FakeUpstream:
                 return
             with self._lock:
                 self.connections += 1
-            threading.Thread(target=self._serve, args=(raw,), daemon=True).start()
+            target = self._hold_raw if self.mode == "nohandshake" else self._serve
+            threading.Thread(target=target, args=(raw,), daemon=True).start()
+
+    def _hold_raw(self, raw: socket.socket) -> None:
+        try:
+            while raw.recv(65536):  # the ClientHello, which nobody answers, until the proxy closes
+                pass
+        except OSError:
+            pass
+        self.peer_closed.set()
+        raw.close()
 
     def _serve(self, raw: socket.socket) -> None:
         try:
@@ -2801,7 +2812,7 @@ def cut(sock: socket.socket, how: int = socket.SHUT_RDWR) -> None:
         pass
 
 
-def _open(gate: Gate, host: str, port: int, deadline: float) -> socket.socket:
+def _open(gate: Gate, host: str, port: int, deadline: float, watch: socket.socket | None) -> socket.socket:
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except OSError as caught:
@@ -2818,7 +2829,7 @@ def _open(gate: Gate, host: str, port: int, deadline: float) -> socket.socket:
             code = gate.call(lambda: sock.connect_ex(address))
             if code not in (0, errno.EINPROGRESS):
                 raise OSError(code, os.strerror(code))
-            _wait(gate, sock, readable=False, deadline=deadline)
+            _wait(gate, sock, readable=False, deadline=deadline, watch=watch)
             code = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
             if code:
                 raise OSError(code, os.strerror(code))
@@ -2835,10 +2846,15 @@ def _open(gate: Gate, host: str, port: int, deadline: float) -> socket.socket:
     raise UpstreamError(f"cannot reach {host}:{port}: {last}")
 
 
-def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeout: float = 30.0) -> ssl.SSLSocket:
+def connect(
+    gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeout: float = 30.0,
+    watch: socket.socket | None = None,
+) -> ssl.SSLSocket:
+    """Every wait here also watches the actor (`watch`): a hangup during the TCP
+    connect or the TLS handshake raises `ActorGone`, which nothing has sent upstream."""
     deadline = time.monotonic() + timeout
     try:
-        raw = _open(gate, host, port, deadline)
+        raw = _open(gate, host, port, deadline, watch)
     except TimeoutError:
         raise UpstreamError(f"connecting to {host}:{port} took over {timeout:g} s") from None
     tls = context.wrap_socket(raw, server_hostname=host, do_handshake_on_connect=False)
@@ -2856,7 +2872,7 @@ def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeou
             except OSError as caught:
                 raise UpstreamError(f"the TLS handshake with {host} failed: {caught}") from caught
             try:
-                _wait(gate, tls, readable=readable, deadline=deadline)
+                _wait(gate, tls, readable=readable, deadline=deadline, watch=watch)
             except TimeoutError:
                 raise UpstreamError(f"the TLS handshake with {host} took over {timeout:g} s") from None
     except BaseException:
@@ -3540,6 +3556,48 @@ def test_an_actor_that_hangs_up_on_a_silent_upstream_ends_its_request(serve):
     assert not s.server._upstreams
 
 
+def test_an_actor_that_hangs_up_during_the_handshake_ends_its_request(serve):  # finding 2, setup
+    s = serve(mode="nohandshake")
+    with socket.create_connection(("127.0.0.1", s.port), timeout=10) as sock:
+        sock.sendall(raw_request(body=message()))
+        deadline = time.monotonic() + 10
+        while s.upstream.connections == 0 and time.monotonic() < deadline:
+            time.sleep(0.02)
+        time.sleep(0.3)  # the proxy is waiting on a handshake that never comes
+    assert s.upstream.peer_closed.wait(3)  # the hangup ended the handshake, not its 30 s timeout
+    deadline = time.monotonic() + 3
+    while not s.records() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    line = s.records()[0]
+    assert (line["ended"], line["forwarded"]) == ("actor-closed", False)
+    assert not s.server._upstreams
+
+
+def test_a_seq_handed_out_just_before_the_close_still_gets_its_line(serve, monkeypatch):
+    # Allocation and registration are one step under the server's lock: a worker paused
+    # right after the gate hands it seq 1, past the close's joins, is still published.
+    monkeypatch.setattr(server_module, "JOIN_TIMEOUT", 0.2)
+    allocated = threading.Event()
+    real = Gate.next_seq
+
+    def pausing(self):
+        seq = real(self)
+        if seq == 1:
+            allocated.set()
+            time.sleep(1.2)
+        return seq
+
+    monkeypatch.setattr(Gate, "next_seq", pausing)
+    s = serve()
+    threading.Thread(target=lambda: exchange(s.port, raw_request(body=message())), daemon=True).start()
+    assert allocated.wait(10)
+    s.server.close("close")
+    time.sleep(1.5)
+    lines = s.records()
+    assert [line.get("seq") for line in lines] == [1, None]
+    assert lines[-1]["closed"] == "close" and lines[-1]["last_seq"] == 1
+
+
 def test_a_worker_stuck_past_the_join_still_gets_its_line(serve, monkeypatch):
     # A DNS lookup that outlasts the close's bounded join: the close writes the line,
     # and the worker's own, when the lookup returns, is suppressed.
@@ -4008,12 +4066,13 @@ class ProxyServer:
             if head is None:
                 return  # closed before a request: nothing to record
             record["at"] = utc_now()
-            seq = self.gate.next_seq()
+            with self._lock:  # one step: the close's finalization sees every seq the gate has handed out
+                seq = self.gate.next_seq()
+                if seq is not None:
+                    record["seq"] = seq
+                    self._outstanding[seq] = record
             if seq is None:
                 raise Refused("route-closed", "the route is closed")
-            record["seq"] = seq
-            with self._lock:
-                self._outstanding[seq] = record
             request = parse_head(head[0])
             record.update(method=request.method, path=request.path, query=request.query)
             if request.content_length > self.route.max_request_bytes:
@@ -4048,7 +4107,7 @@ class ProxyServer:
                 if not self.gate.is_open:
                     raise Refused("route-closed", "the route is closed")
                 self._hooks.hold("connecting", seq)
-                upstream = connect(self.gate, self.route.host, self.route.port, self._context)
+                upstream = connect(self.gate, self.route.host, self.route.port, self._context, watch=conn)
                 if not self._track(upstream, upstream=True):
                     raise RouteClosed()
                 payload = frame(request, self.route, headers, body, self._credential)
@@ -4806,6 +4865,9 @@ git commit -m "feat(egress): the proxy process with its lease, and the namespace
     `.findings() -> tuple[Finding, ...]`;
   - `closing_line(path) -> dict | None`;
   - `kill_orphan(run_dir, timeout=CLOSE_TIMEOUT) -> EgressClosed | None`;
+  - `ProxySurvived(pid)`, raised by `kill_orphan`, `close` and `kill` when a SIGKILLed
+    proxy namespace has not exited within `CLOSE_TIMEOUT`: a cleanup failure that
+    `run close` reports and never settles over;
   - `unproven(error: EgressUnproven) -> Finding`, the `egress-unproven` finding;
   - `closing.SEVERITY` gains `egress-unproven: unwired`, `egress-lost: None` and
     `egress-close-timeout: None`.
@@ -5374,12 +5436,31 @@ def test_an_orphan_that_exits_before_the_signal_is_settled_without_error(world, 
     process.kill()
     process.wait()
 
-    def gone(pidfd, sig):
-        raise ProcessLookupError(3, "No such process")  # the exit won the race with the signal
+    real = signal.pidfd_send_signal
 
-    monkeypatch.setattr(session_module.signal, "pidfd_send_signal", gone)
+    def exits_first(pidfd, sig):
+        real(pidfd, sig)  # the proxy really exits first...
+        select.select([pidfd], [], [], 5)
+        raise ProcessLookupError(3, "No such process")  # ...so the signal finds no process
+
+    monkeypatch.setattr(session_module.signal, "pidfd_send_signal", exits_first)
     closed = kill_orphan(world.run_dir, timeout=0.5)
     assert (closed.timed_out, [f.code for f in closed.findings()]) == (False, ["egress-lost"])
+    assert exited_now(init)
+
+
+def test_an_orphan_that_survives_its_kill_is_a_cleanup_failure(world, monkeypatch):
+    process, init = orchestrator(world, lease=30.0)
+    children = Path(f"/proc/{init}/task/{init}/children").read_text().split()
+    os.kill(int(children[0]), signal.SIGSTOP)
+    process.kill()
+    process.wait()
+    monkeypatch.setattr(session_module, "CLOSE_TIMEOUT", 0.5)
+    monkeypatch.setattr(session_module.signal, "pidfd_send_signal", lambda pidfd, sig: None)  # the kill never lands
+    with pytest.raises(session_module.ProxySurvived) as caught:
+        kill_orphan(world.run_dir, timeout=0.5)
+    assert caught.value.pid == init
+    assert "egress-closed" not in world.events() and "egress-lost" not in world.events()  # nothing settled
 
 
 @pytest.mark.parametrize("failure", ["egress-proxy", "egress-ready", "receive"])
@@ -5772,10 +5853,7 @@ class EgressSession:
         self._release()
 
     def _kill_namespace(self) -> None:
-        try:
-            signal.pidfd_send_signal(self.pidfd, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        _kill_and_confirm(self.pidfd, self.init_pid)
 
     def _release(self) -> None:
         try:
@@ -5787,6 +5865,29 @@ class EgressSession:
         if self.pidfd >= 0:
             os.close(self.pidfd)
             self.pidfd = -1
+
+
+class ProxySurvived(Exception):
+    """A proxy namespace SIGKILLed has not exited within `CLOSE_TIMEOUT`. Cleanup
+    failed: the run must not be settled as if the proxy were gone."""
+
+    def __init__(self, pid: int) -> None:
+        super().__init__(f"the proxy namespace {pid} did not exit within {CLOSE_TIMEOUT:g} s of SIGKILL")
+        self.pid = pid
+
+
+def _kill_and_confirm(pidfd: int, pid: int) -> bool:
+    """SIGKILL a namespace's init and confirm its exit through the pidfd. True when
+    this signal killed it, False when it had already exited. Raises `ProxySurvived`
+    when it has not exited within `CLOSE_TIMEOUT`."""
+    try:
+        signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+        killed = True
+    except ProcessLookupError:
+        killed = False
+    if not select.select([pidfd], [], [], CLOSE_TIMEOUT)[0]:
+        raise ProxySurvived(pid)
+    return killed
 
 
 def _why(reply: dict | None, timeout: float) -> str:
@@ -5818,12 +5919,7 @@ def kill_orphan(run_dir: Path, timeout: float = CLOSE_TIMEOUT) -> EgressClosed |
             except FileNotFoundError:
                 same = False
             if same and not select.select([pidfd], [], [], timeout)[0]:
-                try:
-                    signal.pidfd_send_signal(pidfd, signal.SIGKILL)
-                    timed_out = True
-                except ProcessLookupError:
-                    pass  # it exited between the wait and the signal
-                select.select([pidfd], [], [], CLOSE_TIMEOUT)  # settle only once it has exited
+                timed_out = _kill_and_confirm(pidfd, started["pid"])  # settles only once it has exited
         finally:
             os.close(pidfd)
     return _settle(run_dir, timed_out)
