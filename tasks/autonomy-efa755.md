@@ -8,7 +8,7 @@ complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T10:33:15Z
+updated: 2026-10-17T10:33:49Z
 started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
@@ -41,3 +41,4 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T10:16:20Z (main): review: spec round 1 — verdict: revise; findings: Critical 1, Important 3, Minor 13; reviewer: claude-code
 - 2026-10-17T10:24:41Z (main): review: spec round 2 — verdict: revise; findings: Important 1, Minor 9; reviewer: claude-code
 - 2026-10-17T10:33:15Z (main): review: spec round 3 — verdict: accept; findings: Minor 8; reviewer: claude-code
+- 2026-10-17T10:33:49Z (main): On approval, file: crew task (configure pi under autonomy run through VERIFIABLY_MODEL_URL with a placeholder key in the attempt's models.json, PI_OFFLINE=1, and pass no credential to the actor; builds on crew-799319); an egress plan task (spec §13 item 5) that autonomy-9e8a43 and autonomy-d5c1cb depend on. Round-3 minors were applied after the accepting round without another agent review.
