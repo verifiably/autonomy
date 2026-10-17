@@ -234,6 +234,7 @@ def test_a_request_held_before_its_first_byte_never_goes_upstream(serve, stage):
     assert s.upstream.seen == []
     held, closing = s.records()
     assert (held["seq"], held["refused"], held["forwarded"]) == (1, "route-closed", False)
+    assert (held["ended"], held["status"]) == ("route-closed", 403)  # decision 13
     assert closing["closed"] == "close" and held["seq"] <= closing["last_seq"]
 
 
@@ -649,3 +650,16 @@ def test_a_recorder_that_cannot_write_still_closes_the_actors_connection(serve, 
 
     monkeypatch.setattr(s.server.recorder, "line", broken)  # undone before the fixture's close
     assert status_and_body(exchange(s.port, raw_request(body=message()), timeout=5))[0] == 200
+
+
+def test_a_proxy_that_cannot_start_its_accept_thread_says_so_and_closes_the_listener(serve):
+    s = serve()
+    listener = socket.create_server(("127.0.0.1", 0))
+
+    class Failing(threading.Thread):
+        def start(self):
+            raise RuntimeError("can't start new thread")
+
+    s.server._thread = Failing
+    assert s.server.serve(listener) is False
+    assert listener.fileno() == -1

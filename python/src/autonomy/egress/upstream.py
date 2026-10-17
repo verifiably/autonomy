@@ -385,8 +385,8 @@ def read_response(gate: Gate, sock: socket.socket, *, watch: socket.socket | Non
     if status in (204, 304):
         body: Iterator[bytes] = iter(())
     elif codings:
-        if codings[-1].split(",")[-1].strip().lower() != "chunked":
-            raise UpstreamError(f"a transfer coding the proxy does not decode: {codings[-1]}")
+        if [c.strip().lower() for c in ",".join(codings).split(",")] != ["chunked"]:
+            raise UpstreamError(f"a transfer coding the proxy does not decode: {', '.join(codings)}")
         body = _chunked(reader)
     elif lengths:
         if len(set(lengths)) != 1 or not _DIGITS.fullmatch(lengths[0]):

@@ -144,6 +144,7 @@ _BAD_HEADS = {
     "bare_cr": b"HTTP/1.1 200 OK\rset-cookie: s=1\r\ncontent-length: 0\r\n\r\n",
     "nul_name": b"HTTP/1.1 200 OK\r\nx a\x00b: v\r\ncontent-length: 0\r\n\r\n",
     "nul_value": b"HTTP/1.1 200 OK\r\nx-a: v\x00w\r\ncontent-length: 0\r\n\r\n",
+    "gzip_chunked": b"HTTP/1.1 200 OK\r\ntransfer-encoding: gzip, chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n",
 }
 
 

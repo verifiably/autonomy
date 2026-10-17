@@ -93,6 +93,27 @@ def test_the_loop_hands_the_listener_to_the_server_and_says_so(tmp_path, tls):
     server.close("close")
 
 
+def test_the_loop_reports_a_listener_the_server_could_not_take(tmp_path, tls):
+    server, _, _ = fresh(tmp_path, tls)
+
+    class Failing(threading.Thread):
+        def start(self):
+            raise RuntimeError("can't start new thread")
+
+    server._thread = Failing
+    ours, theirs = pair()
+    wake_read, _ = os.pipe()
+    thread, outcome = run_loop(server, theirs, wake_read, 30)
+    listener = socket.create_server(("127.0.0.1", 0))
+    send_message(ours, {"op": "listener"}, [listener.fileno()])
+    listener.close()
+    reply, _ = receive_message(ours)
+    assert reply["op"] == "error" and reply["code"] == "listener-failed"
+    send_message(ours, {"op": "close"})
+    thread.join(5)
+    server.close("close")
+
+
 @pytest.mark.parametrize("cause", ["eof", "term", "lease"])
 def test_each_close_cause(tmp_path, tls, cause):
     server, _, _ = fresh(tmp_path, tls)

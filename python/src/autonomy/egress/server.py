@@ -30,7 +30,8 @@ ACCEPT_BACKOFF = 0.05
 class Recorder:
     """`egress.jsonl`: one line per request, written when it ends, then the closing line,
     which is always last. A worker still running after the close's bounded join gets
-    its line from the close (`ProxyServer.close`); nothing is written after it."""
+    its line from the close (`ProxyServer.close`); nothing is written after it. A line the
+    close backfills has a null `status`: the answer may never have gone out."""
 
     def __init__(self, fd: int) -> None:
         self._fd = fd
@@ -116,10 +117,14 @@ class ProxyServer:
 
     # -- lifecycle -----------------------------------------------------------------
 
-    def serve(self, listener: socket.socket) -> None:
+    def serve(self, listener: socket.socket) -> bool:
+        """Take the listener and start accepting. False (listener closed) when the accept
+        thread cannot start: the proxy cannot serve, and the caller must say so."""
         self._listener = listener
         if not self._start(self._accept):
             listener.close()
+            return False
+        return True
 
     def close(self, cause: str) -> bool:
         """The close transition, then: stop accepting, cut every upstream socket, shut
@@ -357,6 +362,8 @@ class ProxyServer:
                     self._in_flight -= 1
         except Refused as refused:
             record.update(refused=refused.code, status=403)
+            if refused.code == "route-closed":
+                record["ended"] = "route-closed"  # decision 13: a request the close cut
             self._answer(conn, refusal(refused.code, refused.message))
         except RouteClosed as closed:
             record["ended"] = "route-closed"

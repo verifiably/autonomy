@@ -91,8 +91,10 @@ def control_loop(
             return "eof"
         op = message.get("op")
         if op == "listener" and len(fds) == 1:
-            server.serve(socket.socket(fileno=fds[0]))
-            send_message(control, {"op": "listening"})
+            if server.serve(socket.socket(fileno=fds[0])):
+                send_message(control, {"op": "listening"})
+            else:
+                send_message(control, {"op": "error", "code": "listener-failed", "message": "the accept thread could not start"})
         elif op == "renew":
             deadline = clock() + lease
         elif op == "close":

@@ -210,7 +210,7 @@ def test_verification_is_never_disabled(tls):
     assert "certificate" in str(caught.value).lower()
 
 
-@pytest.mark.parametrize("mode", ["garbage", "hugehead", "badchunk", "bare_lf", "bare_cr", "nul_name", "nul_value"])
+@pytest.mark.parametrize("mode", ["garbage", "hugehead", "badchunk", "bare_lf", "bare_cr", "nul_name", "nul_value", "gzip_chunked"])
 def test_a_malformed_answer_is_an_upstream_error_never_a_hang(tls, mode):  # Review Focus 2
     upstream = FakeUpstream(tls, mode=mode)
     outcome = {}
