@@ -8,7 +8,7 @@ complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T09:59:02Z
+updated: 2026-10-17T10:09:56Z
 started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
@@ -35,3 +35,4 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T09:59:00Z (main): Scope accepted by the user, 2026-10-17, including the credential-template replacement, the deferral move and crew-799319 as the way to configure pi; the design keeps configuration (directs pi) separate from enforcement (envelope and proxy, holding against an actor that rewrites its config). Amendment approval follows review of the drafted spec.
 - 2026-10-17T09:59:00Z (main): started
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T10:09:56Z (main): Draft on spec/egress (30ccb3e, .worktrees/spec-egress): decision 13. Transport: TCP listener on 127.0.0.1:4780 inside the actor's own netns, made by a host-side helper that joins the netns's owning user ns (NS_GET_USERNS; joining the init's own nested user ns gives EPERM) and passes the fd to the proxy; no process inside the sandbox; checked locally (attached helper.py, host.py). Proxy sandboxed (--share-net, credential ro bind), exact method/path/query/model match, header allow-lists, no redirects, lease/EOF/SIGTERM/close, egress.jsonl; admit/settle join points for autonomy-9e8a43; host network mode removed; rows E21-E22; delivery item 5. pi facts used: TCP only, POST /v1/messages?beta=true, placeholder key OK, sk-ant-oat shape switches to Bearer.
