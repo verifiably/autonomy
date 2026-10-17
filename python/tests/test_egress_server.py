@@ -1,3 +1,4 @@
+import errno
 import json
 import os
 import socket
@@ -585,3 +586,66 @@ def test_a_buffering_proxy_would_deliver_the_first_event_late(serve, monkeypatch
             if first_at is None and b"event: message" in received:
                 first_at = time.monotonic()
     assert first_at > s.upstream.last_event_at
+
+
+# Fix round 1
+
+def test_a_transient_accept_error_does_not_end_accepting(serve, monkeypatch):
+    real = socket.socket.accept
+    failed = []
+
+    def flaky(self):
+        target = getattr(threading.current_thread(), "_target", None)
+        if getattr(target, "__qualname__", "") == "ProxyServer._accept" and not failed:
+            failed.append(True)
+            raise OSError(errno.EMFILE, "too many open files")
+        return real(self)
+
+    monkeypatch.setattr(socket.socket, "accept", flaky)
+    s = serve()
+    assert status_and_body(exchange(s.port, raw_request(body=message())))[0] == 200
+    assert failed
+
+
+def test_a_worker_that_cannot_start_releases_its_connection_and_the_close_completes(serve):
+    s = serve()
+
+    class Failing(threading.Thread):
+        def start(self):
+            if getattr(self, "_target", None) == s.server._handle:
+                raise RuntimeError("can't start new thread")
+            super().start()
+
+    s.server._thread = Failing
+    with socket.create_connection(("127.0.0.1", s.port), timeout=5) as sock:
+        sock.sendall(raw_request(body=message()))
+        assert sock.recv(65536) == b""  # released, not left hanging
+    assert s.server.close("close") is True
+    assert s.records()[-1]["closed"] == "close"
+    assert not s.server._actors
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_a_settle_that_raises_still_ends_the_actors_response(serve):
+    class Bad:
+        def admit(self, run, operation, model, request_bytes, in_flight):
+            return None
+
+        def settle(self, seq, upstream_request_id, usage):
+            raise RuntimeError("settle failed")
+
+    s = serve(allowance=Bad())
+    assert status_and_body(exchange(s.port, raw_request(body=message()), timeout=5))[0] == 200
+    s.server.close("close")
+    assert s.records()[0]["ended"] == "complete"
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_a_recorder_that_cannot_write_still_closes_the_actors_connection(serve, monkeypatch):
+    s = serve()
+
+    def broken(record):
+        raise OSError(errno.ENOSPC, "no space")
+
+    monkeypatch.setattr(s.server.recorder, "line", broken)  # undone before the fixture's close
+    assert status_and_body(exchange(s.port, raw_request(body=message()), timeout=5))[0] == 200

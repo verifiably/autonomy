@@ -24,6 +24,7 @@ from autonomy.egress.upstream import (
 )
 
 JOIN_TIMEOUT = 2.0
+ACCEPT_BACKOFF = 0.05
 
 
 class Recorder:
@@ -173,9 +174,12 @@ class ProxyServer:
         with self._lock:
             if self._shut:
                 return False
+            try:
+                thread.start()
+            except RuntimeError:  # the thread limit: nothing was registered for the close to join
+                return False
             self._threads = [t for t in self._threads if t.is_alive()]
             self._threads.append(thread)
-            thread.start()
         return True
 
     def _finish(self, record: dict[str, object]) -> None:
@@ -207,13 +211,20 @@ class ProxyServer:
             try:
                 conn, _ = self._listener.accept()
             except OSError:
-                return
+                # The close cuts the listener, which ends this loop. Any other error
+                # (EMFILE, ECONNABORTED, ...) is transient: back off and accept again.
+                if self._shut or not self.gate.is_open:
+                    return
+                time.sleep(ACCEPT_BACKOFF)
+                continue
             if not self._track(conn, upstream=False):
                 conn.close()
                 return
             if not self._start(self._handle, conn):
                 self._release(conn)
-                return
+                if self._shut:
+                    return
+                time.sleep(ACCEPT_BACKOFF)
 
     # -- the actor's side ------------------------------------------------------------
 
@@ -380,10 +391,14 @@ class ProxyServer:
                 record["status"] = 502
                 self._answer(conn, _bad_gateway(f"the proxy failed: {type(caught).__name__}"))
         finally:
-            if upstream is not None:
-                self._release(upstream)
-            if record["forwarded"] and record["seq"] is not None:
-                self._allowance.settle(int(record["seq"]), request_id, None)
-            if record["seq"] is not None or record["refused"] is not None:
-                self._finish(record)  # before the actor's EOF, so a reader at EOF sees it
-            self._release(conn)
+            try:
+                if upstream is not None:
+                    self._release(upstream)
+                try:
+                    if record["seq"] is not None or record["refused"] is not None:
+                        self._finish(record)  # before the actor's EOF, so a reader at EOF sees it
+                finally:
+                    if record["forwarded"] and record["seq"] is not None:
+                        self._allowance.settle(int(record["seq"]), request_id, None)
+            finally:
+                self._release(conn)
