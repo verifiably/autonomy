@@ -26,6 +26,14 @@ packages = ["src/autonomy"]
 testpaths = ["tests"]
 markers = ["bwrap: needs bubblewrap and unprivileged user namespaces"]
 
+# Pyright reads this when resolving imports from files under python/: the venv
+# holds the package itself (uv sync installs it editable), and tests/ holds the
+# sibling helpers (channels.py, builders.py, …) its test modules import.
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["tests"]
+
 [tool.uv]
 # The sandbox needs os.pidfd_open and signal.pidfd_send_signal (envelope design §8);
 # uv's managed CPython builds omit both, so the environment uses the system interpreter.
