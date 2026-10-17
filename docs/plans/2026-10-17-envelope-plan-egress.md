@@ -794,6 +794,10 @@ def _set(**fields):
 
 INVALID = {
     "unknown dialect": _set(api="openai-chat"),
+    "a dialect that is not a string": _set(api=["anthropic-messages"]),
+    "an unmatched IPv6 bracket": _set(upstream="https://[::1"),
+    "a port out of range": _set(upstream="https://api.anthropic.com:99999"),
+    "a credential path with NUL": lambda doc: doc["credential"].update({"file": "/home/u/cred\x00x"}),
     "http upstream": _set(upstream="http://api.anthropic.com"),
     "upstream with a path": _set(upstream="https://api.anthropic.com/v1"),
     "upstream with userinfo": _set(upstream="https://u:p@api.anthropic.com"),
@@ -1098,7 +1102,7 @@ def _strings(value: object, where: str, *, nonempty: bool) -> list[str]:
 
 
 def _absolute(value: object, where: str) -> Path:
-    if not isinstance(value, str) or not Path(value).is_absolute():
+    if not isinstance(value, str) or "\x00" in value or not Path(value).is_absolute():
         raise _invalid(f"{where} must be an absolute path")
     return Path(value)
 
@@ -1106,16 +1110,17 @@ def _absolute(value: object, where: str) -> Path:
 def _upstream(value: object) -> tuple[str, int]:
     if not isinstance(value, str):
         raise _invalid("upstream must be a string")
-    parts = urlsplit(value)
     try:
+        parts = urlsplit(value)
         port = parts.port
-    except ValueError:
-        raise _invalid(f"upstream {value!r} has an invalid port") from None
-    if parts.scheme != "https" or not parts.hostname:
+        hostname = parts.hostname
+    except ValueError as caught:  # an unmatched IPv6 bracket, a port out of range
+        raise _invalid(f"upstream {value!r} is not a URL: {caught}") from None
+    if parts.scheme != "https" or not hostname:
         raise _invalid(f"upstream {value!r} must be one https origin")
     if parts.username is not None or parts.password is not None or parts.path or parts.query or parts.fragment:
         raise _invalid(f"upstream {value!r} must be an origin: no userinfo, path, query or fragment")
-    return parts.hostname, port or 443
+    return hostname, port or 443
 
 
 def _headers(value: object, where: str) -> frozenset[str]:
@@ -1175,7 +1180,7 @@ def parse_route(data: bytes) -> Route:
         {"ca_file", "header_tokens"},
     )
     api = top["api"]
-    if api not in DIALECTS:
+    if not isinstance(api, str) or api not in DIALECTS:
         raise _invalid(f"api {api!r} is not a dialect this build defines ({', '.join(sorted(DIALECTS))})")
     host, port = _upstream(top["upstream"])
     forward = _headers(top["forward_headers"], "forward_headers")
@@ -2135,6 +2140,9 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
     `.attempted`;
   - `SendFailed(sent, attempted, message)`, an `UpstreamError` for a write that failed
     after an attempt;
+  - `ActorGone(attempted: bool = False)`: the actor hung up while the proxy waited;
+  - `send_all(..., *, watch=None)` and `read_response(..., *, watch=None)` take the
+    actor's connection as `watch`;
   - `cut(sock, how=socket.SHUT_RDWR) -> None`;
   - `UpstreamError`;
   - `send_all(gate: Gate, sock, data: bytes) -> None`, which raises `RouteClosed`;
@@ -2200,6 +2208,8 @@ class FakeUpstream:
     - `redirect`: 302 to `location`;
     - `stall`: read the head, then never read again (the body fills the buffers);
     - `reset`: read the head, then reset the connection (an abortive close);
+    - `silent`: send a streaming head, then nothing; `peer_closed` is set when the
+      proxy closes the connection;
     - `garbage`, `hugehead`, `badchunk`: malformed answers.
     Every request it reads is in `seen`, and `connections` counts every accept."""
 
@@ -2220,6 +2230,7 @@ class FakeUpstream:
         self.seen: list[Seen] = []
         self.connections = 0
         self.last_event_at: float | None = None
+        self.peer_closed = threading.Event()
         self._stalled: list[tuple[Seen, ssl.SSLSocket]] = []
         self._lock = threading.Lock()
         threading.Thread(target=self._accept, daemon=True).start()
@@ -2314,6 +2325,14 @@ class FakeUpstream:
                 event = b"event: message\ndata: {\"n\": %d}\n\n" % index
                 conn.sendall(b"%x\r\n%s\r\n" % (len(event), event))
             conn.sendall(b"0\r\n\r\n")
+        elif self.mode == "silent":
+            conn.sendall(b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\n\r\n")
+            conn.settimeout(None)
+            try:
+                conn.recv(1)  # returns when the proxy closes its side
+            except (OSError, ssl.SSLError):
+                pass
+            self.peer_closed.set()
         elif self.mode == "redirect":
             conn.sendall(b"HTTP/1.1 302 Found\r\nlocation: %s\r\ncontent-length: 0\r\n\r\n" % self.location.encode())
         elif self.mode == "garbage":
@@ -2637,6 +2656,16 @@ class UpstreamError(Exception):
     something that is not HTTP/1.1."""
 
 
+class ActorGone(Exception):
+    """The actor hung up, or its connection broke, while the proxy waited on the
+    upstream or wrote to the actor. `attempted` says whether any write upstream was
+    tried."""
+
+    def __init__(self, attempted: bool = False) -> None:
+        super().__init__("the actor hung up")
+        self.attempted = attempted
+
+
 class SendFailed(UpstreamError):
     """A write failed (a reset, a broken pipe, a TLS error) after `sent` bytes, with
     `attempted` saying whether any write was tried: the record's `forwarded`."""
@@ -2694,17 +2723,35 @@ class Gate:
             return step()
 
 
-def _wait(gate: Gate, sock: socket.socket, *, readable: bool, deadline: float | None = None) -> None:
+def _wait(
+    gate: Gate, sock: socket.socket, *, readable: bool, deadline: float | None = None,
+    watch: socket.socket | None = None,
+) -> None:
+    """Wait for `sock`, giving up within `POLL` of the close. `watch` is the actor's
+    connection: an actor that hangs up while the upstream is silent raises
+    `ActorGone`, so its upstream request does not run on unseen. Bytes the actor sends
+    meanwhile are never parsed (one request per connection): they are dropped."""
     while gate.is_open:
         if deadline is not None and time.monotonic() > deadline:
             raise TimeoutError()
-        ready = select.select([sock] if readable else [], [] if readable else [sock], [], POLL)
-        if ready[0] or ready[1]:
+        reads = [sock] if readable else []
+        if watch is not None:
+            reads.append(watch)
+        ready_read, ready_write, _ = select.select(reads, [] if readable else [sock], [], POLL)
+        if watch is not None and watch in ready_read:
+            try:
+                data = watch.recv(65536)
+            except OSError:
+                data = b""
+            if not data:
+                raise ActorGone()
+            ready_read = [item for item in ready_read if item is not watch]
+        if ready_read or ready_write:
             return
     raise RouteClosed()
 
 
-def send_all(gate: Gate, sock: socket.socket, data: bytes) -> None:
+def send_all(gate: Gate, sock: socket.socket, data: bytes, *, watch: socket.socket | None = None) -> None:
     """Write `data` in non-blocking attempts of at most `SLICE` bytes under the gate's
     lock. A TLS write that needs a read or a write first, or a full buffer, waits
     outside the lock and retries the same slice (OpenSSL requires the same bytes),
@@ -2729,9 +2776,11 @@ def send_all(gate: Gate, sock: socket.socket, data: bytes) -> None:
             sent += written
             continue
         try:
-            _wait(gate, sock, readable=readable)
+            _wait(gate, sock, readable=readable, watch=watch)
         except RouteClosed:
             raise RouteClosed(sent, attempted) from None
+        except ActorGone:
+            raise ActorGone(attempted) from None
 
 
 def tls_context(ca_file: Path | None) -> ssl.SSLContext:
@@ -2813,9 +2862,10 @@ def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeou
 
 
 class _Reader:
-    def __init__(self, gate: Gate, sock: socket.socket) -> None:
+    def __init__(self, gate: Gate, sock: socket.socket, watch: socket.socket | None) -> None:
         self._gate = gate
         self._sock = sock
+        self._watch = watch
         self.buffer = bytearray()
 
     def _fill(self) -> bool:
@@ -2823,13 +2873,13 @@ class _Reader:
             try:
                 chunk = self._sock.recv(65536)
             except ssl.SSLWantReadError:
-                _wait(self._gate, self._sock, readable=True)
+                self._wait(readable=True)
                 continue
             except ssl.SSLWantWriteError:
-                _wait(self._gate, self._sock, readable=False)
+                self._wait(readable=False)
                 continue
             except (BlockingIOError, InterruptedError):
-                _wait(self._gate, self._sock, readable=True)
+                self._wait(readable=True)
                 continue
             except (ssl.SSLEOFError, ssl.SSLZeroReturnError):
                 chunk = b""
@@ -2839,6 +2889,12 @@ class _Reader:
                 return False
             self.buffer += chunk
             return True
+
+    def _wait(self, *, readable: bool) -> None:
+        try:
+            _wait(self._gate, self._sock, readable=readable, watch=self._watch)
+        except ActorGone:
+            raise ActorGone(attempted=True) from None  # the request already went upstream
 
     def until(self, marker: bytes, limit: int) -> bytes:
         while (at := self.buffer.find(marker)) < 0:
@@ -2898,8 +2954,8 @@ class Response:
         return next((value for name, value in self.headers if name == "request-id"), None)
 
 
-def read_response(gate: Gate, sock: socket.socket) -> Response:
-    reader = _Reader(gate, sock)
+def read_response(gate: Gate, sock: socket.socket, *, watch: socket.socket | None = None) -> Response:
+    reader = _Reader(gate, sock, watch)
     while True:
         head = reader.until(b"\r\n\r\n", MAX_RESPONSE_HEAD)
         status_line, *lines = head.split(b"\r\n")
@@ -3426,6 +3482,77 @@ def test_a_request_waiting_on_its_body_is_answered_route_closed(serve):
     assert s.upstream.seen == []
 
 
+def test_a_close_racing_a_new_worker_never_joins_an_unstarted_thread(serve):
+    # The close's snapshot of the workers waits on the lock that a start holds until
+    # its thread has started: here the close begins while a worker is being started.
+    s = serve()
+    outcome = {}
+    real = threading.Thread
+
+    class Racing(real):
+        def start(self):
+            if getattr(self, "_target", None) == s.server._handle and "closer" not in outcome:
+                closer = real(target=lambda: outcome.setdefault("closed", s.server.close("close")))
+                outcome["closer"] = closer
+                closer.start()
+                time.sleep(0.3)  # the closer is now waiting on the server's lock
+            super().start()
+
+    s.server._thread = Racing
+    client = real(target=lambda: exchange(s.port, raw_request(body=message())), daemon=True)
+    client.start()
+    deadline = time.monotonic() + 10
+    while "closer" not in outcome and time.monotonic() < deadline:
+        time.sleep(0.01)
+    outcome["closer"].join(10)
+    assert outcome["closed"] is True
+    assert s.records()[-1]["closed"] == "close"
+
+
+def test_an_actor_that_hangs_up_on_a_silent_upstream_ends_its_request(serve):
+    s = serve(mode="silent")
+    with socket.create_connection(("127.0.0.1", s.port), timeout=10) as sock:
+        sock.sendall(raw_request(body=message()))
+        received = b""
+        while b"\r\n\r\n" not in received:
+            chunk = sock.recv(65536)
+            if not chunk:
+                break
+            received += chunk
+    assert s.upstream.peer_closed.wait(3)  # the proxy saw the hangup and closed upstream
+    deadline = time.monotonic() + 3
+    while not s.records() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    line = s.records()[0]
+    assert (line["ended"], line["forwarded"]) == ("actor-closed", True)
+    assert not s.server._upstreams
+
+
+def test_a_worker_stuck_past_the_join_still_gets_its_line(serve, monkeypatch):
+    # A DNS lookup that outlasts the close's bounded join: the close writes the line,
+    # and the worker's own, when the lookup returns, is suppressed.
+    monkeypatch.setattr(server_module, "JOIN_TIMEOUT", 0.2)
+    resolving = threading.Event()
+    real = socket.getaddrinfo
+
+    def slow(host, *args, **kwargs):
+        if host == "localhost":
+            resolving.set()
+            time.sleep(1.5)
+        return real(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", slow)
+    s = serve()
+    threading.Thread(target=lambda: exchange(s.port, raw_request(body=message())), daemon=True).start()
+    assert resolving.wait(10)
+    s.server.close("close")
+    lines = s.records()
+    assert [line.get("seq") for line in lines] == [1, None]
+    assert (lines[0]["ended"], lines[0]["refused"], lines[0]["forwarded"]) == ("route-closed", "route-closed", False)
+    time.sleep(2.0)  # the lookup returns, and the worker finishes
+    assert s.records() == lines
+
+
 def test_no_record_holds_the_credential(served):
     exchange(served.port, raw_request(body=message()))
     exchange(served.port, raw_request(body=message(model="other")))
@@ -3600,7 +3727,7 @@ from autonomy.egress.errors import Refused
 from autonomy.egress.request import MAX_HEAD, forwarded_headers, frame, parse_head, refusal
 from autonomy.egress.route import Operation, Route
 from autonomy.egress.upstream import (
-    Gate, RouteClosed, UpstreamError, connect, cut, read_response, response_head, send_all,
+    ActorGone, Gate, RouteClosed, UpstreamError, connect, cut, read_response, response_head, send_all,
 )
 
 JOIN_TIMEOUT = 2.0
@@ -3658,10 +3785,6 @@ class Hooks:
     hold: Callable[[str, int], None] = _no_hold
 
 
-class _ActorGone(Exception):
-    pass
-
-
 def _bad_gateway(message: str) -> bytes:
     body = json.dumps({"type": "error", "error": {"type": "egress_upstream", "message": message}}).encode()
     head = (
@@ -3691,15 +3814,19 @@ class ProxyServer:
         self._actors: set[socket.socket] = set()
         self._upstreams: set[socket.socket] = set()
         self._threads: list[threading.Thread] = []
+        self._outstanding: dict[int, dict[str, object]] = {}
+        self._finalized: set[int] = set()
         self._shut = False
         self._in_flight = 0
         self._lock = threading.Lock()
+        self._thread = threading.Thread  # a test seam: the class that runs each worker
 
     # -- lifecycle -----------------------------------------------------------------
 
     def serve(self, listener: socket.socket) -> None:
         self._listener = listener
-        self._start(self._accept)
+        if not self._start(self._accept):
+            listener.close()
 
     def close(self, cause: str) -> bool:
         """The close transition, then: stop accepting, cut every upstream socket, shut
@@ -3727,7 +3854,18 @@ class ProxyServer:
         for sock in survivors:  # a worker blocked writing to an actor that stopped reading
             cut(sock)
         self._join(threads, 0.5)
-        self.recorder.line({"at": utc_now(), "closed": cause, "last_seq": self.gate.last_seq})
+        with self._lock:
+            # A worker still running (a DNS lookup that has not returned) must not lose
+            # its request's line: write it now, as cut, and suppress the worker's own.
+            for seq, live in sorted(self._outstanding.items()):
+                record = dict(live)
+                record["ended"] = "route-closed"
+                if not record["forwarded"]:
+                    record["refused"] = "route-closed"
+                self._finalized.add(seq)
+                self.recorder.line(record)
+            self._outstanding.clear()
+            self.recorder.line({"at": utc_now(), "closed": cause, "last_seq": self.gate.last_seq})
         return True
 
     @staticmethod
@@ -3737,12 +3875,27 @@ class ProxyServer:
             if thread is not threading.current_thread():
                 thread.join(max(0.0, deadline - time.monotonic()))
 
-    def _start(self, target: Callable[..., None], *args: object) -> None:
-        thread = threading.Thread(target=target, args=args, daemon=True)
+    def _start(self, target: Callable[..., None], *args: object) -> bool:
+        """Register and start a worker in one step under the lock the close takes, so
+        the close never joins a thread that has not started. None starts after it."""
+        thread = self._thread(target=target, args=args, daemon=True)
         with self._lock:
+            if self._shut:
+                return False
             self._threads = [t for t in self._threads if t.is_alive()]
             self._threads.append(thread)
-        thread.start()
+            thread.start()
+        return True
+
+    def _finish(self, record: dict[str, object]) -> None:
+        """Write a request's line, unless the close already wrote it."""
+        with self._lock:
+            seq = record["seq"]
+            if seq is not None:
+                if seq in self._finalized:
+                    return
+                self._outstanding.pop(int(seq), None)
+            self.recorder.line(record)
 
     def _track(self, sock: socket.socket, *, upstream: bool) -> bool:
         with self._lock:
@@ -3768,7 +3921,9 @@ class ProxyServer:
             if not self._track(conn, upstream=False):
                 conn.close()
                 return
-            self._start(self._handle, conn)
+            if not self._start(self._handle, conn):
+                self._release(conn)
+                return
 
     # -- the actor's side ------------------------------------------------------------
 
@@ -3777,14 +3932,14 @@ class ProxyServer:
         try:
             return conn.recv(65536)
         except OSError as caught:
-            raise _ActorGone() from caught
+            raise ActorGone() from caught
 
     @staticmethod
     def _to_actor(conn: socket.socket, data: bytes) -> None:
         try:
             conn.sendall(data)
         except OSError as caught:
-            raise _ActorGone() from caught
+            raise ActorGone(attempted=True) from caught
 
     @staticmethod
     def _answer(conn: socket.socket, data: bytes) -> None:
@@ -3802,7 +3957,7 @@ class ProxyServer:
             if not chunk:
                 if not buffer:
                     return None
-                raise _ActorGone()
+                raise ActorGone()
             buffer += chunk
         if at > MAX_HEAD:
             raise Refused("request-malformed", f"a request head over {MAX_HEAD} bytes")
@@ -3815,7 +3970,7 @@ class ProxyServer:
         while len(body) < length:
             chunk = self._recv(conn)
             if not chunk:
-                raise _ActorGone()
+                raise ActorGone()
             body += chunk[: length - len(body)]
         return bytes(body)
 
@@ -3844,6 +3999,8 @@ class ProxyServer:
             if seq is None:
                 raise Refused("route-closed", "the route is closed")
             record["seq"] = seq
+            with self._lock:
+                self._outstanding[seq] = record
             request = parse_head(head[0])
             record.update(method=request.method, path=request.path, query=request.query)
             if request.content_length > self.route.max_request_bytes:
@@ -3883,9 +4040,9 @@ class ProxyServer:
                     raise RouteClosed()
                 payload = frame(request, self.route, headers, body, self._credential)
                 self._hooks.hold("before-send", seq)
-                send_all(self.gate, upstream, payload)
+                send_all(self.gate, upstream, payload, watch=conn)
                 record["forwarded"] = True
-                response = read_response(self.gate, upstream)
+                response = read_response(self.gate, upstream, watch=conn)
                 request_id = response.request_id
                 record.update(status=response.status, upstream_request_id=request_id)
                 answered = True
@@ -3905,7 +4062,9 @@ class ProxyServer:
                 record["forwarded"] = True
             if not record["forwarded"]:
                 closed_before_upstream()
-        except _ActorGone:
+        except ActorGone as gone:
+            if gone.attempted:
+                record["forwarded"] = True
             if self.gate.is_open:
                 record["ended"] = "actor-closed"
             else:
@@ -3935,7 +4094,7 @@ class ProxyServer:
             if record["forwarded"] and record["seq"] is not None:
                 self._allowance.settle(int(record["seq"]), request_id, None)
             if record["seq"] is not None or record["refused"] is not None:
-                self.recorder.line(record)  # before the actor's EOF, so a reader at EOF sees it
+                self._finish(record)  # before the actor's EOF, so a reader at EOF sees it
             self._release(conn)
 ```
 
@@ -4657,6 +4816,7 @@ def test_egress_findings_are_reported_and_unproven_is_unwired():
 import dataclasses
 import json
 import os
+import select
 import signal
 import socket
 import subprocess
@@ -5149,10 +5309,65 @@ def test_e22_run_close_kills_a_wedged_orphan_proxy(world):
     closed = kill_orphan(world.run_dir)
     assert 4.5 < time.monotonic() - started < 8
     assert closed.timed_out and [f.code for f in closed.findings()] == ["egress-close-timeout"]
+    assert exited_now(init)  # kill_orphan returns only once the proxy has exited
     deadline = time.monotonic() + 5
     while Path(f"/proc/{init}").exists() and time.monotonic() < deadline:
         time.sleep(0.05)
     assert not Path(f"/proc/{init}").exists()
+
+
+def exited_now(pid: int) -> bool:
+    try:
+        fd = os.pidfd_open(pid)
+    except ProcessLookupError:
+        return True
+    try:
+        return bool(select.select([fd], [], [], 0)[0])
+    finally:
+        os.close(fd)
+
+
+def test_an_orphan_that_exits_before_the_signal_is_settled_without_error(world, monkeypatch):
+    process, init = orchestrator(world, lease=30.0)
+    children = Path(f"/proc/{init}/task/{init}/children").read_text().split()
+    os.kill(int(children[0]), signal.SIGSTOP)
+    process.kill()
+    process.wait()
+
+    def gone(pidfd, sig):
+        raise ProcessLookupError(3, "No such process")  # the exit won the race with the signal
+
+    monkeypatch.setattr(session_module.signal, "pidfd_send_signal", gone)
+    closed = kill_orphan(world.run_dir, timeout=0.5)
+    assert (closed.timed_out, [f.code for f in closed.findings()]) == (False, ["egress-lost"])
+
+
+@pytest.mark.parametrize("failure", ["egress-proxy", "egress-ready", "receive"])
+def test_a_failed_start_leaves_no_proxy_and_no_descriptor(world, monkeypatch, failure):
+    started = {}
+    real_info = session_module.read_info
+
+    def spy_info(fd, process):
+        info = real_info(fd, process)
+        started["init"] = info["child-pid"]
+        return info
+
+    monkeypatch.setattr(session_module, "read_info", spy_info)
+    real_event = session_module.append_event
+
+    def event(run_dir, name, **fields):
+        if name == failure:
+            raise OSError(28, "No space left on device")
+        real_event(run_dir, name, **fields)
+
+    monkeypatch.setattr(session_module, "append_event", event)
+    if failure == "receive":
+        monkeypatch.setattr(EgressSession, "_receive", lambda self, timeout: (_ for _ in ()).throw(OSError(5, "EIO")))
+    fds_before = len(os.listdir("/proc/self/fd"))
+    with pytest.raises(OSError):
+        world.start()
+    assert exited_now(started["init"])
+    assert len(os.listdir("/proc/self/fd")) == fds_before
 
 
 def test_e22_sigterm_to_the_proxy_closes_it(world):
@@ -5460,14 +5675,17 @@ class EgressSession:
             ours.close()
             raise EgressUnproven("proxy-unstarted", f"bwrap reported no proxy namespace (exit {process.returncode})")
         session = cls(process, child, pidfd, ours, run_dir)
-        append_event(run_dir, "egress-proxy", pid=child, start_time=_start_time(child))
-        send_message(ours, {"op": "route", "route": base64.b64encode(loaded.data).decode("ascii"), "lease": lease,
-                            "run": run_dir.name})
-        reply = session._receive(PROXY_START_TIMEOUT)
-        if reply is None or reply.get("op") != "ready":
+        try:  # until the start succeeds, any failure kills and reaps the proxy and closes its descriptors
+            append_event(run_dir, "egress-proxy", pid=child, start_time=_start_time(child))
+            send_message(ours, {"op": "route", "route": base64.b64encode(loaded.data).decode("ascii"), "lease": lease,
+                                "run": run_dir.name})
+            reply = session._receive(PROXY_START_TIMEOUT)
+            if reply is None or reply.get("op") != "ready":
+                raise EgressUnproven("proxy-unready", _why(reply, PROXY_START_TIMEOUT))
+            append_event(run_dir, "egress-ready")
+        except BaseException:
             session.kill()
-            raise EgressUnproven("proxy-unready", _why(reply, PROXY_START_TIMEOUT))
-        append_event(run_dir, "egress-ready")
+            raise
         return session
 
     def _receive(self, timeout: float) -> dict | None:
@@ -5560,8 +5778,12 @@ def kill_orphan(run_dir: Path, timeout: float = CLOSE_TIMEOUT) -> EgressClosed |
             except FileNotFoundError:
                 same = False
             if same and not select.select([pidfd], [], [], timeout)[0]:
-                signal.pidfd_send_signal(pidfd, signal.SIGKILL)
-                timed_out = True
+                try:
+                    signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+                    timed_out = True
+                except ProcessLookupError:
+                    pass  # it exited between the wait and the signal
+                select.select([pidfd], [], [], CLOSE_TIMEOUT)  # settle only once it has exited
         finally:
             os.close(pidfd)
     return _settle(run_dir, timed_out)
@@ -5587,6 +5809,7 @@ git commit -m "feat(egress): the orchestrator's proxy session, with E21 and E22 
 
 **Files:**
 - Create: `python/scripts/egress_live.py`
+- Test: `python/tests/test_egress_live.py` (the verdict, offline)
 - Modify: `justfile` (the `live-egress` recipe)
 - Modify: `README.md` (the model route section)
 - Modify: `docs/specs/2026-10-12-envelope-design.md` (the status line for item 5)
@@ -5631,7 +5854,7 @@ from pathlib import Path
 from autonomy.egress.errors import EgressUnproven, RouteRefused
 from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import egress_denied, load_route
-from autonomy.egress.session import EgressSession
+from autonomy.egress.session import EgressClosed, EgressSession
 from autonomy.run import RunRefused, places
 from autonomy.sandbox.bwrap import launch, prove
 from autonomy.sandbox.spec import SandboxSpec
@@ -5677,7 +5900,7 @@ def _main(argv: list[str]) -> int:
     prove(spec, denied)
     session = EgressSession.start(loaded, run_dir, lease=120, denied=denied)
     try:
-        settled = _prompt(spec, session, pi_dir, model, scratch, root)
+        records, exit_code = _prompt(spec, session, pi_dir, model, scratch, root)
         closed = session.close()
     except BaseException:
         if session.pidfd >= 0:
@@ -5686,11 +5909,46 @@ def _main(argv: list[str]) -> int:
     lines = [json.loads(line) for line in (run_dir / "egress.jsonl").read_text().splitlines()]
     for line in lines:
         print(json.dumps(line))
-    print(f"settled: {settled is not None}; route closed: {closed.cause}; findings: {[f.code for f in closed.findings()]}")
+    problems = verdict(lines, records, exit_code, closed)
     print(f"records: {root}")
-    served = [line for line in lines if line.get("status") == 200 and line.get("ended") == "complete"]
-    refused = [line for line in lines if line.get("refused")]
-    return 0 if served and not refused and settled is not None else 1
+    for problem in problems:
+        print(f"failed: {problem}")
+    return 1 if problems else 0
+
+
+def verdict(lines: list[dict], records: list[dict], exit_code: int | None, closed: EgressClosed) -> list[str]:
+    """Every reason the live run failed; empty only when pi answered. A 200 is not an
+    answer: a provider can report an error inside the stream after it, and pi settling
+    says only that it stopped. So the final assistant message must have stopped
+    normally with text, pi must exit 0, the route must close cleanly, and a request
+    must have streamed to completion with none refused or failed."""
+    problems: list[str] = []
+    if not any(r.get("type") == "agent_settled" and not r.get("aborted") for r in records):
+        problems.append("pi never settled, or its run was aborted")
+    finals = [r["message"] for r in records
+              if r.get("type") == "message_end" and isinstance(r.get("message"), dict)
+              and r["message"].get("role") == "assistant"]
+    if not finals:
+        problems.append("pi produced no final assistant message")
+    else:
+        last = finals[-1]
+        if last.get("stopReason") != "stop" or last.get("errorMessage"):
+            problems.append(f"the final assistant message stopped {last.get('stopReason')!r}: {last.get('errorMessage')}")
+        text = "".join(block.get("text", "") for block in last.get("content", [])
+                       if isinstance(block, dict) and block.get("type") == "text")
+        if not text.strip():
+            problems.append("the final assistant message has no text")
+    if exit_code != 0:
+        problems.append(f"pi exited {exit_code}")
+    if closed.cause != "close" or closed.findings():
+        problems.append(f"the route closed {closed.cause!r} with {[f.code for f in closed.findings()]}")
+    requests = [line for line in lines if "seq" in line]
+    if not any(line.get("status") == 200 and line.get("ended") == "complete" for line in requests):
+        problems.append("no request streamed to completion")
+    for line in requests:
+        if line.get("refused") or line.get("ended") != "complete":
+            problems.append(f"request {line.get('seq')} was {line.get('refused') or line.get('ended')}")
+    return problems
 
 
 def _prompt(spec: SandboxSpec, session: EgressSession, pi_dir: Path, model: str, scratch: Path, root: Path):
@@ -5707,10 +5965,12 @@ def _prompt(spec: SandboxSpec, session: EgressSession, pi_dir: Path, model: str,
     os.close(to_pi_read)
     os.close(from_pi_write)
     os.write(to_pi, json.dumps({"id": "p1", "type": "prompt", "message": "Reply with the single word: ok"}).encode() + b"\n")
-    buffer, settled, renewed = b"", None, time.monotonic()
+    records: list[dict] = []
+    buffer, renewed = b"", time.monotonic()
     deadline = time.monotonic() + 240
+    exit_code = None
     try:
-        while settled is None and time.monotonic() < deadline:
+        while time.monotonic() < deadline and not any(r.get("type") == "agent_settled" for r in records):
             if time.monotonic() - renewed > 30:
                 session.renew()
                 renewed = time.monotonic()
@@ -5722,21 +5982,71 @@ def _prompt(spec: SandboxSpec, session: EgressSession, pi_dir: Path, model: str,
             buffer += chunk
             while b"\n" in buffer:
                 line, buffer = buffer.split(b"\n", 1)
-                if line.strip() and json.loads(line).get("type") == "agent_settled":
-                    settled = json.loads(line)
+                if line.strip():
+                    records.append(json.loads(line))
         os.close(to_pi)
-        actor.wait(timeout=30)
+        exit_code = actor.wait(timeout=30)
     finally:
         actor.close()
         os.close(from_pi)
-    return settled
+    return records, exit_code
 
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
 ```
 
-- [ ] **Step 2: Add the recipe**
+- [ ] **Step 2: Test the verdict offline**
+
+`python/tests/test_egress_live.py`:
+
+```python
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+from autonomy.egress.session import EgressClosed
+
+SCRIPT = Path(__file__).parent.parent / "scripts" / "egress_live.py"
+spec = importlib.util.spec_from_file_location("egress_live", SCRIPT)
+live = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(live)
+
+LINE = {"seq": 1, "status": 200, "ended": "complete", "refused": None}
+CLOSED = EgressClosed("close", 1, False)
+
+
+def answered(stop="stop", error=None, text="ok"):
+    message = {"role": "assistant", "stopReason": stop, "content": [{"type": "text", "text": text}]}
+    if error:
+        message["errorMessage"] = error
+    return [{"type": "message_end", "message": message}, {"type": "agent_settled", "aborted": False}]
+
+
+def test_an_answer_passes():
+    assert live.verdict([LINE], answered(), 0, CLOSED) == []
+
+
+@pytest.mark.parametrize(("lines", "records", "exit_code", "closed", "reason"), [
+    ([LINE], answered(stop="error", error="overloaded_error"), 0, CLOSED, "stopped 'error'"),
+    ([LINE], answered(text=""), 0, CLOSED, "no text"),
+    ([LINE], answered()[:1], 0, CLOSED, "never settled"),
+    ([LINE], [{"type": "agent_settled", "aborted": True}], 0, CLOSED, "aborted"),
+    ([LINE], answered(), 1, CLOSED, "exited 1"),
+    ([LINE], answered(), 0, EgressClosed(None, None, False), "egress-lost"),
+    ([LINE], answered(), 0, EgressClosed(None, None, True), "egress-close-timeout"),
+    ([{**LINE, "status": 403, "refused": "header-refused"}], answered(), 0, CLOSED, "header-refused"),
+    ([{**LINE, "ended": "upstream-error"}], answered(), 0, CLOSED, "upstream-error"),
+])
+def test_each_failure_is_reported(lines, records, exit_code, closed, reason):
+    problems = live.verdict(lines, records, exit_code, closed)
+    assert problems and any(reason in problem for problem in problems)
+```
+
+Run: `just test-one tests/test_egress_live.py`. Expected: PASS.
+
+- [ ] **Step 3: Add the recipe**
 
 In `justfile`, after the `test` recipe:
 
@@ -5747,7 +6057,7 @@ live-egress route model="claude-haiku-5-5":
     {{tt}} live-egress -- sh -c 'cd python && uv run python scripts/egress_live.py "$0" "$1"' {{route}} {{model}}
 ```
 
-- [ ] **Step 3: Document the model route**
+- [ ] **Step 4: Document the model route**
 
 In `README.md`, extend the usage block's first line with `[--model-route NAME]` and add
 this section before `## Documentation`:
@@ -5800,7 +6110,7 @@ NAME` runs pi through the proxy to the real API once and prints what the proxy
 recorded, including any beta token pi sends that the route does not list.
 ````
 
-- [ ] **Step 4: Record item 5's status in the spec**
+- [ ] **Step 5: Record item 5's status in the spec**
 
 In `docs/specs/2026-10-12-envelope-design.md`'s header, the sentence that begins
 "Item 5," spans a line break. Change "Item 5, the egress plan (autonomy-e4c0b5), is
@@ -5808,20 +6118,21 @@ open." to "Item 5, the egress plan (autonomy-e4c0b5,
 `docs/plans/2026-10-17-envelope-plan-egress.md`), implemented on <date> on its launch
 arms; its full-run arms join B2." Use the date the branch lands.
 
-- [ ] **Step 5: Check, then commit**
+- [ ] **Step 6: Check, then commit**
 
 Run: `just check` and `just test-fast`. Expected: PASS.
 
 ```bash
-git add python/scripts/egress_live.py justfile README.md docs/specs/2026-10-12-envelope-design.md
+git add python/scripts/egress_live.py python/tests/test_egress_live.py justfile README.md docs/specs/2026-10-12-envelope-design.md
 git commit -m "docs(egress): the model route in the README, the live pi recipe, and item 5's status"
 ```
 
-- [ ] **Step 6: Run the live recipe, after asking**
+- [ ] **Step 7: Run the live recipe, after asking**
 
 The recipe spends money and needs a real key in a route file, so the executor asks
 the user before running it, and names the route and the model. With the user's go:
-`just live-egress <route>`. Expected: exit 0, one `egress.jsonl` line with status
-`200` and `ended: complete`, and the route closed `close` with no findings. A
+`just live-egress <route>`. Expected: exit 0, and no `failed:` line: pi's final
+assistant message stopped `stop` with text, pi exited 0, an `egress.jsonl` line has
+status `200` and `ended: complete`, and the route closed `close` with no findings. A
 `header-refused` line names a beta token pi sends that the route lacks. Report it, and
 the route file is the user's to change.
