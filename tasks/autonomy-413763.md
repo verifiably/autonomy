@@ -1,15 +1,17 @@
 ---
 id: autonomy-413763
 title: Guard socket.socket(fileno=dup) in stdio and channel against a process-wide default timeout
-status: doing
+status: done
 priority: 2
 size: xs
 complexity: low
 process: direct
 owner: main
 created: 2026-10-15T15:37:56Z
-updated: 2026-10-17T19:05:08Z
+updated: 2026-10-17T19:07:19Z
 started: 2026-10-17T11:22:34Z
+completed: 2026-10-17T19:07:19Z
+closed: 2026-10-17T19:07:19Z
 depends: []
 tags: []
 source: autonomy-641123
@@ -39,4 +41,8 @@ Plan B1 final review. CPython's socket constructor sets O_NONBLOCK on the open f
 - 2026-10-17T11:51:57Z (crew): parked (waiting on user, review): review crew attempt 01M54TNJZN13E46M60VQ9FFFRE (verdict not-passed): branch crew/autonomy-413763-vq9fffre in .worktrees/crew-vq9fffre; merge and close, or discard
 - 2026-10-17T12:32:03Z (main): review: impl round 1 — verdict: accept; findings: accepted 2, rejected 2; reviewer: human
 - 2026-10-17T19:05:08Z (main): resumed
+  provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-17T19:07:19Z (main): done
+  provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-17T19:07:19Z (main): Integrated person-selected A via ancestry-preserving merge 7d666b5d71bd98af7dc5e07d6861377afdbd2662; original reviewed A6a5794899cadb3a52704a5c09933cbe4b0b6fe0b ancestor of main. Human judgment Ayes/Bno/Cno/Dyes with exact saved rationale incl drift qualification retained in pilot manifest5dd9805, mergedA recorded only after actual merge. Combined B2+A tree9be642418fa0240874e3e522a470cb06f1c92c96 validated via just test-fast:720 passed/1coverage warning; just check passed. All4 outputs recoverably preserved with 70-file archive/index; explicit person authorization permits captured B/C dirty discard and all4set4 cleanup, transset3 retained. Human source review was already recorded by controller; no new independent source review claimed.
   provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
