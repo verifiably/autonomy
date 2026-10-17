@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-17T11:25:57Z
-updated: 2026-10-17T15:36:37Z
+updated: 2026-10-17T15:54:54Z
 started: 2026-10-17T11:26:48Z
 depends: []
 parent: autonomy-d9adef
@@ -44,3 +44,4 @@ Where: envelope spec decision 13, §3 steps 2, 7, 9 and Close, §6, §7, §8, §
 - 2026-10-17T15:36:36Z (main): resumed
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T15:36:37Z (main): review: plan round 4 — verdict: revise; findings: P2 3; reviewer: human
+- 2026-10-17T15:54:54Z (main): dry run 5 (e9fcf00): all 10 tasks unchanged, 774 passed in 81 s, no flakiness, 6/6 mutations caught; added its TCP-connect watch test.
