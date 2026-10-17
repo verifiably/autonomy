@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-17T11:25:57Z
-updated: 2026-10-17T12:44:19Z
+updated: 2026-10-17T13:00:22Z
 started: 2026-10-17T11:26:48Z
 depends: []
 parent: autonomy-d9adef
@@ -31,3 +31,4 @@ Where: envelope spec decision 13, §3 steps 2, 7, 9 and Close, §6, §7, §8, §
 - 2026-10-17T11:55:58Z (main): plan drafted: docs/plans/2026-10-17-envelope-plan-egress.md on branch plan-egress (8387070), 10 tasks; B2 wiring items noted on autonomy-f6efe8. Agent plan review and a dry run of the plan's code in a /tmp copy dispatched before the user's review.
 - 2026-10-17T12:12:34Z (main): review: plan round 1 — verdict: revise; findings: P1 5, P2 7, P3 10; reviewer: claude-code
 - 2026-10-17T12:44:19Z (main): review: plan round 2 — verdict: revise; findings: P2 2, P3 10; reviewer: claude-code
+- 2026-10-17T13:00:22Z (main): dry run 2 (plan at 4111619): 740 passed, no fixes, no flakiness; mutation pass found 2 untested E22 boundaries (Gate.call flag, 16 KiB slice) and 3 more (settle, recorder after closing line, actor read-side shutdown); tests added in the next commit.
