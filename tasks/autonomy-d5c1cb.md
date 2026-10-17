@@ -5,7 +5,7 @@ status: idea
 priority: 2
 reviewed: true
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-17T09:50:42Z
+updated: 2026-10-17T09:50:53Z
 depends: [autonomy-c5c566, autonomy-a94e95, autonomy-efa755]
 parent: autonomy-d9adef
 tags: []
@@ -18,7 +18,7 @@ The second question this idea first carried, how the actor's stdio is handled un
 
 Direction (user, 2026-10-15; brief §4): a development mode of autonomy run, with no world, the task worktree as scratch, and the sandbox, lease, kill and run directory kept. Pushes, host changes and credential use are prevented at the boundary. quarantined keeps the result and blocks its promotion. A clean boundary verdict is separate from crew's acceptance (tests, review).
 
-Done: a design for the development mode, as an envelope amendment, that says how pushes and host changes are made unavailable, what the closing check still verifies, and what quarantined holds. It is written after autonomy-a94e95 (shared clone in scratch and a host import route that runs nothing the actor wrote) answers and the brief's §5 question 4 (when egress and credential custody are designed, ahead of or within autonomy-9e8a43) is settled. autonomy-c5c566 answered the first probe (brief §2): pi RPC works in the sandbox, and a linked worktree cannot commit without exposing every branch.
+Done: a design for the development mode, as an envelope amendment, that says how pushes and host changes are made unavailable, what the closing check still verifies, and what quarantined holds. It is written after autonomy-a94e95 (shared clone in scratch and a host import route that runs nothing the actor wrote) answers and the shared egress and credential-custody amendment autonomy-efa755 (decided 2026-10-17, brief §5 question 4) is approved; the development mode consumes it rather than designing its own network or credential handling. autonomy-c5c566 answered the first probe (brief §2): pi RPC works in the sandbox, and a linked worktree cannot commit without exposing every branch.
 
 Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; envelope spec §2, §7, §9.
 
