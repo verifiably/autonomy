@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-17T11:25:57Z
-updated: 2026-10-17T11:26:48Z
+updated: 2026-10-17T16:22:19Z
 started: 2026-10-17T11:26:48Z
 depends: []
 parent: autonomy-d9adef
@@ -27,4 +27,29 @@ Where: envelope spec decision 13, §3 steps 2, 7, 9 and Close, §6, §7, §8, §
 ## Notes
 
 - 2026-10-17T11:26:48Z (main): started
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T11:55:58Z (main): plan drafted: docs/plans/2026-10-17-envelope-plan-egress.md on branch plan-egress (8387070), 10 tasks; B2 wiring items noted on autonomy-f6efe8. Agent plan review and a dry run of the plan's code in a /tmp copy dispatched before the user's review.
+- 2026-10-17T12:12:34Z (main): review: plan round 1 — verdict: revise; findings: P1 5, P2 7, P3 10; reviewer: claude-code
+- 2026-10-17T12:44:19Z (main): review: plan round 2 — verdict: revise; findings: P2 2, P3 10; reviewer: claude-code
+- 2026-10-17T13:00:22Z (main): dry run 2 (plan at 4111619): 740 passed, no fixes, no flakiness; mutation pass found 2 untested E22 boundaries (Gate.call flag, 16 KiB slice) and 3 more (settle, recorder after closing line, actor read-side shutdown); tests added in the next commit.
+- 2026-10-17T13:17:31Z (main): dry run 3 (final, cc830fb): all 10 tasks verbatim, 747 passed in 74 s, no flakiness, 6/6 boundary mutations caught.
+- 2026-10-17T13:17:32Z (main): parked (waiting on user, review): User reviews docs/plans/2026-10-17-envelope-plan-egress.md (branch plan-egress, .worktrees/plan-egress) and picks an execution method; then the agent runs it in .worktrees/plan-egress starting with the baseline just test-fast, and asks before Task 10's live recipe.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T14:40:29Z (main): resumed
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T14:40:30Z (main): review: plan round 3 — verdict: revise; findings: P2 6, P3 1; reviewer: human
+- 2026-10-17T15:16:34Z (main): dry run 4 (09dd506): 771 passed in 82 s, no flakiness; 1 test bug (buffered wrapper kwargs) and 3 surviving mutations (start race, duplicate suppression, orphan post-signal wait, verdict stopReason); fixes applied in the next commit; _finalized dropped for an explicit outstanding check.
+- 2026-10-17T15:17:02Z (main): parked (waiting on user, review): User re-reviews docs/plans/2026-10-17-envelope-plan-egress.md (branch plan-egress, 95ccf48; round 3 fixes in 09dd506, dry run 4's in 95ccf48) and picks an execution method; then the agent runs it in .worktrees/plan-egress starting with the baseline just test-fast, and asks before Task 10's live recipe.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T15:36:36Z (main): resumed
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T15:36:37Z (main): review: plan round 4 — verdict: revise; findings: P2 3; reviewer: human
+- 2026-10-17T15:54:54Z (main): dry run 5 (e9fcf00): all 10 tasks unchanged, 774 passed in 81 s, no flakiness, 6/6 mutations caught; added its TCP-connect watch test.
+- 2026-10-17T15:54:55Z (main): parked (waiting on user, review): User re-reviews docs/plans/2026-10-17-envelope-plan-egress.md (branch plan-egress; round 4 fixes in e9fcf00, dry run 5's test after it) and picks an execution method; then the agent runs it in .worktrees/plan-egress starting with the baseline just test-fast, and asks before Task 10's live recipe.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T16:22:07Z (main): resumed
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T16:22:07Z (main): review: plan round 5 — verdict: accept; findings: none; reviewer: human
+- 2026-10-17T16:22:08Z (main): plan approved by user 2026-10-17 (round 5). Execute with superpowers:subagent-driven-development in .worktrees/plan-egress (branch plan-egress) from a fresh session: baseline just test-fast first; Tasks 1–10 in order, a fresh implementer per task, each followed by independent spec-compliance and code-quality reviews; final whole-branch review; ask the user before Task 10 Step 7 (live recipe, real API).
+- 2026-10-17T16:22:19Z (main): parked (waiting on agent, session): Agent, in a fresh session: resume autonomy-e4c0b5 (tasks start), cd .worktrees/plan-egress, run the baseline just test-fast, then execute docs/plans/2026-10-17-envelope-plan-egress.md with superpowers:subagent-driven-development, Tasks 1–10 in order; ask the user before Task 10 Step 7's live recipe.
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
