@@ -5,7 +5,8 @@
 the same day: `docs/plans/2026-10-12-envelope-plan-a.md`, rows E1–E6 and E17. Items 2–3
 are open: beliefs-7a56ef, sci-a1d45f. Item 4 stays open until B2 lands; it is split: Plan B1, the launch side that
 needs neither slice (autonomy-641123, `docs/plans/2026-10-15-envelope-plan-b1.md`),
-implemented on 2026-10-15, and Plan B2, the endpoint side (autonomy-f6efe8), open. Revised after review round 1, which found 3 Critical, 9
+implemented on 2026-10-15, and Plan B2, the endpoint side (autonomy-f6efe8), open. Item 5,
+the egress plan (autonomy-e4c0b5), is open. Revised after review round 1, which found 3 Critical, 9
 Important and 8 Minor problems; after round 2, which found 7 Important and 2 Minor;
 after round 3, which found 2 Important and 5 Minor; after round 4, which found 2
 Important and 2 Minor; after round 5, which found 1 Important and 5 Minor; and after
@@ -21,9 +22,8 @@ E20), §13 and §14 to match. It follows the probe autonomy-c5c566. Approved 202
 **Amendment of 2026-10-17** (autonomy-efa755): egress and credential custody. It adds
 decision 13. It moves both out of autonomy-9e8a43's deferral (§1), replaces decision 12's
 credential template, removes the `host` network mode, and changes §3, §4, §6, §7, §8,
-§9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Status: draft, for human
-review, after three agent review rounds (the third accepted; its minors are applied) and
-two human rounds (cancel-before-send on close; no network wait under the close lock).
+§9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Approved 2026-10-17 (human
+review round 6), after three agent review rounds and three human ones.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
