@@ -4,8 +4,8 @@ title: "Design a development mode of autonomy run: unattended development actors
 status: idea
 priority: 2
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-15T11:23:22Z
-depends: [autonomy-c5c566]
+updated: 2026-10-17T09:40:09Z
+depends: [autonomy-c5c566, autonomy-a94e95]
 parent: autonomy-d9adef
 tags: []
 agent: claude-code/claude-opus-5-5
