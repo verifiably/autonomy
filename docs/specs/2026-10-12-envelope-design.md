@@ -18,6 +18,10 @@ this text.
 adds SIGTERM to decision 5's seal triggers, and changes §3, §6, §7, §8, §10, §12 (row
 E20), §13 and §14 to match. It follows the probe autonomy-c5c566. Approved 2026-10-15
 (human review round 8), after five agent review rounds and three human ones.
+**Amendment of 2026-10-17** (autonomy-efa755): egress and credential custody. It adds
+decision 13. It moves both out of autonomy-9e8a43's deferral (§1), replaces decision 12's
+credential template, removes the `host` network mode, and changes §3, §4, §6, §7, §8,
+§9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Status: draft, for review.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -62,9 +66,10 @@ closing check.
 **Out of scope:**
 
 - **The loop, behavioural profiles and `science.priority.v1`:** sub-project 7.
-- **Budget accounting and enforcement, outcome shapes, credential custody, network
-  egress policy and the evidence report:** autonomy-9e8a43, which consumes this
-  envelope.
+- **Budget accounting and enforcement, outcome shapes, scratch's lifetime and the
+  evidence report:** autonomy-9e8a43, which consumes this envelope. Its allowance check
+  joins the model proxy at the point decision 13 names. Egress and credential custody
+  are decision 13's, shared by every run.
 - **The authorization model in general:** autonomy-1aac03. §11 maps the tier onto it.
 - **Concurrent runs on one corpus:** the governing design §7.1 names the remedy and
   does not take it.
@@ -293,7 +298,8 @@ while drafting, and the review may overturn them.
      real path and by `(st_dev, st_ino)` ancestry, so a symlinked alias of a corpus
      is caught.
    - **The probe:** run in the identical sandbox, it must get `ENOENT` from `stat` on
-     every denied path.
+     every denied path, and `ENETUNREACH` from a connect to a non-loopback address
+     (decision 13).
    - **When either fails:** a failed check, a failed probe, a missing `bwrap`, or
      unavailable unprivileged user namespaces all make the run `unwired` at open. The
      actor never starts. That is §5.2's "never runs on the arrangement alone".
@@ -382,7 +388,7 @@ while drafting, and the review may overturn them.
       - A file can be reopened read-write through `/proc/self/fd`, even when it was
         passed read-only.
       - An `AF_INET` or unconnected socket reaches the host's network namespace,
-        whatever the spec's network mode.
+        past the sandbox's own (decision 13).
 
       A connected stream ends at a process the caller chose: its own, or a host
       service it hands the stream to, such as journald under a systemd unit, where the
@@ -491,10 +497,156 @@ while drafting, and the review may overturn them.
       separate read-write bind of the agent directory and its working directory apart
       from scratch are not added to the sandbox spec, so the actor still writes only
       scratch. The template is a curated directory, never the host's live pi agent
-      directory. Its copy, credential included, outlives the run in scratch, and a token
-      that pi refreshes there can invalidate the template's. Both are autonomy-9e8a43's
-      credential custody, along with scratch's lifetime. Whether a development mode
-      needs binds beyond scratch, such as git metadata, is autonomy-d5c1cb's question.
+      directory, and it holds no credential. Its harness configuration points at the
+      model route's URL with a placeholder key (decision 13), so what outlives the run
+      in scratch can reach nothing. Scratch's lifetime is autonomy-9e8a43's. Whether a
+      development mode needs binds beyond scratch, such as git metadata, is
+      autonomy-d5c1cb's question.
+13. **The actor's only network path is the model route, and the credential stays with
+    the proxy.** An actor that calls a model needs the model API and nothing else on the
+    network. No sandbox shares the host's network namespace, so the actor has loopback
+    only. A run given a **model route** also gets a listener on that loopback. A
+    **model proxy** outside the sandbox serves the listener. It permits only the route's
+    operations and adds the provider credential upstream. The actor never holds the
+    credential, and nothing it configures widens what the proxy forwards.
+
+    - **The route** is operator configuration, a file at
+      `<config>/routes/<name>.toml`, where `<config>` defaults to
+      `$XDG_CONFIG_HOME/verifiably-autonomy`. `autonomy run --model-route <name>`
+      selects it, as the tier is selected (§11). It names:
+      - `upstream`: one `https` origin. The proxy verifies the upstream's certificate
+        against the system trust store, or against the route's `ca_file` when it has
+        one, and never disables verification.
+      - `operations`: each a method, an exact path, the exact query strings allowed
+        (pi sends `POST /v1/messages?beta=true`), and the `models` allowed in the
+        request body's `model` field. A route with no operation, or an operation
+        with no model, is refused.
+      - `forward_headers` and `return_headers`: exact header names, or a prefix
+        ending in `*`, that cross the proxy in each direction. Every other header is
+        dropped, never refused. Dropped headers always include `host`, every
+        credential header (`x-api-key`, `authorization`, `proxy-authorization`), and
+        `cookie` and `set-cookie`, whatever the lists say.
+      - `credential`: an absolute path to a file and the header the proxy sends it in
+        (`x-api-key`, or `authorization` with the `Bearer` scheme). The file must be a
+        regular file owned by the user, with no group or other permission bits, and
+        not a symlink. A credential that must be refreshed, such as an OAuth login, is
+        not a route credential. The route records no secret.
+      - `max_request_bytes`: the largest request body forwarded.
+
+      The route's real path, its directory `<config>`, and the credential file's real
+      path join the denied set (§7). The static check and the probe therefore hold
+      them out of every sandbox, and a toolchain bind that would expose one is
+      refused.
+    - **The listener** is a TCP socket on `127.0.0.1:4780` inside the actor's own
+      network namespace. The orchestrator makes it before it releases the gate (§3 step
+      9), with a single-threaded helper. The helper opens the namespace through the
+      actor's init pid, held by its pidfd (§8), and confirms the pidfd is still alive
+      after the open. It joins the user namespace that owns that network namespace,
+      found with `NS_GET_USERNS`, not the init's own. bwrap nests a second user namespace
+      inside the one that owns the network. Then it joins the network namespace, binds
+      and listens, and passes the socket back over `SCM_RIGHTS`. The orchestrator hands
+      the socket to the proxy and closes its own copy, so the listener lives only as
+      long as the proxy does.
+      - **Only the actor reaches it.** A loopback address is private to its network
+        namespace, so a host process reaches the listener only by joining the actor's
+        namespaces. That is the same-uid position §7 leaves to row 4. No token is
+        needed.
+      - **The actor is given** `VERIFIABLY_MODEL_URL=http://127.0.0.1:4780`. Without a
+        route, the variable is absent and nothing listens.
+    - **The proxy** forwards one request at a time per connection, and any number of
+      connections. Every process in the actor's namespace shares it, children
+      included. For each request it:
+      1. parses strict HTTP/1.1. It refuses `CONNECT`, an absolute-form or
+         authority-form target, an `Upgrade` header, a request with both
+         `Content-Length` and `Transfer-Encoding`, and a body over
+         `max_request_bytes`;
+      2. matches the method, the path and the query exactly against the route's
+         operations. A path is compared byte for byte, with no decoding and no
+         normalization, so `..`, `%2e` and `//` match nothing;
+      3. parses the body as a JSON object whose `model` is a string the operation
+         allows. It forwards the body's bytes unchanged;
+      4. asks the allowance (*the allowance join* below);
+      5. opens a new upstream connection to the route's origin, sends the method, path
+         and query with `Host` set to the upstream, the forwarded headers and the
+         credential header, and streams the response back as it arrives, with no
+         buffering beyond one read. It never follows a redirect: a `3xx` returns to
+         the actor like any other status.
+
+      A refusal is answered `403` with a JSON body
+      `{"type": "error", "error": {"type": "egress_refused", "code": "<code>",
+      "message": "<one line>"}}`. The codes are `request-malformed`,
+      `target-refused`, `operation-refused`, `model-refused`, `request-too-large`,
+      `route-closed` and, once an allowance exists, `allowance-refused`. An answer
+      that names the code and the route's permitted operations lets an actor correct
+      itself. The host's network stays out of reach either way.
+    - **The proxy is sandboxed too.** It parses what the actor sends, and it holds the
+      credential and the host's network. It runs under bwrap with `--share-net`, the
+      only process of a run that has it. It binds `/usr`, `/etc`, its interpreter and
+      package read-only, the credential file read-only at `/run/va/credential`, and the
+      route's `ca_file` read-only when it has one. Nothing else is bound. It holds no
+      run directory, no scratch and no corpus. The static check applies to its binds
+      against the denied set less `<config>` and the credential file. Its stdout and stderr go to `<run dir>/proxy.log`. It writes
+      its records on a descriptor the orchestrator opened `O_APPEND` on
+      `<run dir>/egress.jsonl`, and it talks to the orchestrator over a control
+      socketpair. It runs in a session of its own, like the endpoint (decision 5).
+    - **Access belongs to one run, and it ends.** Each run has its own proxy and
+      listener, so no run reaches another's. The proxy holds the lease (§8). It
+      closes the route on `close` from the orchestrator, on lease expiry, on EOF of
+      its control socket, or on SIGTERM. Closing stops accepting, closes the listener,
+      cuts every upstream stream in flight, writes the closing records, and exits. A
+      request after that finds nothing listening (`ECONNREFUSED`).
+    - **Missing enforcement fails closed.** Without a route, the actor has no network
+      at all. A route that is unknown or invalid, or whose credential file fails its
+      checks, refuses the run at step 2. A proxy that cannot start, read its
+      credential, confirm `ready`, or take the listener makes the run `unwired`
+      (`egress-unproven`) before the gate is released, and the actor never runs. A
+      proxy that dies leaves no listener, because the orchestrator holds no copy. The
+      actor's next request is refused by the kernel, and the run closes
+      (`egress-lost`). There is no fallback path to the network.
+    - **Configuration directs, and the boundary enforces.** The caller points its
+      harness at `VERIFIABLY_MODEL_URL` with a placeholder key. For pi, that is a
+      provider `baseUrl` in the attempt's `models.json`, which crew writes
+      (crew-799319). That file sits in scratch, and the actor may rewrite it. Nothing
+      depends on it:
+      - a request to any other host fails with `ENETUNREACH`, or with a refused DNS
+        lookup;
+      - a proxy setting (`HTTPS_PROXY`) makes the harness send `CONNECT`, which is
+        refused `target-refused`;
+      - another path, query or model is refused by the route;
+      - a real-looking key is stripped, and the route's credential is sent in its
+        place.
+
+      A placeholder's shape can still steer the harness's own behaviour. pi treats a
+      key containing `sk-ant-oat` as an OAuth token and changes its headers. That
+      lies within the operations the route permits.
+    - **The credential is outside the actor.** It is not in scratch, the environment,
+      bwrap's argv, any bound file, or the actor's process. The proxy reads it once,
+      at start, from its own bind. The orchestrator checks the file's kind, owner and
+      mode at step 2 with `fstat`, and never reads its bytes. The proxy is outside the
+      actor's PID and user namespaces, so the actor can neither see it in `/proc` nor
+      ptrace it. No record carries the credential: not `egress.jsonl`, `proxy.log`,
+      `events.jsonl` or `baseline.json`.
+    - **What the proxy records.** One line in `egress.jsonl` per request:
+      `{at, seq, method, path, query, model, status, refused, upstream_request_id,
+      request_bytes, response_bytes, ended}`. `refused` is the code or null, and
+      `ended` is `complete`, `actor-closed`, `route-closed` or `upstream-error`. No
+      body and no header value is recorded. When the proxy closes the route, its last
+      line is `{at, closed}`, with the cause `close`, `lease`, `eof` or `term`, which it
+      also reports on its control socket. A proxy that exits without that line died,
+      and the run reports `egress-lost`.
+    - **The allowance join.** The proxy is the one path by which any process of the
+      run reaches a model. It therefore has two points where autonomy-9e8a43's
+      allowance attaches, and this amendment defines them without implementing either:
+      - **`admit`**, at step 4 above, before any byte goes upstream. It receives the
+        run, the operation, the model, the request size and the requests in flight,
+        and returns allow or a refusal code.
+      - **`settle`**, when the response stream ends, however it ended. It receives
+        the request's `seq`, the upstream request id, and the usage the upstream
+        reported in the stream, if it reported any.
+
+      Until an allowance exists, `admit` allows every request the route permits, and
+      `settle` does nothing beyond the record line. A run configured with an allowance
+      whose check is unavailable will be refused at open, never run unmetered.
 
 ## 3. A run, end to end
 
@@ -517,7 +669,11 @@ named disposition, and the actor never starts.
    - fd 0, 1 or 2 is not an anonymous pipe, a connected `AF_UNIX` stream socket or
      `/dev/null`, or the `--report-fd` descriptor is closed, is fd 0, 1 or 2, is the
      same file as one of them, or is not an anonymous pipe or a connected `AF_UNIX`
-     stream socket (`stdio-refused`, decision 12).
+     stream socket (`stdio-refused`, decision 12);
+   - `--model-route` names no file under `<config>/routes/` (`route-unknown`), the file
+     breaks a rule of decision 13 (`route-invalid`), or its credential file is missing,
+     a symlink, not a regular file, not the user's, or has any group or other
+     permission bit (`credential-unavailable`).
 
    Once these pass, write the first line on the report fd (decision 12).
 3. **Capture the baseline heads** with `science heads --resolve`. This is a
@@ -555,7 +711,14 @@ named disposition, and the actor never starts.
    group of its own, so a Ctrl-C at the caller's terminal cannot kill the actor before
    the seal. `--die-with-parent` follows the spawning thread, not the group. The actor
    inherits `autonomy run`'s fds 0, 1 and 2, and the gate releases it on its own fd
-   (§7). Then replace the
+   (§7). A run with a model route does more before the release (decision 13):
+   - it starts the proxy in its own sandbox, which reads its credential and reports
+     `ready` on its control socket within the start timeout;
+   - once the pidfd is held, it makes the listener in the actor's network namespace
+     with the helper and passes it to the proxy, which confirms `listening`.
+
+   Any failure here kills the actor's namespace through the pidfd and the proxy, before
+   the release, and the run closes `unwired` (`egress-unproven`). Then replace the
    orchestrator's own fds 0 and 1 with `/dev/null` and its fd 2 with
    `<run dir>/orchestrator.log`, and close the private non-blocking stderr descriptor
    with them (decision 12). Start the heartbeat.
@@ -570,10 +733,17 @@ renews the lease every lease/3.
 - `autonomy run stop <run-id>`, or SIGTERM, SIGINT or SIGHUP to `autonomy run`;
 - the endpoint seals or exits on its own, seen as a refused renewal or through its
   pidfd;
+- the proxy exits on its own, seen through its pidfd: it closed the route on its
+  lease, EOF or SIGTERM, or it died (`egress-lost`, decision 13);
 - the wall-clock bound.
 
 Then:
 
+0. **Close the model route,** when the run has one. Send `close` on the proxy's
+   control socket. The proxy stops accepting, cuts the streams in flight, writes its
+   closing records and exits. If it has not exited within 5 s, the orchestrator kills
+   its sandbox through the pidfd. The route closes before the seal, so no model call
+   starts after the decision to close.
 1. **Seal.** Send `seal` on the control socket. The endpoint seals (decision 5),
    reports the sealed tips and `basis_seal`, writes `seal.json`, writes
    `session-close` and exits. An endpoint that has already sealed on its own (lease,
@@ -655,8 +825,9 @@ orchestrator that died.
 | `science_reads` | the only place that invokes the `science` CLI: `heads` and `log`, parsed into typed values | the `science` CLI |
 | `baseline` | writing and reading `baseline.json`, `events.jsonl`, `seal.json` | `science_reads` |
 | `endpoint` | launching `science serve --run`, the control-socket client, heartbeat, seal | the `science` CLI |
+| `egress` | the model route (parsing, step 2's route checks), the namespace helper that makes the listener, and the model proxy with its records, lease and close (decision 13) | `bwrap`, the upstream's TLS |
 | `run` | the supervisor of §3 | all |
-| `cli` | `autonomy run`, `run stop`, `run close`, `run show` | `run` |
+| `cli` | `autonomy run` (with `--model-route`), `run stop`, `run close`, `run show` | `run` |
 
 **`science`**, filed from the plan, needs:
 
@@ -751,14 +922,18 @@ The serialized permit is `{"kinds": [...sorted], "act_families": [...sorted],
     "written": {"<corpus id>": {"root": "...", "genesis": "<64 hex>", "tip": "<64 hex>"}},
     "mounts": {"<corpus id>": {"root": "...", "genesis": "<64 hex>", "tip": "<64 hex>"}},
     "actor_argv": ["..."],
-    "sandbox": {"binds": [], "network": "host", "stdio": ["pipe", "socket", "pipe"]},
+    "sandbox": {"binds": [], "stdio": ["pipe", "socket", "pipe"]},
+    "egress": {"route": "anthropic", "digest": "<64 hex>",
+               "upstream": "https://api.anthropic.com",
+               "url": "http://127.0.0.1:4780"},
     "lease": {"seconds": 60}
   }
   ```
 
 - **`events.jsonl`** is append-only and fsynced line by line. It holds the facts that
   exist only after step 3: the session id, the ledger path, the opening basis, pids
-  with their start times, the probe result, and actor start and exit.
+  with their start times, the probe result, the proxy's `ready` and `listening`, the
+  model route's close with its cause, and actor start and exit.
 - **`seal.json`** is written once, by the endpoint, atomically (a temporary file,
   fsync, rename), and read by the orchestrator or `run close` only after the endpoint
   has stopped writing or has reported its seal: the sealed tips, the closing basis
@@ -766,12 +941,18 @@ The serialized permit is `{"kinds": [...sorted], "act_families": [...sorted],
   the orchestrator records it in `events.jsonl`, and the closing check reads it
   there.
 - **`disposition.json`** is written once, by the closing check (§9).
-- **`orchestrator.log`** and **`endpoint.log`** hold diagnostics: the orchestrator's
-  stderr from step 9 on, and the endpoint's stdout and stderr (decision 12). They are
-  appended, not evidence, and never read by the closing check.
+- **`egress.jsonl`** holds the proxy's line per request (decision 13). It is appended
+  through the descriptor the orchestrator opened, and it is a record of what the actor
+  asked for, not evidence the closing check reads.
+- **`orchestrator.log`**, **`endpoint.log`** and **`proxy.log`** hold diagnostics: the
+  orchestrator's stderr from step 9 on, the endpoint's stdout and stderr (decision 12),
+  and the proxy's. They are appended, not evidence, and never read by the closing
+  check.
 
 `baseline.json`'s `sandbox.stdio` lists the kinds step 2 found on fds 0, 1 and 2, each
-`pipe`, `socket` or `null` (decision 12).
+`pipe`, `socket` or `null` (decision 12). Its `egress` names the route, the SHA-256 of
+the route file's bytes as read at step 2, the upstream and the URL given to the actor,
+or is `null` for a run without a route. It never holds the credential or its path.
 
 The launch file lives in the run directory with mode 0600. It holds the path of the
 token file, never the token.
@@ -793,10 +974,13 @@ directory.
 - the token file, bound read-only at `/run/va/token`. Its host copy is mode 0600 in
   the host-side socket directory under `$XDG_RUNTIME_DIR/va/`, never in the run
   directory;
-- the network mode (`none` or `host`);
 - the environment.
 
-**The argv** is `bwrap --unshare-all [--share-net] --die-with-parent --new-session
+No sandbox spec shares the host's network namespace. The actor's network is its own
+loopback, and its only path out is the model route's listener (decision 13). Plan A's
+`network` field and its `host` value are removed.
+
+**The argv** is `bwrap --unshare-all --die-with-parent --new-session
 --clearenv --proc /proc --dev /dev --tmpfs /tmp --info-fd <n>`, followed by the
 binds, then `--setenv` for non-secret variables only, then the gate and the actor argv.
 
@@ -819,7 +1003,8 @@ refuses a closed one, so a library caller never passes a stray descriptor.
 
 **What the actor is given:** `VERIFIABLY_ENDPOINT=/run/va/endpoint.sock`,
 `VERIFIABLY_TOKEN_FILE=/run/va/token`, and `VERIFIABLY_SCRATCH`, the scratch path,
-which is also the working directory. Its fds 0, 1 and 2 are `autonomy run`'s, and it
+which is also the working directory. A run with a model route also gives
+`VERIFIABLY_MODEL_URL` (decision 13). Its fds 0, 1 and 2 are `autonomy run`'s, and it
 holds no other descriptor (decision 12). The token never appears in an argv, the
 environment, the baseline, a log, or any command's output.
 
@@ -828,7 +1013,9 @@ environment, the baseline, a log, or any command's output.
 - the world root and every corpus root;
 - the store root;
 - the operations root;
-- `<state>`, which holds every run directory.
+- `<state>`, which holds every run directory;
+- `<config>`, which holds the routes, and the real path of each route's credential
+  file (decision 13).
 
 The host-side socket directory holds only the socket and the token file. It must lie
 outside the denied set. The static check verifies that, as for every bind, and a
@@ -841,7 +1028,8 @@ configuration that puts a denied root under `$XDG_RUNTIME_DIR` fails closed at s
 **The probe** runs `/usr/bin/python3 -I` in the identical spec, from the bound
 `/usr`, because a shell cannot report which errno `stat` failed with. For each denied
 path, given as an argument by its real path, it reports `stat`'s errno, and every one
-must be `ENOENT`.
+must be `ENOENT`. It also connects a TCP socket to `192.0.2.1:443`, a documentation
+address, and must get `ENETUNREACH`.
 
 **The handle** is the socket plus the token.
 
@@ -875,25 +1063,30 @@ bridge reads the handle from the environment and opens no session.
     makes that binding at the next act (decision 5).
   - **A dead orchestrator** closes the control socket. EOF seals at once. The lease is
     the bound when the orchestrator is hung rather than dead.
+  - **The proxy holds the same lease.** The orchestrator renews it with the endpoint's,
+    and the proxy keeps its own deadline. On expiry, on EOF of its control socket, or
+    on SIGTERM, it closes the route (decision 13).
 - **The kill switch** is `autonomy run stop <run-id>`. It locates the orchestrator
   through `events.jsonl`, by pid plus start time, opened as a pidfd so a reused pid is
   never signalled. It sends SIGTERM. The orchestrator treats SIGINT and SIGHUP the same
   way. It then:
-  1. seals the endpoint and waits for its sealed-tips report, for at most the seal
+  1. closes the model route, if the run has one (§3 *Close* step 0);
+  2. seals the endpoint and waits for its sealed-tips report, for at most the seal
      timeout plus 5 s. An endpoint that has already sealed on its own (lease, EOF or
      SIGTERM) has written `seal.json`, and the orchestrator reads that instead. If
      neither arrives, it kills the endpoint and the run closes through
      `seal-missing`;
-  2. kills the actor. A pidfd is opened on the namespace's init pid as soon as
+  3. kills the actor. A pidfd is opened on the namespace's init pid as soon as
      `--info-fd` reports it, so a reused pid is never signalled. SIGTERM goes first,
      then SIGKILL after a 10 s grace. bwrap's PID 1 need not forward SIGTERM, so
      SIGKILL is the path that is relied on: killing PID 1 of the namespace kills
      every process in it. The grace is a courtesy to an actor that handles SIGTERM;
-  3. closes normally.
+  4. closes normally.
 
   If the orchestrator is already gone, `stop` reports that and directs the operator to
-  `run close`. The endpoint has sealed by EOF. Seal comes before kill, so no act
-  starts between deciding to stop and the actor's death.
+  `run close`. The endpoint has sealed by EOF, and the proxy has closed the route by
+  EOF. Route close and seal come before kill, so no model call and no act starts
+  between deciding to stop and the actor's death.
 - **The actor dies with the orchestrator.** `--die-with-parent` is
   `PR_SET_PDEATHSIG`, which fires when the spawning thread exits. The actor is
   therefore spawned from the orchestrator's main thread, which lives until close.
@@ -1048,6 +1241,8 @@ progress has no owner and is `entry-foreign`. A forger can downgrade at most one
 | `session-open`'s permit differs from the tier's | `permit-mismatch` | `unwired` |
 | the orchestrator was lost | `orchestrator-lost` | `unwired` |
 | a read mount moved | `mount-moved` | none (reported) |
+| the proxy exited without its closing line in `egress.jsonl` (decision 13) | `egress-lost` | none (reported) |
+| the proxy did not exit within 5 s of `close` and was killed | `egress-close-timeout` | none (reported) |
 | with no seal, tail entries that another session's ledger names, from the first such entry with no run-actor entry after it | `after-run` | none (reported) |
 | none of the above | — | `clean` |
 
@@ -1058,6 +1253,12 @@ quarantined. A read mount moves whenever its owner works, so treating that as
 quarantine would make every run on a shared world fail. The run's own records cite
 what they read by digest, so a later mount change cannot alter what they say. The
 move is reported.
+
+**Why the egress findings are reported, not dispositions.** The proxy grants no write
+and holds no chain. A proxy that died, or had to be killed, leaves the actor with less
+reach, never more, and the closing check verifies the run's writes whatever the actor
+could call. Whether a run cut off from its model did useful work is the caller's
+judgement.
 
 **Precedence.** The disposition is the strongest the rows produce (decision 9).
 
@@ -1109,10 +1310,12 @@ The basis is not a command. The endpoint computes and reports it itself (decisio
 
 **Harness neutrality** follows from the shape of the run: the actor is an argv, the
 handle is two environment variables, the actor's stdio is the caller's (decision 12),
-and the MCP bridge is optional. pi, Claude Code and a shell script run identically
-under `autonomy run`. Anything specific to a harness belongs to the caller and never
-enters the envelope: a pi configuration naming the bridge, a model credential, or a
-protocol spoken over stdio, such as pi's RPC.
+the MCP bridge is optional, and the model route is a base URL (decision 13). pi,
+Claude Code and a shell script run identically under `autonomy run`. Anything specific
+to a harness belongs to the caller and never enters the envelope: a pi configuration
+naming the bridge or the model URL with a placeholder key, or a protocol spoken over
+stdio, such as pi's RPC. The model credential belongs to neither the caller nor the
+actor. It is the operator's, named by the model route and held by the proxy.
 
 ## 11. A tier as an authorization
 
@@ -1122,12 +1325,12 @@ below. A tier fills each of them as follows:
 | part of a grant | where it lives |
 |---|---|
 | identity | the run's actor `session:<id>` |
-| operation and resource | the permit (kinds, routes, families) over the written chains |
-| scope | the claims, the sandbox's denied set, path-input confinement |
-| lifetime | the lease and the wall-clock bound |
-| revocation | `run stop`; the seal |
-| approval | the person or orchestrator that ran `autonomy run` with that tier; `publishes` is never approvable unattended |
-| audit receipt | the run directory and the ledger |
+| operation and resource | the permit (kinds, routes, families) over the written chains; the model route's operations and models |
+| scope | the claims, the sandbox's denied set, path-input confinement, a network namespace whose only way out is the model route's listener |
+| lifetime | the lease and the wall-clock bound, which the endpoint and the proxy both hold |
+| revocation | `run stop`; the route's close; the seal |
+| approval | the person or orchestrator that ran `autonomy run` with that tier and model route; the model route itself is the operator's configuration; `publishes` is never approvable unattended |
+| audit receipt | the run directory (`egress.jsonl` included) and the ledger |
 | rollback | out of scope here: a `quarantined` run lists its members for a person to act on |
 
 A flow gate grants none of these. A tier comes only from an `autonomy run`
@@ -1161,6 +1364,8 @@ named, never passed.
 | E18 *(pending, science)* | the closing check's rules run on real `log.v1` output | crash fixtures through a real endpoint: a holdings act killed after its store commit and before its `act` line; a holdings act killed after its publish commit and before that `act` line, with its store write already ledgered; a corpus act killed after its commit; each `science log` output fed to `closing` | the same fixtures without the kill are `clean`; dropping a `log.v1` field gives `read-unavailable`, never a guess |
 | E19 *(pending, science)* | a sandboxed shell actor uses the CLI through the handle at `report-only` | an actor under `bwrap` with no host configuration bound runs `science status` (succeeds) and a minting command (refused `permit-exceeded` by the endpoint) | the same CLI with no handle variables and no configuration fails with a configuration error, not a local dispatch; the handle together with `--config` is `handle-incomplete` |
 | E20 *(full-run arm pending, science)* | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, no other child holds the caller's descriptors, step 2 accepts only the three kinds, `autonomy run` never writes stdout and leaves the channel once the actor starts, the report fd carries the run and its disposition out of the actor's reach, and a scope stop, or a signal to the orchestrator's process group, leaves a sealed run | launch, under real `bwrap`: with fds 3–16 held open in the orchestrator, so the gate's fd is above 9, an echo actor driven over anonymous pipes and again over a socketpair, one line written before the release and one after, both echoed, and EOF ends it with exit 0; the actor lists `/proc/self/fd` and sees 0–3 (3 is the listing's own); step 2: `/dev/null` and a socketpair pass, and each of these exits 2 `stdio-refused` with no run directory, an empty stdout and nothing on the report fd: a pty on fd 1, a regular file on fd 2, `/dev/zero` on fd 0, a named FIFO, an unconnected UDP socket, an unconnected `AF_UNIX` stream socket, a listening `AF_UNIX` socket, a connected `AF_INET` socket, a closed fd 0, a `--report-fd` of 1, a `--report-fd 3` duplicated from fd 2, a report fd that is a tty, and a report fd that is a regular file; children: the recorded spawn arguments give the preflight, the probe, each `science` read and the endpoint stdin from `/dev/null`, and the endpoint shows `/dev/null` at `/proc/<pid>/fd/0`; a run that closes `unwired` at step 4 still writes the closing line after `disposition.json`; with the report pipe shrunk to one page (`F_SETPIPE_SZ`) and never read, that run still exits 4 within its bounds, its closing line dropped and `report-unwritten` in `events.jsonl`; with stderr a one-page pipe the caller has filled and never reads, a refusal at step 2 still exits 2; with a second writer the caller holds on the report pipe, and on a stderr pipe, filling the channel after the poll reports writable (a test hook between poll and write), the write returns `EAGAIN`, the line is dropped, the run exits within its bounds, and the original descriptors are still blocking afterwards; the same with a socketpair report fd; the documented terminal recipe returns 4 for that run under bash and zsh; full run with `--report-fd`: the actor's `/proc/self/fd` listing shows 0–3 only; bytes written on stdin before step 7 reach the actor intact; a silent actor leaves stdout empty; with the seal reply held by a test hook, the caller sees EOF on stdout and stderr once the namespace is gone while `autonomy run` has not exited; the report fd carries the run line and then the closing line, whose disposition and exit match `disposition.json` and the exit code; an actor that reopens fd 2 for reading gets neither line; with the orchestrator SIGSTOPped (no seal request, no EOF), SIGTERM to the endpoint within the lease gives `seal.json` with cause `term` and `session-close`, and after SIGCONT the orchestrator closes from that `seal.json`, kills the actor and writes the closing line; SIGTERM to every process of the run closes it through the orchestrator, whose exit code matches `disposition.json` and whose closing line arrives on the report fd; the same with the orchestrator SIGKILLed once `seal.json` appears leaves a run that `run close` settles `unwired` (`orchestrator-lost`) from that `seal.json`; SIGINT to the orchestrator's process group reaches neither the endpoint nor the outer `bwrap`, and the orchestrator seals before the actor dies and closes the run | a shell gate under `/usr/bin/dash` (skipped, naming dash, where it is absent) fails on the fd above 9 with `Bad fd number`; a blocking report write hangs the shrunk-pipe run past its bounds; a poll followed by a blocking write hangs the competing-writer case until a reader drains it; a non-blocking write through a `dup` leaves the original description non-blocking; the recipe without `pipefail` returns 0; a gate that reads its release on fd 0 consumes the first line, or exits 125 on it; a gate that reopens stdin on `/dev/null` gives immediate EOF; a gate that keeps its fd shows a fifth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a check that accepts any character device but a tty passes `/dev/zero`; a check by `S_ISSOCK` alone passes the UDP socket, and its actor reaches a host listener under network `none`; a check by `SO_PEERCRED` alone passes the unconnected `AF_UNIX` socket; a report-fd check by number alone passes `3>&2`; a launch that passes the report fd into the sandbox shows a fifth descriptor; a probe that inherits stdin and reads it consumes the early bytes; an orchestrator that keeps its fds holds stdout open until it exits; an endpoint with the default SIGTERM disposition dies in the SIGSTOP case with no `seal.json`; without the endpoint-exit close trigger, the SIGCONT case stays open until the actor exits; with SIGTERM sent to the endpoint first and to the orchestrator only once the endpoint's pidfd shows it exited, a close step 1 without the already-sealed clause records `seal-missing`; an outer `bwrap` in the orchestrator's process group dies on the SIGINT before the seal; an endpoint in the caller's session dies on the SIGINT with no `seal.json` |
+| E21 *(full-run arm pending, science)* | the model route is the actor's only network path, and the credential never reaches the actor (decision 13): an allowed request streams, direct network access is unavailable, destination overrides are refused or rewritten, and the credential is absent from everything the actor can read | launch, under real `bwrap`, with a fake upstream on the host serving TLS under a test CA (the model route's `ca_file`) and a canary credential: an actor script sends the allowed operation, and the upstream sends server-sent events 200 ms apart; the actor reads the first event before the upstream sends the last; the upstream saw its own `Host`, the canary in the route's header, none of the actor's `x-api-key` or `authorization`, and the body's bytes unchanged; from inside, a connect to the upstream's address, to `192.0.2.1:443` and to `[::1]:443` fails, the upstream's name does not resolve, and a host abstract `AF_UNIX` socket the test listens on is refused; refused with their codes, and absent from the upstream's request log: `CONNECT`, an absolute-form and an authority-form target, `/v1/messages/../x`, `/v1/%2e%2e/x`, `//other/v1/messages`, a query outside the route, a model outside the route, `Upgrade: h2c`, both `Content-Length` and `Transfer-Encoding`, and a body over `max_request_bytes`; a `Host: other` header and an `X-Forwarded-Host` reach the upstream and never a second fake server named `other`; an upstream `302` to `other` returns to the actor, and `other` is never contacted; the actor walks every file it can read, its environment, and `/proc/*/environ` and `/proc/*/cmdline` of every process it can see, and keeps every byte the proxy sent it, and the canary appears in none of them; on the host, the canary appears in neither bwrap's argv (the actor's or the proxy's), nor the run directory, scratch, `egress.jsonl`, `proxy.log`, `events.jsonl` or `baseline.json`; the probe reports `ENETUNREACH`; full run (live, run by a recipe and never in the suite): pi in RPC mode under `autonomy run` with a model route to the real API and a cheap model, configured only through a `models.json` `baseUrl` and a placeholder key, answers one prompt, and `egress.jsonl` has its requests | an actor spec that shares the host network (a test hook) connects to the upstream directly, and the probe makes the run `unwired` (`sandbox-unproven`); a proxy that routes by the `Host` header (a test hook) sends the request to `other`; a proxy that drops headers by a deny list forwards the actor's placeholder `x-api-key` beside the credential; a proxy that normalizes paths before matching forwards `/v1/messages/./`; a buffering proxy delivers the first event only after the last; a credential passed with `--setenv` appears in bwrap's `/proc/<pid>/cmdline` |
+| E22 *(full-run arm pending, science)* | proxy access belongs to one run and ends on stop, lease expiry, EOF or SIGTERM; missing enforcement fails closed | step 2: an unknown model route exits 2 `route-unknown` with no run directory; an `http` upstream, a route with no operation, and an operation with no model exit 2 `route-invalid`; a credential file that is missing, a directory, a symlink, mode 0644, or not the user's (a root-owned file) exits 2 `credential-unavailable`; a toolchain bind containing the credential file fails the static check; launch, under real `bwrap`: a credential removed between step 2 and the proxy's start, a helper whose `setns` is refused (a test hook), and a proxy that never confirms `listening` each make the run `unwired` (`egress-unproven`), and the actor's marker file never appears; `run stop` during a stream cuts it (`ended: route-closed`), a new connect gets `ECONNREFUSED`, and `events.jsonl` puts the route's close before the seal request; with the orchestrator SIGSTOPped past the lease, the proxy closes the route (cause `lease`); with the orchestrator SIGKILLed, it closes on EOF; SIGTERM to the proxy closes it; a SIGKILLed proxy leaves the actor's next connect refused at once, and the run closes with `egress-lost` reported; a proxy that ignores `close` (a test hook) is killed after 5 s with `egress-close-timeout` reported; two concurrent runs with different canaries each see only their own requests in their own `egress.jsonl`, and the upstream sees each run's own canary | an orchestrator that keeps its copy of the listener leaves the actor's connect hanging in the backlog after the proxy dies, instead of refused; a helper that joins the init's own user namespace gets `EPERM` joining the network namespace (documents `NS_GET_USERNS`); a proxy without its own deadline keeps forwarding for a SIGSTOPped orchestrator past the lease; a close that seals before it closes the route lets a model call start between the stop and the seal |
 
 ## 13. Delivery
 
@@ -1185,8 +1390,19 @@ because half of it cannot be tested before the slices in `science` and `beliefs`
    fd, the stdio check, the non-blocking writes, `/dev/null` stdin for the preflight
    and the probe, steps 1 and 2 without the world checks, the close's records, and the
    CLI; E1's CLI arm and E20's launch arm. B2 follows 2 and 3 with the rest.
+5. **The egress plan (autonomy, independent of 2 and 3):** decision 13. It covers the
+   `egress` module, `--model-route` and step 2's route and credential checks, the
+   denied set's `<config>` and credential entries, the probe's network check, the
+   namespace helper and the listener, the proxy in its own sandbox with its records,
+   lease and close, close step 0, and the removal of Plan A's `host` network mode. It
+   lands rows E21 and E22 on their launch arms. Their full-run arms join B2. On
+   approval, crew is asked to configure pi through `VERIFIABLY_MODEL_URL` with a
+   placeholder key, and to pass no credential to an actor under `autonomy run`
+   (crew-799319). `PI_OFFLINE=1` keeps pi from trying its own update and catalog hosts,
+   which the sandbox cannot reach anyway.
 
-The first unattended run (autonomy-9e8a43) starts after 4.
+The first unattended run (autonomy-9e8a43) starts after 4 and 5. The development mode
+(autonomy-d5c1cb) consumes 5.
 
 ## 14. Alternatives rejected
 
@@ -1227,7 +1443,7 @@ The first unattended run (autonomy-9e8a43) starts after 4.
 - **Passing any descriptor through, or checking a regular file against the denied
   set.** A terminal gives the actor the person's keystrokes, ioctls and termios. A file
   passed read-only can be reopened read-write through `/proc/self/fd`, and a socket of
-  the host's network namespace bypasses the network mode. Checking a file's path
+  the host's network namespace bypasses the sandbox's own. Checking a file's path
   against the denied set by descriptor adds a second form of the static check, and it
   still hands the actor a host object. A connected stream ends at a process the caller
   chose.
@@ -1237,6 +1453,31 @@ The first unattended run (autonomy-9e8a43) starts after 4.
   - **Requiring bash.** That would be a new host requirement.
   - **bwrap's `--block-fd`.** It releases the child on any byte and also on EOF, so
     a launcher that closes the fd while aborting would run the actor.
+- **Egress by the host network and a proxy variable.** `--share-net` with
+  `HTTPS_PROXY` set is configuration, not enforcement. The actor unsets the variable
+  and reaches any host.
+- **An `AF_UNIX` socket bound into the sandbox, like the endpoint's.** It keeps a
+  token and a peer check, but no harness checked accepts a socket as a model base URL:
+  pi's HTTP stack has no socket option. Each actor would need a bridge process inside
+  the sandbox, and the bridge is harness-shaped. A loopback listener made from the
+  host side needs no process inside, and a loopback address is already private to the
+  actor's network namespace.
+- **A user-mode network stack (`slirp4netns`, `pasta`) with a destination filter.**
+  It forwards general traffic, so the filter must name addresses that the upstream's
+  DNS changes. Below HTTP it can check neither the operation nor the model, and the
+  actor would still have to hold the credential.
+- **A forward proxy with TLS interception.** The actor would need to trust a CA the
+  run mints, and the actor would still send the credential. An allow-list on the TLS
+  server name checks neither the operation nor the model.
+- **The credential substituted inside the actor's process** (an `!command` key, a
+  file the harness reads). Whatever the actor's process can use, the actor can read.
+- **The proxy in the orchestrator's process, or unsandboxed.** The orchestrator would
+  hold the credential, and a parser bug reachable from the actor would run with the
+  user's files and the host's network. A process of its own, in a sandbox of its own,
+  bounds both.
+- **A route-free run with the host network.** Plan A's `host` mode let a run reach
+  any host, and no current actor needs it. Keeping it would leave a second way out
+  that decision 13 does not see.
 - **The run line on stderr.** The actor can reopen a stderr pipe through
   `/proc/self/fd`, read the line and write a forged one in its place. A forged
   `run_dir` could point into scratch, at a `disposition.json` the actor wrote. The
