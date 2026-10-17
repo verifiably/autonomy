@@ -2425,15 +2425,36 @@ def test_a_stalled_tls_upload_is_reported_attempted(tls):
     upstream.stop()
 
 
-def test_no_connection_is_opened_after_the_close(tls):
+def test_no_connection_is_opened_after_the_close(tls, monkeypatch):
+    # Not even a SYN: the connect call itself runs under the gate (a connect that is cut
+    # before its handshake never reaches the fake's accept, so count the calls).
     upstream = FakeUpstream(tls)
+    calls = []
+    real = socket.socket.connect_ex
+    monkeypatch.setattr(socket.socket, "connect_ex", lambda self, address: calls.append(address) or real(self, address))
     gate = Gate()
     gate.close("close")
     with pytest.raises(RouteClosed):
         connect(gate, "localhost", upstream.port, tls_context(tls.cert))
     time.sleep(0.2)
-    assert upstream.connections == 0
+    assert calls == [] and upstream.connections == 0
     upstream.stop()
+
+
+def test_each_write_attempt_carries_at_most_a_slice():
+    from autonomy.egress.upstream import SLICE
+
+    class Recording:
+        def __init__(self):
+            self.sizes = []
+
+        def send(self, data):
+            self.sizes.append(len(data))
+            return len(data)
+
+    sock = Recording()
+    send_all(Gate(), sock, b"x" * (SLICE * 3 + 5))
+    assert sock.sizes == [SLICE, SLICE, SLICE, 5]
 
 
 def test_a_blocking_write_under_the_lock_would_hold_the_close():
@@ -3082,6 +3103,7 @@ def served(serve):
 
 ```python
 import json
+import os
 import socket
 import threading
 import time
@@ -3352,6 +3374,53 @@ def test_a_stalled_upstream_never_delays_the_close(serve):  # E22, with the leas
     line = s.records()[0]
     assert (line["ended"], line["forwarded"]) == ("route-closed", True)
     assert s.upstream.stalled_bytes() < len(big)
+
+
+def test_every_forwarded_request_is_settled_and_no_other(serve):
+    settled = []
+
+    class Spy:
+        def admit(self, run, operation, model, request_bytes, in_flight):
+            return None
+
+        def settle(self, seq, upstream_request_id, usage):
+            settled.append((seq, upstream_request_id))
+
+    s = serve(allowance=Spy())
+    exchange(s.port, raw_request(body=message()))
+    exchange(s.port, raw_request(body=message(model="claude-opus-5-5")))
+    s.server.close("close")
+    assert settled == [(1, "req_json")]
+
+
+def test_nothing_is_recorded_after_the_closing_line(tmp_path):
+    from autonomy.egress.server import Recorder
+
+    path = tmp_path / "egress.jsonl"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    recorder = Recorder(fd)
+    recorder.line({"at": "t", "closed": "close", "last_seq": 0})
+    recorder.line({"at": "t", "seq": 1})
+    os.close(fd)
+    assert len(path.read_text().splitlines()) == 1
+
+
+def test_a_request_waiting_on_its_body_is_answered_route_closed(serve):
+    s = serve()
+    data = raw_request(body=message())
+    with socket.create_connection(("127.0.0.1", s.port), timeout=10) as sock:
+        sock.sendall(data[:-5])  # the proxy waits for the last 5 bytes of the body
+        time.sleep(0.3)
+        started = time.monotonic()
+        s.server.close("close")
+        assert time.monotonic() - started < 1.0  # the read side's shutdown wakes the worker
+        answer = b""
+        while chunk := sock.recv(65536):
+            answer += chunk
+    status, body = status_and_body(answer)
+    assert status == 403 and json.loads(body)["error"]["code"] == "route-closed"
+    assert s.records()[0]["refused"] == "route-closed"
+    assert s.upstream.seen == []
 
 
 def test_no_record_holds_the_credential(served):
@@ -5448,7 +5517,11 @@ class EgressSession:
             pass
 
     def _release(self) -> None:
-        self.process.wait()
+        try:
+            self.process.wait(timeout=10)  # the outer bwrap exits with its namespace
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait()
         self._control.close()
         if self.pidfd >= 0:
             os.close(self.pidfd)
