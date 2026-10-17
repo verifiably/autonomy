@@ -16,7 +16,7 @@ Part of **verifiably**: verifiably builds understanding of the world from small,
 
 ```sh
 autonomy run --tier <report-only|coordination|mints> [--route KIND=FAMILY]... \
-  [--lease SECONDS] [--report-fd N] -- <actor argv>
+  [--lease SECONDS] [--report-fd N] [--model-route NAME] -- <actor argv>
 ```
 
 The actor gets `autonomy run`'s fds 0, 1 and 2, so each must be a pipe, a connected
@@ -41,6 +41,52 @@ Until science's run endpoint exists, every run that passes its checks closes
 `unwired`. A program learns its run from `--report-fd`: one JSON line with the run's
 id and directory, then one with its disposition and exit code
 (`docs/specs/2026-10-12-envelope-design.md`, decision 12).
+
+### The model route
+
+An actor has no network of its own. `--model-route NAME` gives it one path out: a
+proxy on `VERIFIABLY_MODEL_URL` (`http://127.0.0.1:4780`) that forwards only the
+route's operations to its one upstream and adds the provider credential there. The
+actor never holds the credential. Point the harness at that URL with a placeholder
+key. For pi, that is a provider `baseUrl` in its models.json:
+
+```json
+{"providers": {"anthropic": {"baseUrl": "http://127.0.0.1:4780", "apiKey": "placeholder"}}}
+```
+
+That configuration only directs pi. The proxy enforces the route whatever the actor
+does to it (decision 13). The route is a TOML file at
+`$XDG_CONFIG_HOME/verifiably-autonomy/routes/NAME.toml`:
+
+```toml
+api = "anthropic-messages"
+upstream = "https://api.anthropic.com"
+max_request_bytes = 8000000
+forward_headers = ["anthropic-version", "anthropic-beta", "content-type", "accept", "user-agent"]
+
+[header_tokens]
+anthropic-version = ["2023-06-01"]
+anthropic-beta = ["fine-grained-tool-streaming-2025-05-14", "interleaved-thinking-2025-05-14"]
+
+[credential]
+file = "/home/you/.config/verifiably-autonomy/credentials/anthropic"  # 0600, yours, one link
+header = "x-api-key"
+
+[[operations]]
+method = "POST"
+path = "/v1/messages"
+queries = ["beta=true"]
+models = ["claude-haiku-5-5"]
+fields = ["model", "messages", "system", "max_tokens", "stream", "tools", "tool_choice",
+          "thinking", "temperature", "metadata", "stop_sequences", "top_p", "top_k"]
+block_types = ["text", "image", "tool_use", "tool_result", "thinking", "redacted_thinking"]
+source_types = ["base64"]
+```
+
+What the route leaves out, the proxy refuses with a `403` that names the code, for
+example `body-refused` for an MCP server or a URL image source. `just live-egress
+NAME` runs pi through the proxy to the real API once and prints what the proxy
+recorded, including any beta token pi sends that the route does not list.
 
 ## Documentation
 

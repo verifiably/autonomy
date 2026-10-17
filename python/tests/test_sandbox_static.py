@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from autonomy.sandbox.spec import SandboxSpec
-from autonomy.sandbox.static import SandboxUnproven, check_binds
+from autonomy.sandbox.static import SandboxUnproven, check_binds, check_sources
 
 
 @pytest.fixture
@@ -125,3 +125,30 @@ def test_a_denied_root_that_cannot_be_stat_ed_is_refused_not_downgraded(layout):
         assert caught.value.code == "denied-unreadable"
     finally:
         locked.chmod(0o755)
+
+
+def test_an_exempt_source_passes_under_a_denied_ancestor(tmp_path):
+    config = tmp_path / "config"
+    (config / "credentials").mkdir(parents=True)
+    credential = config / "credentials" / "anthropic"
+    credential.write_text("k\n")
+    check_sources([Path("/usr"), credential], [config], exempt=[credential])
+
+
+def test_without_the_exemption_the_same_source_is_refused(tmp_path):
+    config = tmp_path / "config"
+    (config / "credentials").mkdir(parents=True)
+    credential = config / "credentials" / "anthropic"
+    credential.write_text("k\n")
+    with pytest.raises(SandboxUnproven) as caught:
+        check_sources([credential], [config])
+    assert caught.value.code == "bind-overlaps-denied"
+
+
+def test_the_exemption_is_exact_not_an_ancestor(tmp_path):
+    config = tmp_path / "config"
+    (config / "credentials").mkdir(parents=True)
+    credential = config / "credentials" / "anthropic"
+    credential.write_text("k\n")
+    with pytest.raises(SandboxUnproven):
+        check_sources([config / "credentials"], [config], exempt=[credential])

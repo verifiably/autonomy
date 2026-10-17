@@ -124,6 +124,10 @@ def _parser(diag: Diag) -> _Parser:
         "--report-fd", type=_fd, metavar="N",
         help="an anonymous pipe or connected AF_UNIX stream socket, not fd 0-2, for the run and closing lines",
     )
+    run.add_argument(
+        "--model-route", metavar="NAME",
+        help="the model route under <config>/routes/NAME.toml: the actor's only network path (decision 13)",
+    )
     run.add_argument("actor", nargs="+", metavar="ACTOR", help="the actor's argv, after --")
     return parser
 
@@ -137,7 +141,7 @@ def _run(args: argparse.Namespace, diag: Diag, progress: Progress) -> int:
             chosen = tier(args.tier, routes or None)
         except TierRefused as caught:
             raise RunRefused(caught.code, str(caught).removeprefix(f"{caught.code}: ")) from None
-        request = RunRequest(chosen, args.lease, args.report_fd, tuple(args.actor))
+        request = RunRequest(chosen, args.lease, args.report_fd, tuple(args.actor), args.model_route)
         return execute(request, os.environ, endpoint_side_unbuilt, diag=diag, progress=progress)
     except RunRefused as caught:
         diag(f"refused: {caught.code}: {caught.message}")

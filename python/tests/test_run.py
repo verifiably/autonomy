@@ -14,6 +14,7 @@ from autonomy.run import (
 )
 from autonomy.tiers import REPORT_ONLY
 from channels import drain, fill, one_page_pipe, read_all
+from egress_fixtures import pi_route, write_credential, write_route
 
 
 @pytest.fixture(autouse=True)
@@ -23,13 +24,14 @@ def short_poll(monkeypatch):
 
 @pytest.fixture
 def env(tmp_path):
-    for name in ("state", "cache", "runtime", "home"):
+    for name in ("state", "cache", "runtime", "home", "config"):
         (tmp_path / name).mkdir()
     return {
         "HOME": str(tmp_path / "home"),
         "XDG_STATE_HOME": str(tmp_path / "state"),
         "XDG_CACHE_HOME": str(tmp_path / "cache"),
         "XDG_RUNTIME_DIR": str(tmp_path / "runtime"),
+        "XDG_CONFIG_HOME": str(tmp_path / "config"),
     }
 
 
@@ -353,3 +355,78 @@ def test_events_are_appended_one_line_each(tmp_path):
     recorded = events(tmp_path)
     assert [e["line"] for e in recorded] == ["run", "closing"]
     assert all(e["at"].endswith("Z") for e in recorded)
+
+
+def request_with_route(name: str) -> RunRequest:
+    return RunRequest(REPORT_ONLY, 60.0, None, ("/usr/bin/true",), model_route=name)
+
+
+def config_of(tmp_path) -> Path:
+    return tmp_path / "config" / "verifiably-autonomy"
+
+
+def test_places_has_the_config_directory(tmp_path, env):
+    assert places(env).config == config_of(tmp_path)
+
+
+def test_a_relative_config_home_falls_back_to_the_home_default(tmp_path, env):
+    env["XDG_CONFIG_HOME"] = "relative/config"
+    assert places(env).config == tmp_path / "home" / ".config" / "verifiably-autonomy"
+
+
+def test_a_model_route_reaches_the_steps(tmp_path, env, actor):
+    config = config_of(tmp_path)
+    credential = write_credential(config / "credentials" / "anthropic")
+    path = write_route(config, "anthropic", pi_route(credential=credential))
+    seen = {}
+
+    def steps(opened):
+        seen["route"] = opened.route
+        seen["config"] = opened.places.config
+        return endpoint_side_unbuilt(opened)
+
+    code = execute(request_with_route("anthropic"), env, steps, diag=lambda _: None, progress=Progress(), actor_fds=actor)
+    assert code == 4
+    assert seen["route"].name == "anthropic"
+    assert seen["route"].data == path.read_bytes()
+    assert seen["config"] == config
+
+
+def test_without_a_route_the_steps_get_none(tmp_path, env, actor):
+    seen = {}
+
+    def steps(opened):
+        seen["route"] = opened.route
+        return endpoint_side_unbuilt(opened)
+
+    execute(request(), env, steps, diag=lambda _: None, progress=Progress(), actor_fds=actor)
+    assert seen == {"route": None}
+
+
+@pytest.mark.parametrize("case", ["route-unknown", "route-invalid", "credential-unavailable"])
+def test_a_route_refusal_keeps_nothing_and_writes_no_report_line(tmp_path, env, actor, case):
+    config = config_of(tmp_path)
+    credential = write_credential(config / "credentials" / "anthropic")
+    doc = pi_route(credential=credential)
+    if case == "route-invalid":
+        doc["api"] = "openai-chat"
+    if case == "credential-unavailable":
+        os.chmod(credential, 0o644)
+    if case != "route-unknown":
+        write_route(config, "anthropic", doc)
+    read_end, write_end = os.pipe()
+    try:
+        with pytest.raises(RunRefused) as caught:
+            execute(
+                RunRequest(REPORT_ONLY, 60.0, write_end, ("/usr/bin/true",), model_route="anthropic"),
+                env, endpoint_side_unbuilt, diag=lambda _: None, progress=Progress(), actor_fds=actor,
+            )
+        assert caught.value.code == case
+        assert runs(tmp_path) == []
+        os.close(write_end)
+        write_end = -1
+        assert read_all(read_end) == b""
+    finally:
+        os.close(read_end)
+        if write_end >= 0:
+            os.close(write_end)

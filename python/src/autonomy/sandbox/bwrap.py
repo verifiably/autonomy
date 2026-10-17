@@ -20,14 +20,27 @@ from autonomy.sandbox.spec import IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO
 from autonomy.sandbox.static import SandboxUnproven, check_binds
 
 _PROBE = """\
-import errno, os, sys
+import errno, os, socket, sys
 for path in sys.argv[1:]:
     try:
         os.stat(path)
         print("REACHABLE", path)
     except OSError as caught:
         print(errno.errorcode.get(caught.errno, str(caught.errno)), path)
+for family, host in ((socket.AF_INET, "192.0.2.1"), (socket.AF_INET6, "2001:db8::1")):
+    try:
+        with socket.socket(family, socket.SOCK_STREAM) as probe:
+            probe.settimeout(5)
+            probe.connect((host, 443))
+        print("CONNECTED", "net:" + host)
+    except OSError as caught:
+        name = errno.errorcode.get(caught.errno) if caught.errno else type(caught).__name__
+        print(name, "net:" + host)
 """
+
+NET_TARGETS = ("net:192.0.2.1", "net:2001:db8::1")
+"""Documentation addresses (RFC 5737, RFC 3849): nothing answers them anywhere."""
+_UNREACHABLE = {"net:192.0.2.1": {"ENETUNREACH"}, "net:2001:db8::1": {"ENETUNREACH", "EAFNOSUPPORT"}}
 
 
 def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
@@ -50,8 +63,6 @@ def build_argv(
     spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None
 ) -> list[str]:
     args = ["bwrap", "--unshare-all"]
-    if spec.network == "host":
-        args.append("--share-net")
     args += ["--die-with-parent", "--new-session", "--clearenv", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]
     for path in SYSTEM_RO:
         args += ["--ro-bind", str(path), str(path)]
@@ -76,6 +87,9 @@ def build_argv(
 
 
 def probe(spec: SandboxSpec, denied: Iterable[Path]) -> None:
+    """`ENOENT` on every denied path, and `ENETUNREACH` from a connect to a
+    non-loopback IPv4 and IPv6 address (decision 13). A kernel without IPv6 answers
+    `EAFNOSUPPORT`, which is as unreachable."""
     paths = [str(p.resolve()) for p in denied]
     argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
     try:
@@ -87,11 +101,17 @@ def probe(spec: SandboxSpec, denied: Iterable[Path]) -> None:
         stderr = result.stderr.decode("utf-8", errors="replace").strip()
         raise SandboxUnproven("probe-failed", "bwrap", stderr or f"exit {result.returncode}")
     lines = stdout.splitlines()
-    if len(lines) != len(paths):
-        raise SandboxUnproven("probe-failed", "bwrap", f"expected {len(paths)} lines, got {len(lines)}")
-    for path, line in zip(paths, lines, strict=True):
+    expected = [*paths, *NET_TARGETS]
+    if len(lines) != len(expected):
+        raise SandboxUnproven("probe-failed", "bwrap", f"expected {len(expected)} lines, got {len(lines)}")
+    for path, line in zip(expected, lines, strict=True):
         status, _, reported = line.partition(" ")
-        if reported != path or status != "ENOENT":
+        if reported != path:
+            raise SandboxUnproven("probe-failed", path, f"the probe reported {reported!r} out of order")
+        if path in _UNREACHABLE:
+            if status not in _UNREACHABLE[path]:
+                raise SandboxUnproven("probe-network", path, f"a connect inside the sandbox gave {status}, not ENETUNREACH")
+        elif status != "ENOENT":
             raise SandboxUnproven("probe-reachable", path, f"stat inside the sandbox gave {status}, not ENOENT")
 
 
@@ -148,7 +168,7 @@ LAUNCH_TIMEOUT = 30.0
 """Seconds bwrap may take to report its child before the launch is abandoned."""
 
 
-def _read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
+def read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
     """Read bwrap's --info-fd JSON object; None when bwrap exits without one or does
     not report within LAUNCH_TIMEOUT (a stuck bind source must not hang the caller)."""
     decoder = json.JSONDecoder()
@@ -248,7 +268,15 @@ def _abort(process: subprocess.Popen, pidfd: int) -> None:
     process.wait()
 
 
-def launch(spec: SandboxSpec, argv: Iterable[str], *, stdin: int, stdout: int, stderr: int) -> Sandboxed:
+def launch(
+    spec: SandboxSpec,
+    argv: Iterable[str],
+    *,
+    stdin: int,
+    stdout: int,
+    stderr: int,
+    before_release: Callable[[int, int], None] | None = None,
+) -> Sandboxed:
     """Start the actor so that its handle exists before it can run.
 
     bwrap runs the gate (`_GATE`) holding the read end of a dedicated pipe. bwrap
@@ -258,7 +286,10 @@ def launch(spec: SandboxSpec, argv: Iterable[str], *, stdin: int, stdout: int, s
 
     The actor's fds 0, 1 and 2 are `stdin`, `stdout` and `stderr`, and it holds no
     other descriptor (decision 12). A closed one is refused, so a library caller never
-    passes a stray descriptor. bwrap starts in a process group of its own, so a signal
+    passes a stray descriptor. `before_release(child_pid, pidfd)` runs after
+    the pidfd is held and before the release. Whatever it raises aborts the launch and
+    propagates unchanged: the model proxy's listener (decision 13) must exist before
+    the actor can run. bwrap starts in a process group of its own, so a signal
     to the caller's group cannot kill the actor before the seal (§3 step 9)."""
     if threading.current_thread() is not threading.main_thread():
         raise RuntimeError(
@@ -293,9 +324,10 @@ def launch(spec: SandboxSpec, argv: Iterable[str], *, stdin: int, stdout: int, s
         os.close(info_write)
         os.close(gate_read)
     pidfd = -1
+    hook_error: BaseException | None = None
     try:
         try:
-            info = _read_info(info_read, process)
+            info = read_info(info_read, process)
         finally:
             os.close(info_read)
         child = None if info is None else info.get("child-pid")
@@ -305,10 +337,16 @@ def launch(spec: SandboxSpec, argv: Iterable[str], *, stdin: int, stdout: int, s
             pidfd = os.pidfd_open(child)
         except OSError as caught:
             raise SandboxUnproven("launch-failed", "bwrap", f"no handle on child {child}: {caught.strerror}") from caught
+        if before_release is not None:
+            try:
+                before_release(child, pidfd)
+            except BaseException as caught:
+                hook_error = caught
+                raise
         os.write(gate_write, RELEASE)
     except BaseException as caught:
         _abort(process, pidfd)
-        if isinstance(caught, SandboxUnproven) or not isinstance(caught, Exception):
+        if caught is hook_error or isinstance(caught, SandboxUnproven) or not isinstance(caught, Exception):
             raise
         raise SandboxUnproven("launch-failed", "bwrap", f"{type(caught).__name__}: {caught}") from caught
     finally:

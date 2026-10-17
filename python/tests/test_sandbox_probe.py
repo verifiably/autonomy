@@ -1,5 +1,7 @@
+import dataclasses
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -19,10 +21,10 @@ def layout(tmp_path):
 
 
 def test_argv_shape(layout):
-    spec = SandboxSpec(scratch=layout["scratch"], network="host", env={"A": "1"})
+    spec = SandboxSpec(scratch=layout["scratch"], env={"A": "1"})
     argv = build_argv(spec, ["/usr/bin/true"], info_fd=7)
-    assert argv[:3] == ["bwrap", "--unshare-all", "--share-net"]
-    for flag in ("--die-with-parent", "--new-session", "--clearenv"):
+    assert argv[:3] == ["bwrap", "--unshare-all", "--die-with-parent"]
+    for flag in ("--new-session", "--clearenv"):
         assert flag in argv
     assert argv[argv.index("--info-fd") + 1] == "7"
     assert argv[-2:] == ["--", "/usr/bin/true"]
@@ -31,8 +33,11 @@ def test_argv_shape(layout):
     assert argv[argv.index("--chdir") + 1] == scratch
 
 
-def test_no_network_unless_asked(layout):
-    assert "--share-net" not in build_argv(SandboxSpec(scratch=layout["scratch"]), ["/usr/bin/true"], info_fd=None)
+def test_no_sandbox_shares_the_host_network(layout):
+    spec = SandboxSpec(scratch=layout["scratch"])
+    assert "--share-net" not in build_argv(spec, ["/usr/bin/true"], info_fd=None)
+    # Plan A's `host` mode is removed (decision 13): the spec has no network field at all.
+    assert "network" not in {f.name for f in dataclasses.fields(SandboxSpec)}
 
 
 def test_a_missing_bwrap_is_typed_before_anything_runs(layout):
@@ -99,7 +104,7 @@ def test_non_utf8_probe_output_is_typed(layout, monkeypatch):
     path = str(layout["corpus"].resolve())
 
     def garbled(argv, **kwargs):
-        return subprocess.CompletedProcess(argv, 0, stdout=b"\xff\xfe " + path.encode() + b"\n", stderr=b"")
+        return subprocess.CompletedProcess(argv, 0, stdout=b"\xff\xfe " + path.encode() + b"\nENETUNREACH net:192.0.2.1\nENETUNREACH net:2001:db8::1\n", stderr=b"")
 
     monkeypatch.setattr(subprocess, "run", garbled)
     with pytest.raises(SandboxUnproven) as caught:
@@ -132,3 +137,46 @@ def test_a_child_that_inherits_stdin_consumes_the_callers_bytes():
             assert os.read(read_end, 64) == left
         finally:
             os.close(read_end)
+
+
+@pytest.mark.bwrap
+def test_the_probe_reports_both_addresses_unreachable(layout, monkeypatch):
+    seen = {}
+    real_run = subprocess.run
+
+    def spy(argv, **kwargs):
+        result = real_run(argv, **kwargs)
+        seen["stdout"] = result.stdout.decode()
+        return result
+
+    monkeypatch.setattr(subprocess, "run", spy)
+    probe(SandboxSpec(scratch=layout["scratch"]), [])
+    lines = seen["stdout"].splitlines()
+    assert lines[-2] == "ENETUNREACH net:192.0.2.1"
+    assert lines[-1].split()[0] in ("ENETUNREACH", "EAFNOSUPPORT")
+    assert lines[-1].split()[1] == "net:2001:db8::1"
+
+
+def _has_default_route() -> bool:
+    lines = Path("/proc/net/route").read_text().splitlines()[1:]
+    return any(line.split()[1] == "00000000" for line in lines)
+
+
+@pytest.mark.bwrap
+@pytest.mark.skipif(not _has_default_route(), reason="the negative needs an IPv4 default route on the host")
+def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch):
+    # Negative: a test hook that adds --share-net (decision 13's removed mode). With a
+    # default route, 192.0.2.1 times out or connects instead of ENETUNREACH.
+    from autonomy.sandbox import bwrap
+
+    real = bwrap.build_argv
+
+    def shared(spec, argv, *, info_fd):
+        args = real(spec, argv, info_fd=info_fd)
+        return [args[0], args[1], "--share-net", *args[2:]]
+
+    monkeypatch.setattr(bwrap, "build_argv", shared)
+    with pytest.raises(SandboxUnproven) as caught:
+        bwrap.probe(SandboxSpec(scratch=layout["scratch"]), [])
+    assert caught.value.code == "probe-network"
+    assert caught.value.path == "net:192.0.2.1"

@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Literal
 
 SYSTEM_RO: tuple[Path, ...] = (Path("/usr"), Path("/etc"))
 # The merged-/usr symlinks, created inside the sandbox rather than bound.
@@ -22,11 +21,13 @@ IN_SANDBOX_TOKEN = PurePosixPath("/run/va/token")
 
 @dataclass(frozen=True)
 class SandboxSpec:
+    """No spec shares the host's network namespace: the actor's network is its own
+    loopback, and its only way out is the model route's listener (decision 13)."""
+
     scratch: Path
     ro_binds: tuple[Path, ...] = ()
     socket: Path | None = None
     token: Path | None = None
-    network: Literal["none", "host"] = "none"
     env: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
 
     def bind_sources(self) -> tuple[Path, ...]:

@@ -525,3 +525,59 @@ def test_launch_survives_a_caller_with_fds_0_1_2_closed(tmp_path):
     subprocess.run([sys.executable, "-c", orchestrator], stdin=subprocess.DEVNULL, timeout=60)
     assert out.read_text() == "0"
     assert (scratch / "ran").exists()
+
+
+def test_before_release_runs_while_the_gate_still_holds_the_actor(tmp_path, stdio):
+    flag = tmp_path / "ran"
+    spec = SandboxSpec(scratch=tmp_path)
+    seen = {}
+
+    def hook(child_pid: int, pidfd: int) -> None:
+        seen["child"] = child_pid
+        seen["pidfd_alive"] = signal.pidfd_send_signal(pidfd, 0) is None
+        time.sleep(0.5)  # an actor already released would have touched the flag by now
+        seen["ran_before_release"] = flag.exists()
+
+    sandbox = launch(spec, ["/usr/bin/touch", str(flag)], before_release=hook, **stdio)
+    try:
+        assert sandbox.wait(timeout=30) == 0
+    finally:
+        sandbox.close()
+    assert seen == {"child": sandbox.child_pid, "pidfd_alive": True, "ran_before_release": False}
+    assert flag.exists()
+
+
+class HookFailed(Exception):
+    pass
+
+
+def test_a_failing_hook_aborts_and_propagates_unchanged(tmp_path, stdio):
+    flag = tmp_path / "ran"
+
+    def hook(child_pid: int, pidfd: int) -> None:
+        time.sleep(0.5)  # an actor already released would run in this time
+        raise HookFailed("no listener")
+
+    with pytest.raises(HookFailed):
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/touch", str(flag)], before_release=hook, **stdio)
+    time.sleep(0.5)
+    assert not flag.exists()
+
+
+def test_a_hook_that_swallows_its_failure_releases_the_actor(tmp_path, stdio):
+    # Negative (E22): a launch that ignores a helper failure runs the actor anyway,
+    # which is why `before_release` must propagate, never be wrapped in a try.
+    flag = tmp_path / "ran"
+
+    def careless(child_pid: int, pidfd: int) -> None:
+        try:
+            raise HookFailed("no listener")
+        except HookFailed:
+            pass
+
+    sandbox = launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/touch", str(flag)], before_release=careless, **stdio)
+    try:
+        assert sandbox.wait(timeout=30) == 0
+    finally:
+        sandbox.close()
+    assert flag.exists()
