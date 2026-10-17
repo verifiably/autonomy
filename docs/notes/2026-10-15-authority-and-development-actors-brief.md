@@ -1,8 +1,9 @@
 # Authority beyond the science run — brief
 
-**Date:** 2026-10-15, revised the same day after the user's review. **Goal:**
-autonomy-d9adef. **Ideas and tasks:** autonomy-1aac03 (the authorization contract),
-autonomy-d5c1cb (a development mode of `autonomy run`), autonomy-a41de4 (the actor
+**Date:** 2026-10-15, revised the same day after the user's review, and on 2026-10-17
+by a scope pass after the probe. **Goal:** autonomy-d9adef. **Ideas and tasks:**
+autonomy-1aac03 (the authorization contract), autonomy-d5c1cb (a development mode of
+`autonomy run`), autonomy-a94e95 (the shared-clone probe), autonomy-a41de4 (the actor
 stdio amendment), autonomy-c5c566 (the probe).
 
 ## 1. Problem
@@ -191,9 +192,28 @@ directory. Binds beyond scratch are left to autonomy-d5c1cb.
    (`git clone --shared` reads objects through alternates, with the shared object store
    bound read-only), and have the host fetch the branch only after a clean verdict. Then
    no shared metadata is writable. What does the closing check still verify? *Design in
-   autonomy-d5c1cb.*
+   autonomy-d5c1cb.* The design needs evidence on the workspace first:
+   - Does the shared clone commit with only the object store bound, read-only? Does
+     Plan A's static check accept that bind while the main checkout is denied?
+   - The clone's config, hooks and attributes are the actor's to write. A plain
+     `git fetch` from it runs `upload-pack` in that repository, so the host's import
+     route must not run anything the actor wrote. Which route holds: read-only binds
+     of host-written config and hooks, a host-built bare repository reading the clone's
+     objects, or a bundle?
+
+   *autonomy-a94e95 (probe), filed 2026-10-17.*
 3. Is credential custody shared between development and science runs? *autonomy-9e8a43's
    spec.*
+4. When are egress and credential custody designed? The development mode is to reuse
+   autonomy-9e8a43's answers (§3), and its network must reach only the model endpoint.
+   The envelope's network modes are `none` and `host` (spec §7), so neither confines a
+   pi actor, which needs the model API. autonomy-9e8a43 is an `l` planned task, blocked on
+   Plan B2 (autonomy-f6efe8) and the science slices, and its design has not started.
+   *Lean:* design egress (model endpoint only) and credential custody (a substituting
+   proxy, §2) as one envelope amendment that both modes consume, ahead of autonomy-9e8a43,
+   and narrow autonomy-9e8a43 to use it. The alternative is to have autonomy-d5c1cb wait
+   for autonomy-9e8a43. *The user decides; on the lean, file the amendment under
+   autonomy-d9adef and make autonomy-d5c1cb depend on it.*
 
 ## 6. Proposed decomposition
 
@@ -204,5 +224,7 @@ directory. Binds beyond scratch are left to autonomy-d5c1cb.
   (Plan B) depends on it.
 - autonomy-1aac03 is scoped as the design of the authorization contract, from decisions
   1–3.
-- autonomy-d5c1cb stays an idea until the probe answers. It then becomes the design of
-  the development-mode amendment.
+- autonomy-a94e95 is the shared-clone and host-import probe (§5 question 2). It wakes
+  autonomy-d5c1cb, which depends on it.
+- autonomy-d5c1cb stays an idea until autonomy-a94e95 answers and question 4 is settled.
+  It then becomes the design of the development-mode amendment.
