@@ -49,7 +49,20 @@ def _fs_type(fd: int) -> int:
     return ctypes.c_long.from_buffer(buffer).value
 
 
+def check_no_default_socket_timeout(fd: int) -> None:
+    """Refuse a process-wide default socket timeout before a caller's descriptor is
+    wrapped. CPython's `socket.socket(fileno=...)` sets `O_NONBLOCK` on the open file
+    description when `socket.getdefaulttimeout()` is not None, and a `dup` shares that
+    description with the caller's fd: the wrap would flip the caller's (and the actor's)
+    descriptor to non-blocking, which decision 12 never does. Nothing in this package
+    sets a default timeout; refusing one keeps a future socket client (Plan B2 adds
+    them) from introducing the hazard silently."""
+    if socket.getdefaulttimeout() is not None:
+        raise StdioRefused(fd, "a socket, and a process-wide default socket timeout is set")
+
+
 def _socket_kind(fd: int) -> StdioKind:
+    check_no_default_socket_timeout(fd)
     probe = socket.socket(fileno=os.dup(fd))  # a private duplicate; its close leaves `fd` open
     try:
         family = probe.getsockopt(socket.SOL_SOCKET, socket.SO_DOMAIN)
