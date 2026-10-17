@@ -15,6 +15,7 @@ SPEC_ROWS = {
     "seal-timeout": "unwired", "act-unverified": "unwired", "world-moved": "quarantined",
     "basis-moved": "quarantined", "session-unclosed": "unwired", "permit-mismatch": "unwired",
     "orchestrator-lost": "unwired", "mount-moved": None, "after-run": None,
+    "egress-unproven": "unwired", "egress-lost": None, "egress-close-timeout": None,
 }
 
 
@@ -147,3 +148,10 @@ RANK = ["clean", "unwired", "quarantined"]
 def test_every_pair_takes_the_stronger(a, b):
     expected = max(SPEC_ROWS[a] or "clean", SPEC_ROWS[b] or "clean", key=RANK.index)
     assert disposition_of([Finding(a, "x", ""), Finding(b, "y", "")]) == expected
+
+
+def test_egress_findings_are_reported_and_unproven_is_unwired():
+    from autonomy.closing import SEVERITY
+
+    assert SEVERITY["egress-unproven"] == "unwired"
+    assert SEVERITY["egress-lost"] is None and SEVERITY["egress-close-timeout"] is None

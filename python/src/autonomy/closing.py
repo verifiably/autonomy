@@ -33,6 +33,9 @@ SEVERITY: Mapping[str, Literal["unwired", "quarantined"] | None] = MappingProxyT
         "session-unclosed": "unwired",
         "permit-mismatch": "unwired",
         "orchestrator-lost": "unwired",
+        "egress-unproven": "unwired",
+        "egress-lost": None,
+        "egress-close-timeout": None,
         "mount-moved": None,
         "after-run": None,
     }
