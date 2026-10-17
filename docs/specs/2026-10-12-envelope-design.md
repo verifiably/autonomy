@@ -22,7 +22,8 @@ E20), §13 and §14 to match. It follows the probe autonomy-c5c566. Approved 202
 decision 13. It moves both out of autonomy-9e8a43's deferral (§1), replaces decision 12's
 credential template, removes the `host` network mode, and changes §3, §4, §6, §7, §8,
 §9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Status: draft, for human
-review, after three agent review rounds (the third accepted; its minors are applied).
+review, after three agent review rounds (the third accepted; its minors are applied) and
+one human round (cancel-before-send on close).
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -871,8 +872,8 @@ Then:
    5 s, the orchestrator kills its sandbox through the pidfd
    (`egress-close-timeout`). A proxy that has already exited on its own has written its
    closing line, or it died (`egress-lost`). Neither request waits on the other, so a
-   hung proxy cannot delay the seal, and no model call starts after the proxy receives
-   `close`.
+   hung proxy cannot delay the seal, and no model request is sent upstream after the
+   proxy receives `close`, including one accepted before it (decision 13).
 1. **Seal.** Send `seal` on the control socket. The endpoint seals (decision 5),
    reports the sealed tips and `basis_seal`, writes `seal.json`, writes
    `session-close` and exits. An endpoint that has already sealed on its own (lease,
