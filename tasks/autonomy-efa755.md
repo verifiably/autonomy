@@ -8,7 +8,7 @@ complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T10:59:17Z
+updated: 2026-10-17T10:59:53Z
 started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
@@ -47,3 +47,5 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T10:59:16Z (main): resumed
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T10:59:16Z (main): review: spec round 4 — verdict: revise; findings: Important 1, Minor 1; reviewer: human
+- 2026-10-17T10:59:53Z (main): parked (waiting on user, review): User re-reviews the egress amendment on branch spec/egress (.worktrees/spec-egress), round 4 fixes in c7e4480 and e3a6370: close cancels accepted requests before they go upstream, E22's held-request cases, one close boundary in §3 and §8. On approval the agent marks the header approved, files the crew follow-up and the egress plan task, merges spec/egress, and runs tasks done.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
