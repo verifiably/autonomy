@@ -71,7 +71,11 @@ B2 composes it:
 | the proxy's pidfd as a close trigger | Task 9 (`EgressSession.pidfd`) | watches it |
 | *Orphans*: `run close` kills a live proxy | Task 9 (`kill_orphan`) | calls it from `run close` |
 | `baseline.json`'s `egress` block | Task 3 (`Opened.route`: name, digest, upstream) | writes it |
+| the actor's `VERIFIABLY_MODEL_URL` (absent without a route) | Task 8 (`MODEL_URL`) | puts it in the actor's `SandboxSpec.env` |
 | E21 and E22 launch arms | Tasks 4–9 | — |
+| E21's negatives | Tasks 6, 7 and 9: deny-list headers, a model-only check, a check keyed on `url`, a first-line-only beta check, a lenient parser, a normalizing matcher, a buffering proxy, `--setenv`. Routing by `Host` and forwarding the actor's framing have no mutation: the proxy never reads either to route, and the positive tests pin that | — |
+| E22's negatives | Tasks 1, 6, 7, 8 and 9 | the two close and seal ordering negatives |
+| crew's configuration of pi (§13 item 5) | filed as crew-718636 | — |
 | E21's live pi recipe | Task 10 | — |
 | E21 and E22 full-run arms | — | B2 |
 
@@ -98,7 +102,11 @@ B2 composes it:
 - The proxy's timeouts:
   - it must report `ready` within 10 s and `listening` within 5 s;
   - `close` waits 5 s, then kills.
-- Header names are compared ASCII case-insensitively everywhere.
+- Header names are compared ASCII case-insensitively everywhere, and a header that a
+  `Connection` header names is dropped, in both directions.
+- The close boundary is the write call: no call that can put a byte upstream
+  (connect, handshake step, write of at most 16 KiB) runs after the close
+  transition. Bytes already handed to the kernel before it may still drain.
 - Tests run through the front door: `just test-one <pytest args>` while working (paths
   relative to `python/`), then `just test-fast` before each commit. Never call
   `pytest` directly.
@@ -115,8 +123,10 @@ B2 composes it:
    request pipelined behind the first is never parsed or forwarded. That case is
    tested in Task 7.
 2. **An upstream that answers garbage**: a malformed status line, a header block over
-   64 KiB, or a chunk size that is not hex. The actor gets `502` with
-   `ended: upstream-error`, and the proxy never hangs. Tested in Task 6.
+   64 KiB, or a chunk size that is not hex. The proxy never hangs, and the line says
+   `ended: upstream-error`. The actor gets `502`, unless the head was valid and it
+   already has it, as with a bad chunk; the stream is then cut. Tested in Tasks 6
+   (the reader) and 7 (the actor's answer and the record).
 3. **An actor that hangs up mid-stream.** The proxy's upstream connection closes at
    once, the line says `actor-closed`, and no worker thread is left. Tested in Task 7.
 4. **Many concurrent requests** (pi's sub-agents). Twenty parallel requests are all
@@ -201,22 +211,34 @@ B2 composes it:
 
 - [ ] **Step 1: Write the failing tests**
 
-In `python/tests/test_sandbox_probe.py`, replace `test_argv_shape` and
-`test_no_network_unless_asked` with:
+In `python/tests/test_sandbox_probe.py` (its `layout` fixture is a dict of paths),
+replace `test_argv_shape` and `test_no_network_unless_asked` with:
 
 ```python
 def test_argv_shape(layout):
-    argv = build_argv(layout, ["/usr/bin/true"], info_fd=None)
+    spec = SandboxSpec(scratch=layout["scratch"], env={"A": "1"})
+    argv = build_argv(spec, ["/usr/bin/true"], info_fd=7)
     assert argv[:3] == ["bwrap", "--unshare-all", "--die-with-parent"]
+    for flag in ("--new-session", "--clearenv"):
+        assert flag in argv
+    assert argv[argv.index("--info-fd") + 1] == "7"
     assert argv[-2:] == ["--", "/usr/bin/true"]
+    scratch = str(layout["scratch"])
+    assert ["--bind", scratch, scratch] == argv[argv.index("--bind"):argv.index("--bind") + 3]
+    assert argv[argv.index("--chdir") + 1] == scratch
 
 
 def test_no_sandbox_shares_the_host_network(layout):
-    assert "--share-net" not in build_argv(layout, ["/usr/bin/true"], info_fd=None)
-    assert not hasattr(layout, "network")  # Plan A's `host` mode is removed (decision 13)
+    spec = SandboxSpec(scratch=layout["scratch"])
+    assert "--share-net" not in build_argv(spec, ["/usr/bin/true"], info_fd=None)
+    # Plan A's `host` mode is removed (decision 13): the spec has no network field at all.
+    assert "network" not in {f.name for f in dataclasses.fields(SandboxSpec)}
 ```
 
-Where `layout` built a `SandboxSpec(..., network="host")`, drop the argument. Then add:
+In `test_non_utf8_probe_output_is_typed`, the fake stdout must now carry the two
+network lines, or the line count fails first. Make its `garbled` return
+`stdout=b"\xff\xfe " + path.encode() + b"\nENETUNREACH net:192.0.2.1\nENETUNREACH net:2001:db8::1\n"`.
+Then add:
 
 ```python
 @pytest.mark.bwrap
@@ -230,17 +252,23 @@ def test_the_probe_reports_both_addresses_unreachable(layout, monkeypatch):
         return result
 
     monkeypatch.setattr(subprocess, "run", spy)
-    probe(layout, [])
+    probe(SandboxSpec(scratch=layout["scratch"]), [])
     lines = seen["stdout"].splitlines()
     assert lines[-2] == "ENETUNREACH net:192.0.2.1"
     assert lines[-1].split()[0] in ("ENETUNREACH", "EAFNOSUPPORT")
     assert lines[-1].split()[1] == "net:2001:db8::1"
 
 
+def _has_default_route() -> bool:
+    lines = Path("/proc/net/route").read_text().splitlines()[1:]
+    return any(line.split()[1] == "00000000" for line in lines)
+
+
 @pytest.mark.bwrap
+@pytest.mark.skipif(not _has_default_route(), reason="the negative needs an IPv4 default route on the host")
 def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch):
-    # Negative: a test hook that adds --share-net (decision 13's removed mode). On a host
-    # with a default route, 192.0.2.1 times out or connects instead of ENETUNREACH.
+    # Negative: a test hook that adds --share-net (decision 13's removed mode). With a
+    # default route, 192.0.2.1 times out or connects instead of ENETUNREACH.
     from autonomy.sandbox import bwrap
 
     real = bwrap.build_argv
@@ -251,13 +279,16 @@ def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch)
 
     monkeypatch.setattr(bwrap, "build_argv", shared)
     with pytest.raises(SandboxUnproven) as caught:
-        bwrap.probe(layout, [])
+        bwrap.probe(SandboxSpec(scratch=layout["scratch"]), [])
     assert caught.value.code == "probe-network"
     assert caught.value.path == "net:192.0.2.1"
 ```
 
-Add `import subprocess` and `from autonomy.sandbox.static import SandboxUnproven` to
-that file's imports if absent.
+Add `import dataclasses` and `from pathlib import Path` to that file's imports.
+
+In `python/tests/test_stdio.py`, drop `network="none"` from the `SandboxSpec` in
+`test_a_udp_socket_on_stdio_reaches_the_host_under_network_none`. The sandbox has no
+other mode now.
 
 In `python/tests/test_sandbox_static.py` add:
 
@@ -537,7 +568,7 @@ Run: `just test-fast`. Expected: PASS. A test elsewhere that built
 `SandboxSpec(network=...)` fails with `TypeError`; drop the argument there.
 
 ```bash
-git add python/src/autonomy/sandbox python/tests/test_sandbox_probe.py python/tests/test_sandbox_static.py python/tests/test_sandbox_launch.py
+git add python/src/autonomy/sandbox python/tests/test_sandbox_probe.py python/tests/test_sandbox_static.py python/tests/test_sandbox_launch.py python/tests/test_stdio.py
 git commit -m "feat(sandbox): no host network, a network probe, and a release hook (decision 13)"
 ```
 
@@ -1471,6 +1502,8 @@ git commit -m "feat(run): --model-route and step 2's route refusals (decision 13
 **Interfaces:**
 - Consumes: `Route`, `always_dropped` (Task 2); `Refused` (Task 2).
 - Produces:
+  - `connection_named(headers) -> frozenset[str]`, the header names a `Connection`
+    header lists;
   - `MAX_HEAD = 65536`;
   - `Request`, with fields `method, path, query: str`,
     `headers: tuple[tuple[str, str], ...]` (lower-cased names) and
@@ -1553,6 +1586,14 @@ def test_unlisted_headers_are_dropped_and_listed_ones_kept():
         "POST /v1/messages?beta=true HTTP/1.1", "Host: other", "X-Forwarded-Host: other",
         "X-Probe: 1", "x-api-key: placeholder", "Authorization: Bearer sk-ant-oat-placeholder",
         "Connection: x-api-key", "Content-Type: application/json", "Content-Length: 2",
+    ))
+    assert forwarded_headers(request, ROUTE) == (("content-type", "application/json"),)
+
+
+def test_a_header_that_connection_names_is_dropped():
+    request = parse_head(head(
+        "POST /v1/messages?beta=true HTTP/1.1", "Connection: User-Agent, close",
+        "User-Agent: pi", "Content-Type: application/json",
     ))
     assert forwarded_headers(request, ROUTE) == (("content-type", "application/json"),)
 
@@ -1696,13 +1737,24 @@ def parse_head(head: bytes) -> Request:
     return Request(method.decode("ascii"), path, query, tuple(headers), int(lengths[0]) if lengths else 0)
 
 
+def connection_named(headers: tuple[tuple[str, str], ...]) -> frozenset[str]:
+    """The headers a `Connection` header names: hop-by-hop, so always dropped."""
+    return frozenset(
+        token.strip(" \t").lower()
+        for name, value in headers if name == "connection"
+        for token in value.split(",") if token.strip(" \t")
+    )
+
+
 def forwarded_headers(request: Request, route: Route) -> tuple[tuple[str, str], ...]:
-    """The route's `forward_headers`, each once. Every other header is dropped. A
-    repeated forwarded header, or a token outside `header_tokens`, is refused."""
+    """The route's `forward_headers`, each once, less any header `Connection` names.
+    Every other header is dropped. A repeated forwarded header, or a token outside
+    `header_tokens`, is refused."""
     counts = Counter(name for name, _ in request.headers)
+    hop = connection_named(request.headers)
     kept: list[tuple[str, str]] = []
     for name, value in request.headers:
-        if name not in route.forward_headers:
+        if name not in route.forward_headers or name in hop:
             continue
         if counts[name] > 1:
             raise Refused("header-refused", f"header {name} is repeated")
@@ -1837,6 +1889,8 @@ def test_a_model_outside_the_route():
     {"messages": [{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t", "content": [
         {"type": "image", "source": {"type": "url", "url": "https://attacker.example/y.png"}}]}]}]},
     {"system": [{"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": ""}}]},
+    {"tools": [{"type": ["web_fetch_20250910"], "name": "t"}]},
+    {"messages": [{"role": "user", "content": [{"type": {"x": 1}}]}]},
 ])
 def test_a_body_that_asks_the_provider_to_reach_out(extra):
     assert code_of(json.dumps(body(**extra)).encode()) == "body-refused"
@@ -1998,7 +2052,7 @@ def check_body(body: dict, op: Operation) -> None:
             for index, tool in enumerate(tools):
                 if not isinstance(tool, dict):
                     raise _refused(f"tools[{index}] must be an object")
-                if "type" in tool and tool["type"] not in op.tool_types:
+                if "type" in tool and (not isinstance(tool["type"], str) or tool["type"] not in op.tool_types):
                     raise _refused(f"tools[{index}] has type {tool['type']!r}; the route allows {sorted(op.tool_types)}")
         system = body.get("system")
         if system is not None and not isinstance(system, str):
@@ -2043,11 +2097,15 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
 - Consumes: `always_dropped` (Task 2).
 - Produces:
   - `POLL = 0.2`, the longest a wait goes before it rechecks the gate;
+  - `SLICE = 16 * 1024`, the most one write attempt carries;
   - `Gate`, with `next_seq() -> int | None`, `close(cause: str) -> bool` (the close
     transition: `True` only for the call that took it), `attempt(sock, data:
-    memoryview) -> int | None`, the property `is_open`, and the attributes
-    `cause: str | None` and `last_seq: int`;
-  - `RouteClosed(sent: int = 0)`, with `.sent`;
+    memoryview) -> int | None`, `call(step) -> T` (one non-blocking step that may
+    put bytes upstream, which raises `RouteClosed` once closed), the property
+    `is_open`, and the attributes `cause: str | None` and `last_seq: int`;
+  - `RouteClosed(sent: int = 0, attempted: bool = False)`, with `.sent` and
+    `.attempted`;
+  - `cut(sock, how=socket.SHUT_RDWR) -> None`;
   - `UpstreamError`;
   - `send_all(gate: Gate, sock, data: bytes) -> None`, which raises `RouteClosed`;
   - `tls_context(ca_file: Path | None) -> ssl.SSLContext`;
@@ -2254,7 +2312,7 @@ import pytest
 
 from egress_fixtures import FakeUpstream, tls  # noqa: F401  (tls is a fixture)
 from autonomy.egress.upstream import (
-    POLL, Gate, RouteClosed, UpstreamError, connect, read_response, response_head, send_all, tls_context,
+    POLL, Gate, Response, RouteClosed, UpstreamError, connect, read_response, response_head, send_all, tls_context,
 )
 
 
@@ -2302,6 +2360,44 @@ def test_a_stalled_send_never_holds_the_close():
     peer.close()
 
 
+def test_a_stalled_tls_upload_is_reported_attempted(tls):
+    # A TLS write reports no partial progress: after megabytes went out, `sent` may
+    # still be 0, so the record must rely on `attempted`.
+    upstream = FakeUpstream(tls, mode="stall")
+    gate = Gate()
+    sock = connect(gate, "localhost", upstream.port, tls_context(tls.cert))
+    payload = b"POST /v1/messages HTTP/1.1\r\ncontent-length: 6000000\r\n\r\n" + b"x" * 6_000_000
+    outcome = {}
+
+    def send():
+        try:
+            send_all(gate, sock, payload)
+        except RouteClosed as closed:
+            outcome["closed"] = closed
+
+    worker = threading.Thread(target=send)
+    worker.start()
+    time.sleep(1.0)
+    gate.close("lease")
+    worker.join(POLL + 2)
+    assert not worker.is_alive()
+    assert outcome["closed"].attempted is True
+    sock.close()
+    assert 0 < upstream.stalled_bytes() < len(payload)
+    upstream.stop()
+
+
+def test_no_connection_is_opened_after_the_close(tls):
+    upstream = FakeUpstream(tls)
+    gate = Gate()
+    gate.close("close")
+    with pytest.raises(RouteClosed):
+        connect(gate, "localhost", upstream.port, tls_context(tls.cert))
+    time.sleep(0.2)
+    assert upstream.connections == 0
+    upstream.stop()
+
+
 def test_a_blocking_write_under_the_lock_would_hold_the_close():
     # Negative (E22): the lock held across a blocking write. The close transition then
     # waits for the peer to read, which a stalled upstream never does.
@@ -2338,7 +2434,7 @@ def test_after_the_close_nothing_is_written():
     sender, peer = socket.socketpair()
     with pytest.raises(RouteClosed) as closed:
         send_all(gate, sender, b"POST / HTTP/1.1\r\n\r\n")
-    assert closed.value.sent == 0
+    assert (closed.value.sent, closed.value.attempted) == (0, False)
     peer.setblocking(False)
     with pytest.raises(BlockingIOError):
         peer.recv(1)
@@ -2349,11 +2445,12 @@ def test_after_the_close_nothing_is_written():
 def exchange(upstream: FakeUpstream, tls) -> tuple:
     gate = Gate()
     sock = connect(gate, "localhost", upstream.port, tls_context(tls.cert))
-    send_all(gate, sock, b"POST /v1/messages HTTP/1.1\r\nhost: localhost\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
-    response = read_response(gate, sock)
-    body = b"".join(response.body)
-    sock.close()
-    return response, body
+    try:
+        send_all(gate, sock, b"POST /v1/messages HTTP/1.1\r\nhost: localhost\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}")
+        response = read_response(gate, sock)
+        return response, b"".join(response.body)
+    finally:
+        sock.close()
 
 
 @pytest.mark.parametrize("mode", ["json", "continue", "close"])
@@ -2396,6 +2493,12 @@ def test_a_malformed_answer_is_an_upstream_error_never_a_hang(tls, mode):  # Rev
     assert "error" in outcome
 
 
+def test_the_response_head_drops_what_connection_names():
+    response = Response(200, "OK", (("connection", "x-hop"), ("x-hop", "1"), ("request-id", "r")), iter(()))
+    head = response_head(response).decode()
+    assert "x-hop" not in head and "request-id: r" in head
+
+
 def test_the_response_head_drops_hop_and_credential_headers(tls):
     upstream = FakeUpstream(tls, mode="sse")
     response, _ = exchange(upstream, tls)
@@ -2419,38 +2522,52 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'autonomy.egress.upstr
 """The proxy's upstream side (envelope design decision 13).
 
 `Gate` holds the route's open flag and the lock that the close transition takes. The
-lock is held only for a flag check and one non-blocking write, so the transition never
-waits on an upstream that stops reading. Every wait (for room to write, for bytes to
-read, for a TLS handshake) happens outside the lock and gives up within `POLL` seconds
-of the close. Reads off a closed route end the stream."""
+lock is held only for a flag check and one non-blocking call: a write of at most
+`SLICE` bytes, a `connect` that returns `EINPROGRESS`, or one handshake step. So the
+transition never waits on an upstream, and no byte goes upstream after it, connection
+setup included. Every wait (for room to write, for bytes to read, for the connect or
+the handshake) happens outside the lock and gives up within `POLL` seconds of the
+close. A read off a closed route ends the stream as cut, never as complete.
+
+Bytes already handed to the kernel before the transition may still drain after it:
+the boundary is the write call, not the wire."""
 
 from __future__ import annotations
 
+import errno
+import os
 import re
 import select
 import socket
 import ssl
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeVar
 
 from autonomy.egress.route import always_dropped
 
 POLL = 0.2
+SLICE = 16 * 1024
 MAX_RESPONSE_HEAD = 64 * 1024
 _STATUS = re.compile(rb"HTTP/1\.[01] ([0-9]{3})(?: (.*))?")
 _HEX = re.compile(rb"[0-9A-Fa-f]{1,16}")
 _DIGITS = re.compile(r"[0-9]{1,15}")
+_T = TypeVar("_T")
 
 
 class RouteClosed(Exception):
-    """The route closed before this request was done: `sent` bytes went upstream."""
+    """The route closed before this request was done. `sent` bytes were counted as
+    written; `attempted` says whether any write was tried while the route was open.
+    A TLS write reports no partial progress (OpenSSL's partial-write mode is off in
+    CPython), so `attempted` is the honest answer to "did anything go upstream"."""
 
-    def __init__(self, sent: int = 0) -> None:
+    def __init__(self, sent: int = 0, attempted: bool = False) -> None:
         super().__init__("the route is closed")
         self.sent = sent
+        self.attempted = attempted
 
 
 class UpstreamError(Exception):
@@ -2468,7 +2585,8 @@ class Gate:
 
     @property
     def is_open(self) -> bool:
-        """A hint for waits. Every write rechecks the flag under the lock."""
+        """A hint for waits. Every call that can put a byte upstream rechecks the flag
+        under the lock."""
         return self._open
 
     def next_seq(self) -> int | None:
@@ -2495,9 +2613,19 @@ class Gate:
                 return None
             return sock.send(data)
 
+    def call(self, step: Callable[[], _T]) -> _T:
+        """One non-blocking step that may put bytes upstream (a connect, a handshake
+        step), only while the route is open. Raises `RouteClosed` once it is closed."""
+        with self._lock:
+            if not self._open:
+                raise RouteClosed()
+            return step()
 
-def _wait(gate: Gate, sock: socket.socket, *, readable: bool) -> None:
+
+def _wait(gate: Gate, sock: socket.socket, *, readable: bool, deadline: float | None = None) -> None:
     while gate.is_open:
+        if deadline is not None and time.monotonic() > deadline:
+            raise TimeoutError()
         ready = select.select([sock] if readable else [], [] if readable else [sock], [], POLL)
         if ready[0] or ready[1]:
             return
@@ -2505,27 +2633,31 @@ def _wait(gate: Gate, sock: socket.socket, *, readable: bool) -> None:
 
 
 def send_all(gate: Gate, sock: socket.socket, data: bytes) -> None:
-    """Write `data` in non-blocking attempts under the gate's lock. A TLS write that
-    needs a read or a write first, or a full buffer, waits outside the lock and
-    retries with the same bytes (OpenSSL requires it), rechecking the flag."""
+    """Write `data` in non-blocking attempts of at most `SLICE` bytes under the gate's
+    lock. A TLS write that needs a read or a write first, or a full buffer, waits
+    outside the lock and retries the same slice (OpenSSL requires the same bytes),
+    rechecking the flag."""
     view = memoryview(data)
     sent = 0
+    attempted = False
     while sent < len(data):
+        piece = view[sent : sent + SLICE]
         try:
-            written = gate.attempt(sock, view[sent:])
+            written = gate.attempt(sock, piece)
         except ssl.SSLWantReadError:
-            readable = True
+            attempted, readable = True, True
         except (ssl.SSLWantWriteError, BlockingIOError, InterruptedError):
-            readable = False
+            attempted, readable = True, False
         else:
             if written is None:
-                raise RouteClosed(sent)
+                raise RouteClosed(sent, attempted)
+            attempted = True
             sent += written
             continue
         try:
             _wait(gate, sock, readable=readable)
         except RouteClosed:
-            raise RouteClosed(sent) from None
+            raise RouteClosed(sent, attempted) from None
 
 
 def tls_context(ca_file: Path | None) -> ssl.SSLContext:
@@ -2533,18 +2665,54 @@ def tls_context(ca_file: Path | None) -> ssl.SSLContext:
     return ssl.create_default_context(cafile=str(ca_file) if ca_file is not None else None)
 
 
-def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeout: float = 30.0) -> ssl.SSLSocket:
+def cut(sock: socket.socket, how: int = socket.SHUT_RDWR) -> None:
+    """Shut a socket down at its descriptor. `SSLSocket.shutdown` would drop its TLS
+    state under a read in another thread, which then reads raw bytes as plaintext:
+    the base method leaves it, and that read fails or sees EOF."""
     try:
-        raw = socket.create_connection((host, port), timeout=timeout)
+        socket.socket.shutdown(sock, how)
+    except OSError:
+        pass
+
+
+def _open(gate: Gate, host: str, port: int, deadline: float) -> socket.socket:
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except OSError as caught:
-        raise UpstreamError(f"cannot reach {host}:{port}: {caught}") from caught
-    raw.setblocking(False)
-    tls = context.wrap_socket(raw, server_hostname=host, do_handshake_on_connect=False)
+        raise UpstreamError(f"cannot resolve {host}: {caught}") from caught
+    last: OSError | None = None
+    for family, kind, proto, _, address in infos:
+        sock = socket.socket(family, kind, proto)
+        sock.setblocking(False)
+        try:
+            code = gate.call(lambda: sock.connect_ex(address))
+            if code not in (0, errno.EINPROGRESS):
+                raise OSError(code, os.strerror(code))
+            _wait(gate, sock, readable=False, deadline=deadline)
+            code = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+            if code:
+                raise OSError(code, os.strerror(code))
+            return sock
+        except OSError as caught:
+            sock.close()
+            last = caught
+        except BaseException:
+            sock.close()
+            raise
+    raise UpstreamError(f"cannot reach {host}:{port}: {last}")
+
+
+def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeout: float = 30.0) -> ssl.SSLSocket:
     deadline = time.monotonic() + timeout
+    try:
+        raw = _open(gate, host, port, deadline)
+    except TimeoutError:
+        raise UpstreamError(f"connecting to {host}:{port} took over {timeout:g} s") from None
+    tls = context.wrap_socket(raw, server_hostname=host, do_handshake_on_connect=False)
     try:
         while True:
             try:
-                tls.do_handshake()
+                gate.call(tls.do_handshake)
                 return tls
             except ssl.SSLWantReadError:
                 readable = True
@@ -2552,9 +2720,10 @@ def connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *, timeou
                 readable = False
             except ssl.SSLError as caught:
                 raise UpstreamError(f"TLS with {host}: {caught}") from caught
-            if time.monotonic() > deadline:
-                raise UpstreamError(f"the TLS handshake with {host} took over {timeout:g} s")
-            _wait(gate, tls, readable=readable)
+            try:
+                _wait(gate, tls, readable=readable, deadline=deadline)
+            except TimeoutError:
+                raise UpstreamError(f"the TLS handshake with {host} took over {timeout:g} s") from None
     except BaseException:
         tls.close()
         raise
@@ -2582,6 +2751,8 @@ class _Reader:
             except (ssl.SSLEOFError, ssl.SSLZeroReturnError):
                 chunk = b""
             if not chunk:
+                if not self._gate.is_open:
+                    raise RouteClosed(attempted=True)
                 return False
             self.buffer += chunk
             return True
@@ -2655,7 +2826,7 @@ def read_response(gate: Gate, sock: socket.socket) -> Response:
         headers: list[tuple[str, str]] = []
         for line in lines:
             name, colon, value = line.partition(b":")
-            if not colon or not name or name != name.strip():
+            if not colon or not name or name != name.strip() or b"\n" in value or b"\r" in value:
                 raise UpstreamError("a malformed response header")
             headers.append((name.decode("latin-1").lower(), value.strip(b" \t").decode("latin-1")))
         status = int(match[1])
@@ -2681,10 +2852,16 @@ def read_response(gate: Gate, sock: socket.socket) -> Response:
 
 
 def response_head(response: Response) -> bytes:
-    """The head the actor gets: the upstream's end-to-end headers less the
-    always-dropped set, and the proxy's own framing (the body ends at close)."""
+    """The head the actor gets: the upstream's end-to-end headers, less the
+    always-dropped set and any header its `Connection` names, and the proxy's own
+    framing (the body ends at close)."""
+    hop = frozenset(
+        token.strip(" \t").lower()
+        for name, value in response.headers if name == "connection"
+        for token in value.split(",") if token.strip(" \t")
+    )
     lines = [f"HTTP/1.1 {response.status} {response.reason}".rstrip()]
-    lines += [f"{name}: {value}" for name, value in response.headers if not always_dropped(name)]
+    lines += [f"{name}: {value}" for name, value in response.headers if not always_dropped(name) and name not in hop]
     lines.append("connection: close")
     return ("\r\n".join(lines) + "\r\n\r\n").encode("latin-1")
 ```
@@ -2708,10 +2885,8 @@ git commit -m "feat(egress): the close transition's gate and a non-blocking TLS 
 
 **Files:**
 - Create: `python/src/autonomy/egress/server.py`
-- Modify: `python/src/autonomy/egress/upstream.py` (a read off a closed route raises
-  `RouteClosed`; see Step 3)
-- Modify: `python/tests/egress_fixtures.py` (add `raw_request`, `exchange`, `Served`,
-  `served`)
+- Modify: `python/tests/egress_fixtures.py` (add `raw_request`, `message`, `exchange`,
+  `status_and_body`, `Served`, `make_served`, and the fixtures `serve` and `served`)
 - Test: `python/tests/test_egress_server.py`
 
 **Interfaces:**
@@ -2725,17 +2900,21 @@ git commit -m "feat(egress): the close transition's gate and a non-blocking TLS 
   - `JOIN_TIMEOUT = 2.0`;
   - `Recorder(fd)` with `.line(record)`. After the closing line it writes nothing
     more, so the closing line is always last;
-  - the protocol `Allowance` with `admit(operation, model, request_bytes, in_flight)
-    -> str | None` and `settle(seq, upstream_request_id, usage) -> None`;
+  - the protocol `Allowance` with `admit(run, operation, model, request_bytes,
+    in_flight) -> str | None` and `settle(seq, upstream_request_id, usage) -> None`,
+    where `settle` runs for every forwarded request, however its stream ended;
   - `NoAllowance`;
   - `Hooks(hold: Callable[[str, int], None])`, with the stages `parsed`,
     `body-checked`, `admit`, `connecting` and `before-send`;
-  - `ProxyServer(route, credential, recorder, *, context, allowance=None,
+  - `ProxyServer(route, credential, recorder, *, context, run="", allowance=None,
     hooks=Hooks())`, with `.gate`, `.serve(listener)` and `.close(cause) -> bool`;
   - in the fixtures: `raw_request(*, method="POST", target="/v1/messages?beta=true",
     headers=(), body: bytes | dict = b"") -> bytes`, `exchange(port: int, data: bytes,
-    *, timeout: float = 10) -> bytes`, and the fixture `served` yielding
-    `Served(server, port, upstream, other, records(), canary)`.
+    *, timeout: float = 10) -> bytes`, `make_served(tmp_path, tls, *, mode="json",
+    hooks=None, allowance=None, route_changes=None) -> Served`, the fixture `serve`
+    (a factory that takes the same keywords and closes everything it made), and the
+    fixture `served` (one `serve()`), where `Served` has `server`, `port`,
+    `upstream`, `other`, `records()` and `canary`.
 
 - [ ] **Step 1: Add the fixtures**
 
@@ -2807,7 +2986,7 @@ def make_served(tmp_path: Path, tls: Tls, *, mode: str = "json", hooks=None, all
     route = parse_route(to_toml(doc).encode())
     records_path = tmp_path / "egress.jsonl"
     fd = os.open(records_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    server = ProxyServer(route, CANARY, Recorder(fd), context=tls_context(tls.cert),
+    server = ProxyServer(route, CANARY, Recorder(fd), context=tls_context(tls.cert), run="run-test",
                          allowance=allowance, hooks=hooks or Hooks())
     listener = socket.create_server(("127.0.0.1", 0))
     server.serve(listener)
@@ -2815,12 +2994,25 @@ def make_served(tmp_path: Path, tls: Tls, *, mode: str = "json", hooks=None, all
 
 
 @pytest.fixture
-def served(tmp_path, tls):
-    s = make_served(tmp_path, tls)
-    yield s
-    s.server.close("close")
-    s.upstream.stop()
-    s.other.stop()
+def serve(tmp_path, tls):
+    made: list[Served] = []
+
+    def factory(**keywords) -> Served:
+        root = tmp_path / f"served-{len(made)}"
+        root.mkdir()
+        made.append(make_served(root, tls, **keywords))
+        return made[-1]
+
+    yield factory
+    for s in made:
+        s.server.close("close")
+        s.upstream.stop()
+        s.other.stop()
+
+
+@pytest.fixture
+def served(serve):
+    return serve()
 ```
 
 - [ ] **Step 2: Write the failing tests**
@@ -2835,15 +3027,16 @@ import time
 
 import pytest
 
-from egress_fixtures import (  # noqa: F401  (tls and served are fixtures)
-    CANARY, MODEL, PI_BETAS, exchange, make_served, message, raw_request, served, status_and_body, tls,
+import autonomy.egress.server as server_module
+from egress_fixtures import (  # noqa: F401  (tls, serve and served are fixtures)
+    CANARY, MODEL, PI_BETAS, exchange, message, raw_request, serve, served, status_and_body, tls,
 )
 from autonomy.egress.server import Hooks
 from autonomy.egress.upstream import Gate
 
 
-def test_an_allowed_request_streams_as_it_arrives(tmp_path, tls):  # E21
-    s = make_served(tmp_path, tls, mode="sse")
+def test_an_allowed_request_streams_as_it_arrives(serve):  # E21
+    s = serve(mode="sse")
     s.upstream.events, s.upstream.gap = 5, 0.3
     body = json.dumps(message()).encode()
     first_at = None
@@ -2942,8 +3135,8 @@ def test_destination_overrides_reach_only_the_upstream(served):  # E21
     assert served.other.connections == 0
 
 
-def test_a_redirect_returns_to_the_actor_and_is_never_followed(tmp_path, tls):  # E21
-    s = make_served(tmp_path, tls, mode="redirect")
+def test_a_redirect_returns_to_the_actor_and_is_never_followed(serve):  # E21
+    s = serve(mode="redirect")
     answer = exchange(s.port, raw_request(body=message()))
     s.server.close("close")
     assert status_and_body(answer)[0] == 302
@@ -2959,14 +3152,17 @@ def test_a_pipelined_second_request_is_never_parsed(served):  # Review Focus 1
     assert [line["seq"] for line in served.records()] == [1]
 
 
-def test_an_actor_that_hangs_up_mid_stream_ends_its_request(tmp_path, tls):  # Review Focus 3
-    s = make_served(tmp_path, tls, mode="sse")
+def test_an_actor_that_hangs_up_mid_stream_ends_its_request(serve):  # Review Focus 3
+    s = serve(mode="sse")
     s.upstream.events, s.upstream.gap = 20, 0.2
     with socket.create_connection(("127.0.0.1", s.port), timeout=10) as sock:
         sock.sendall(raw_request(body=message()))
         received = b""
         while b"event: message" not in received:
-            received += sock.recv(65536)
+            chunk = sock.recv(65536)
+            if not chunk:
+                break
+            received += chunk
     deadline = time.monotonic() + 8
     while time.monotonic() < deadline and not s.records():
         time.sleep(0.1)
@@ -2975,11 +3171,12 @@ def test_an_actor_that_hangs_up_mid_stream_ends_its_request(tmp_path, tls):  # R
     assert not s.server._actors and not s.server._upstreams
 
 
-def test_twenty_concurrent_requests_are_all_served(tmp_path, tls):  # Review Focus 4
+def test_twenty_concurrent_requests_are_all_served(serve):  # Review Focus 4
     seen_in_flight = []
 
     class Spy:
-        def admit(self, operation, model, request_bytes, in_flight):
+        def admit(self, run, operation, model, request_bytes, in_flight):
+            assert run == "run-test"
             seen_in_flight.append(in_flight)
             time.sleep(0.05)
             return None
@@ -2987,7 +3184,7 @@ def test_twenty_concurrent_requests_are_all_served(tmp_path, tls):  # Review Foc
         def settle(self, seq, upstream_request_id, usage):
             return None
 
-    s = make_served(tmp_path, tls, allowance=Spy())
+    s = serve(allowance=Spy())
     answers = []
     threads = [threading.Thread(target=lambda: answers.append(exchange(s.port, raw_request(body=message()))))
                for _ in range(20)]
@@ -3002,15 +3199,15 @@ def test_twenty_concurrent_requests_are_all_served(tmp_path, tls):  # Review Foc
     assert max(seen_in_flight) > 1
 
 
-def test_an_allowance_refusal_is_answered_and_never_forwarded(tmp_path, tls):
+def test_an_allowance_refusal_is_answered_and_never_forwarded(serve):
     class Refuse:
-        def admit(self, operation, model, request_bytes, in_flight):
+        def admit(self, run, operation, model, request_bytes, in_flight):
             return "the run's allowance is spent"
 
         def settle(self, seq, upstream_request_id, usage):
             raise AssertionError("never settled")
 
-    s = make_served(tmp_path, tls, allowance=Refuse())
+    s = serve(allowance=Refuse())
     status, body = status_and_body(exchange(s.port, raw_request(body=message())))
     s.server.close("close")
     assert status == 403 and json.loads(body)["error"]["code"] == "allowance-refused"
@@ -3048,9 +3245,9 @@ def close_while_held(s, holder: Holder) -> bytes:
 
 
 @pytest.mark.parametrize("stage", ["before-send", "connecting", "admit", "body-checked"])
-def test_a_request_held_before_its_first_byte_never_goes_upstream(tmp_path, tls, stage):  # E22
+def test_a_request_held_before_its_first_byte_never_goes_upstream(serve, stage):  # E22
     holder = Holder(stage)
-    s = make_served(tmp_path, tls, hooks=Hooks(hold=holder))
+    s = serve(hooks=Hooks(hold=holder))
     raw = close_while_held(s, holder)
     status, body = status_and_body(raw)
     assert status == 403 and json.loads(body)["error"]["code"] == "route-closed"
@@ -3060,12 +3257,13 @@ def test_a_request_held_before_its_first_byte_never_goes_upstream(tmp_path, tls,
     assert closing["closed"] == "close" and held["seq"] <= closing["last_seq"]
 
 
-def test_a_check_only_at_acceptance_would_send_after_the_close(tmp_path, tls, monkeypatch):
+def test_a_check_only_at_acceptance_would_send_after_the_close(serve, monkeypatch):
     # Negative (E22): a gate whose write ignores the flag sends the held request, though
     # its seq still passes the last_seq check.
     monkeypatch.setattr(Gate, "attempt", lambda self, sock, data: sock.send(data))
+    monkeypatch.setattr(server_module, "cut", lambda sock, how=socket.SHUT_RDWR: None)  # nor cuts
     holder = Holder("before-send")
-    s = make_served(tmp_path, tls, hooks=Hooks(hold=holder))
+    s = serve(hooks=Hooks(hold=holder))
     close_while_held(s, holder)
     time.sleep(0.5)
     assert len(s.upstream.seen) == 1
@@ -3077,8 +3275,8 @@ def test_after_the_close_a_connect_is_refused(served):
         socket.create_connection(("127.0.0.1", served.port), timeout=2)
 
 
-def test_a_stalled_upstream_never_delays_the_close(tmp_path, tls):  # E22, with the lease in Task 8
-    s = make_served(tmp_path, tls, mode="stall")
+def test_a_stalled_upstream_never_delays_the_close(serve):  # E22, with the lease in Task 8
+    s = serve(mode="stall")
     big = json.dumps(message(system="x" * 6_000_000)).encode()
     client = threading.Thread(target=lambda: exchange(s.port, raw_request(body=big), timeout=30), daemon=True)
     client.start()
@@ -3102,6 +3300,117 @@ def test_no_record_holds_the_credential(served):
     text = served.records_path.read_text()
     assert CANARY not in text
     assert json.loads(text.splitlines()[-1]).keys() == {"at", "closed", "last_seq"}
+
+
+@pytest.mark.parametrize(("mode", "status"), [("garbage", 502), ("hugehead", 502), ("badchunk", 200)])
+def test_an_upstream_that_answers_garbage(serve, mode, status):  # Review Focus 2
+    s = serve(mode=mode)
+    answer = exchange(s.port, raw_request(body=message()))
+    s.server.close("close")
+    assert status_and_body(answer)[0] == status  # badchunk's head is valid: the actor gets it, then a cut
+    line = s.records()[0]
+    assert (line["ended"], line["forwarded"]) == ("upstream-error", True)
+
+
+# Negatives (E21): each mutation shows a check the positive tests depend on. The two the
+# spec also lists, routing by Host and forwarding the actor's framing, have no mutation:
+# the proxy never reads Host or the actor's framing to route, and the positive tests
+# (destination overrides, the chunked smuggle) pin that.
+
+def test_a_deny_list_would_forward_an_unlisted_header(serve, monkeypatch):
+    from autonomy.egress.route import always_dropped
+
+    monkeypatch.setattr(server_module, "forwarded_headers",
+                        lambda request, route: tuple((n, v) for n, v in request.headers if not always_dropped(n)))
+    s = serve()
+    exchange(s.port, raw_request(body=message(), headers=[("x-probe", "1")]))
+    assert s.upstream.seen[0].headers["x-probe"] == ["1"]
+
+
+def test_a_model_only_check_would_forward_what_reaches_out(serve, monkeypatch):
+    def model_only(body, op):
+        if body.get("model") not in op.models:
+            raise server_module.Refused("model-refused", "x")
+
+    monkeypatch.setattr(server_module, "check_body", model_only)
+    s = serve()
+    for body in (message(mcp_servers=[{"type": "url", "url": "https://x", "name": "x"}]),
+                 message(tools=[{"type": "web_fetch_20250910", "name": "web_fetch"}])):
+        exchange(s.port, raw_request(body=body))
+    assert len(s.upstream.seen) == 2
+
+
+def test_a_check_keyed_on_url_alone_would_forward_a_file_source(serve, monkeypatch):
+    def url_only(body, op):
+        if '"url"' in json.dumps(body):
+            raise server_module.Refused("body-refused", "x")
+
+    monkeypatch.setattr(server_module, "check_body", url_only)
+    s = serve()
+    exchange(s.port, raw_request(body=message(messages=[{"role": "user", "content": [
+        {"type": "document", "source": {"type": "file", "file_id": "f"}}]}])))
+    assert len(s.upstream.seen) == 1
+
+
+def test_a_first_line_only_beta_check_would_forward_a_second(serve, monkeypatch):
+    def first_only(request, route):
+        checked, kept = set(), []
+        for name, value in request.headers:
+            if name not in route.forward_headers:
+                continue
+            allowed = route.header_tokens.get(name)
+            if allowed is not None and name not in checked:
+                if any(token.strip(" \t") not in allowed for token in value.split(",")):
+                    raise server_module.Refused("header-refused", "x")
+                checked.add(name)
+            kept.append((name, value))
+        return tuple(kept)
+
+    monkeypatch.setattr(server_module, "forwarded_headers", first_only)
+    s = serve()
+    exchange(s.port, raw_request(body=message(), headers=[
+        ("anthropic-beta", PI_BETAS[0]), ("anthropic-beta", "mcp-client-2025-04-04")]))
+    assert "mcp-client-2025-04-04" in s.upstream.seen[0].headers["anthropic-beta"]
+
+
+def test_a_lenient_parser_would_forward_a_duplicate_model(serve, monkeypatch):
+    monkeypatch.setattr(server_module, "parse_body", lambda data: json.loads(data))
+    s = serve()
+    exchange(s.port, raw_request(body=b'{"model": "claude-opus-5-5", "model": "%s", "messages": []}' % MODEL.encode()))
+    assert len(s.upstream.seen) == 1  # it checked the last model; a first-key parser upstream reads opus
+
+
+def test_a_normalizing_matcher_would_forward_a_dot_segment(serve, monkeypatch):
+    import posixpath
+
+    s = serve()
+    real = s.server.route.operation
+    monkeypatch.setattr(type(s.server.route), "operation",
+                        lambda self, method, path, query: real(method, posixpath.normpath(path), query))
+    exchange(s.port, raw_request(target="/v1/messages/./?beta=true", body=message()))
+    assert len(s.upstream.seen) == 1
+
+
+def test_a_buffering_proxy_would_deliver_the_first_event_late(serve, monkeypatch):
+    real = server_module.read_response
+
+    def buffered(gate, sock):
+        response = real(gate, sock)
+        response.body = iter([b"".join(response.body)])
+        return response
+
+    monkeypatch.setattr(server_module, "read_response", buffered)
+    s = serve(mode="sse")
+    s.upstream.events, s.upstream.gap = 5, 0.3
+    first_at = None
+    with socket.create_connection(("127.0.0.1", s.port), timeout=10) as sock:
+        sock.sendall(raw_request(body=message()))
+        received = b""
+        while chunk := sock.recv(65536):
+            received += chunk
+            if first_at is None and b"event: message" in received:
+                first_at = time.monotonic()
+    assert first_at > s.upstream.last_event_at
 ```
 
 - [ ] **Step 3: Run the tests to verify they fail**
@@ -3110,30 +3419,6 @@ Run: `just test-one tests/test_egress_server.py`
 Expected: FAIL with `ModuleNotFoundError: No module named 'autonomy.egress.server'`.
 
 - [ ] **Step 4: Implement**
-
-In `python/src/autonomy/egress/upstream.py`, a stream cut by the close must never
-look complete. In `_Reader._fill`, replace `if not chunk: return False` with:
-
-```python
-            if not chunk:
-                if not self._gate.is_open:
-                    raise RouteClosed()
-                return False
-```
-
-Add a module helper that `server` uses to cut a socket without detaching a TLS
-read in progress in another thread:
-
-```python
-def cut(sock: socket.socket, how: int = socket.SHUT_RDWR) -> None:
-    """Shut a socket down at its descriptor. `SSLSocket.shutdown` would drop its TLS
-    state under a read in another thread, which then reads raw bytes as plaintext:
-    the base method leaves it, and that read fails or sees EOF."""
-    try:
-        socket.socket.shutdown(sock, how)
-    except OSError:
-        pass
-```
 
 `python/src/autonomy/egress/server.py`:
 
@@ -3190,7 +3475,7 @@ class Allowance(Protocol):
     """autonomy-9e8a43's join points (decision 13): `admit` before any byte goes
     upstream, `settle` when the response stream ends, however it ended."""
 
-    def admit(self, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None: ...
+    def admit(self, run: str, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None: ...
 
     def settle(self, seq: int, upstream_request_id: str | None, usage: Mapping[str, object] | None) -> None: ...
 
@@ -3199,7 +3484,7 @@ class NoAllowance:
     """Until an allowance exists, `admit` allows every request the route permits and
     `settle` does nothing beyond the record line."""
 
-    def admit(self, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None:
+    def admit(self, run: str, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None:
         return None
 
     def settle(self, seq: int, upstream_request_id: str | None, usage: Mapping[str, object] | None) -> None:
@@ -3231,14 +3516,18 @@ def _bad_gateway(message: str) -> bytes:
     return head.encode("ascii") + body
 
 
+_CLOSED_BEFORE = "the route closed before this request went upstream"
+
+
 class ProxyServer:
     def __init__(
-        self, route: Route, credential: str, recorder: Recorder, *, context: ssl.SSLContext,
+        self, route: Route, credential: str, recorder: Recorder, *, context: ssl.SSLContext, run: str = "",
         allowance: Allowance | None = None, hooks: Hooks = Hooks(),
     ) -> None:
         self.route = route
         self.recorder = recorder
         self.gate = Gate()
+        self._run = run
         self._credential = credential
         self._context = context
         self._allowance = allowance or NoAllowance()
@@ -3287,6 +3576,7 @@ class ProxyServer:
     def _start(self, target: Callable[..., None], *args: object) -> None:
         thread = threading.Thread(target=target, args=args, daemon=True)
         with self._lock:
+            self._threads = [t for t in self._threads if t.is_alive()]
             self._threads.append(thread)
         thread.start()
 
@@ -3375,6 +3665,12 @@ class ProxyServer:
         }
         upstream: socket.socket | None = None
         answered = False
+        request_id: str | None = None
+
+        def closed_before_upstream() -> None:
+            record.update(refused="route-closed", status=403)
+            self._answer(conn, refusal("route-closed", _CLOSED_BEFORE))
+
         try:
             head = self._read_head(conn)
             if head is None:
@@ -3411,7 +3707,7 @@ class ProxyServer:
                 self._in_flight += 1
                 in_flight = self._in_flight
             try:
-                verdict = self._allowance.admit(op, parsed["model"], len(body), in_flight)
+                verdict = self._allowance.admit(self._run, op, parsed["model"], len(body), in_flight)
                 if verdict is not None:
                     raise Refused("allowance-refused", verdict)
                 self._hooks.hold("admit", seq)
@@ -3426,13 +3722,13 @@ class ProxyServer:
                 send_all(self.gate, upstream, payload)
                 record["forwarded"] = True
                 response = read_response(self.gate, upstream)
-                record.update(status=response.status, upstream_request_id=response.request_id)
+                request_id = response.request_id
+                record.update(status=response.status, upstream_request_id=request_id)
                 answered = True
                 self._to_actor(conn, response_head(response))
                 for piece in response.body:
                     self._to_actor(conn, piece)
                     record["response_bytes"] = int(record["response_bytes"]) + len(piece)
-                self._allowance.settle(seq, response.request_id, None)
             finally:
                 with self._lock:
                     self._in_flight -= 1
@@ -3441,30 +3737,40 @@ class ProxyServer:
             self._answer(conn, refusal(refused.code, refused.message))
         except RouteClosed as closed:
             record["ended"] = "route-closed"
-            if closed.sent:
+            if closed.attempted or closed.sent:
                 record["forwarded"] = True
             if not record["forwarded"]:
-                record.update(refused="route-closed", status=403)
-                self._answer(conn, refusal("route-closed", "the route closed before this request went upstream"))
+                closed_before_upstream()
         except _ActorGone:
-            record["ended"] = "actor-closed" if self.gate.is_open else "route-closed"
+            if self.gate.is_open:
+                record["ended"] = "actor-closed"
+            else:
+                record["ended"] = "route-closed"
+                if not record["forwarded"]:
+                    closed_before_upstream()  # the close shut only our read side: the answer still goes
         except (UpstreamError, OSError) as caught:
             if not self.gate.is_open:
                 record["ended"] = "route-closed"
                 if not record["forwarded"]:
-                    record.update(refused="route-closed", status=403)
-                    self._answer(conn, refusal("route-closed", "the route closed before this request went upstream"))
+                    closed_before_upstream()
             else:
                 record["ended"] = "upstream-error"
                 if not answered:
                     record["status"] = 502
                     self._answer(conn, _bad_gateway(str(caught)))
+        except Exception as caught:  # a defect here must still answer and record, never vanish
+            record["ended"] = "upstream-error"
+            if not answered:
+                record["status"] = 502
+                self._answer(conn, _bad_gateway(f"the proxy failed: {type(caught).__name__}"))
         finally:
             if upstream is not None:
                 self._release(upstream)
-            self._release(conn)
+            if record["forwarded"] and record["seq"] is not None:
+                self._allowance.settle(int(record["seq"]), request_id, None)
             if record["seq"] is not None or record["refused"] is not None:
-                self.recorder.line(record)
+                self.recorder.line(record)  # before the actor's EOF, so a reader at EOF sees it
+            self._release(conn)
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
@@ -3515,7 +3821,7 @@ git commit -m "feat(egress): the proxy server: checked, framed, streamed and rec
     = HELPER) -> socket.socket`, which raises `EgressUnproven("listener-failed")`.
 - The control protocol, one JSON object per `SOCK_SEQPACKET` message:
   - orchestrator to proxy: `{"op": "route", "route": <base64 of the route's bytes>,
-    "lease": <seconds>}`, then `{"op": "listener"}` carrying one descriptor over
+    "lease": <seconds>, "run": <run id>}` (the run is what `admit` receives), then `{"op": "listener"}` carrying one descriptor over
     `SCM_RIGHTS`, then `{"op": "renew"}` and `{"op": "close"}`;
   - proxy to orchestrator: `{"op": "ready"}`, `{"op": "listening"}`, `{"op": "error",
     "code": …, "message": …}` and `{"op": "closed", "cause": …, "last_seq": …}`.
@@ -3661,6 +3967,9 @@ def test_the_lease_closes_a_stalled_upstream_without_its_progress(tmp_path, tls)
     big = json.dumps(message(system="x" * 6_000_000)).encode()
     first = threading.Thread(target=lambda: exchange(port, raw_request(body=big), timeout=30), daemon=True)
     first.start()
+    deadline = time.monotonic() + 10
+    while not upstream.seen and time.monotonic() < deadline:  # the big request has seq 1 and is upstream
+        time.sleep(0.05)
     second = {}
     second_client = threading.Thread(
         target=lambda: second.setdefault("raw", exchange(port, raw_request(body=message()))), daemon=True,
@@ -4002,7 +4311,7 @@ def main(argv: list[str]) -> int:
     except OSError as caught:
         send_message(control, {"op": "error", "code": "ca-unreadable", "message": str(caught)})
         return 3
-    server = ProxyServer(route, credential, Recorder(records), context=context)
+    server = ProxyServer(route, credential, Recorder(records), context=context, run=str(message.get("run", "")))
     send_message(control, {"op": "ready"})
     cause = control_loop(server, control, wake_read, float(message["lease"]))
     server.close(cause)
@@ -4453,6 +4762,13 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
     assert (closed.cause, closed.timed_out, closed.findings()) == ("close", False, ())
 
 
+def test_a_credential_passed_by_setenv_would_sit_in_bwraps_argv(world):
+    # Negative (E21): why the credential is bound as a file, never passed with --setenv:
+    # bwrap's argv is readable through /proc by every same-uid process.
+    spec = SandboxSpec(scratch=world.scratch, env={"ANTHROPIC_API_KEY": world.canary})
+    assert world.canary in " ".join(build_argv(spec, ["/usr/bin/true"], info_fd=None))
+
+
 def test_e21_runs_are_isolated(tmp_path, tls):
     worlds = [make_world(tmp_path / name, tls, canary=f"sk-canary-{name}", mode="json") for name in ("a", "b")]
     sessions = [w.start() for w in worlds]
@@ -4480,30 +4796,49 @@ def test_e21_the_route_enforced_is_the_one_loaded(world):
 
 # -- E22 -----------------------------------------------------------------------------
 
+def when_listening(world: World, action) -> threading.Thread:
+    """Run `action` in the background once the proxy holds the actor's listener: the
+    actor itself must be launched from the main thread (`launch` refuses others)."""
+
+    def wait_then_act():
+        deadline = time.monotonic() + 30
+        while "egress-listening" not in world.events() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        action()
+
+    thread = threading.Thread(target=wait_then_act)
+    thread.start()
+    return thread
+
+
 def test_e22_stop_cuts_the_stream_and_the_next_connect_is_refused(world):
     world.upstream.events, world.upstream.gap = 30, 0.3
     session = world.start()
     marker = world.scratch / "streaming"
-    task = [
+    outcome = {}
+
+    def stop_once_streaming():
+        deadline = time.monotonic() + 30
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        outcome["closed"] = session.close()
+        (world.scratch / "go").touch()
+
+    stopper = when_listening(world, stop_once_streaming)
+    report, _ = run_actor(world, session, [
         {**ask("stream"), "mark": "streaming"},
         {"kind": "wait", "file": "go"},
         {"kind": "timed-connect", "name": "after"},
-    ]
-    outcome = {}
-    actor = threading.Thread(target=lambda: outcome.update(report=run_actor(world, session, task)[0]))
-    actor.start()
-    deadline = time.monotonic() + 30
-    while not marker.exists() and time.monotonic() < deadline:
-        time.sleep(0.05)
-    closed = session.close()
-    (world.scratch / "go").touch()
-    actor.join(60)
-    report = outcome["report"]
+    ])
+    stopper.join(60)
     assert report["stream"]["events"] < 30
     assert report["after"]["outcome"] == "ECONNREFUSED"
-    stream = next(line for line in world.records() if line.get("seq") == 1)
+    records = world.records()
+    stream = next(line for line in records if line.get("seq") == 1)
     assert stream["ended"] == "route-closed"
-    assert closed.cause == "close" and world.records()[-1]["last_seq"] >= 1
+    closing = records[-1]
+    assert outcome["closed"].cause == "close" and closing["closed"] == "close"
+    assert all(line["seq"] <= closing["last_seq"] for line in records if line.get("seq") is not None)
     assert "egress-closed" in world.events()
 
 
@@ -4565,6 +4900,9 @@ def test_e22_a_dead_orchestrator_closes_the_route_by_eof(world):
     assert line is not None and line["closed"] == "eof"
     closed = kill_orphan(world.run_dir)
     assert (closed.cause, closed.timed_out) == ("eof", False)
+    deadline = time.monotonic() + 5
+    while Path(f"/proc/{init}").exists() and time.monotonic() < deadline:  # reaped by its parent
+        time.sleep(0.05)
     assert not Path(f"/proc/{init}").exists()
 
 
@@ -4578,7 +4916,9 @@ def test_e22_run_close_kills_a_wedged_orphan_proxy(world):
     closed = kill_orphan(world.run_dir)
     assert 4.5 < time.monotonic() - started < 8
     assert closed.timed_out and [f.code for f in closed.findings()] == ["egress-close-timeout"]
-    time.sleep(0.5)
+    deadline = time.monotonic() + 5
+    while Path(f"/proc/{init}").exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
     assert not Path(f"/proc/{init}").exists()
 
 
@@ -4592,16 +4932,16 @@ def test_e22_sigterm_to_the_proxy_closes_it(world):
 
 def test_e22_a_dead_proxy_leaves_nothing_listening(world):
     session = world.start()
-    task = [{"kind": "wait", "file": "go"}, {"kind": "timed-connect", "name": "after"}]
-    outcome = {}
-    actor = threading.Thread(target=lambda: outcome.update(report=run_actor(world, session, task)[0]))
-    actor.start()
-    time.sleep(1.0)
-    signal.pidfd_send_signal(session.pidfd, signal.SIGKILL)
-    time.sleep(0.5)
-    (world.scratch / "go").touch()
-    actor.join(60)
-    after = outcome["report"]["after"]
+
+    def kill_then_go():
+        signal.pidfd_send_signal(session.pidfd, signal.SIGKILL)
+        time.sleep(0.5)
+        (world.scratch / "go").touch()
+
+    killer = when_listening(world, kill_then_go)
+    report, _ = run_actor(world, session, [{"kind": "wait", "file": "go"}, {"kind": "timed-connect", "name": "after"}])
+    killer.join(30)
+    after = report["after"]
     assert after["outcome"] == "ECONNREFUSED" and after["seconds"] < 1
     closed = session.close()
     assert [f.code for f in closed.findings()] == ["egress-lost"]
@@ -4618,16 +4958,16 @@ def test_e22_a_listener_copy_kept_by_the_orchestrator_would_leave_the_actor_hang
         kept.append(listener.dup())
         return listener
 
-    task = [{"kind": "wait", "file": "go"}, {"kind": "timed-connect", "name": "after"}]
-    outcome = {}
-    actor = threading.Thread(target=lambda: outcome.update(report=run_actor(world, session, task, make=keeping)[0]))
-    actor.start()
-    time.sleep(1.0)
-    signal.pidfd_send_signal(session.pidfd, signal.SIGKILL)
-    time.sleep(0.5)
-    (world.scratch / "go").touch()
-    actor.join(60)
-    assert outcome["report"]["after"]["outcome"] in ("TimeoutError", "timeout")
+    def kill_then_go():
+        signal.pidfd_send_signal(session.pidfd, signal.SIGKILL)
+        time.sleep(0.5)
+        (world.scratch / "go").touch()
+
+    killer = when_listening(world, kill_then_go)
+    report, _ = run_actor(world, session, [{"kind": "wait", "file": "go"}, {"kind": "timed-connect", "name": "after"}],
+                          make=keeping)
+    killer.join(30)
+    assert report["after"]["outcome"] in ("TimeoutError", "timeout")
     kept[0].close()
     session.close()
 
@@ -4701,9 +5041,9 @@ In `python/src/autonomy/closing.py`, add to `SEVERITY`, after `"orchestrator-los
 ```python
 """The orchestrator's side of the model proxy (envelope design decision 13): the
 proxy's own sandbox, its start, the listener's hand-off before the gate's release,
-renewal, and the close. B2 calls `check_proxy` and `start` at §3 step 7, passes
-`attach` to `launch` at step 9, sends `close` with the seal at close step 0, and calls
-`kill_orphan` from `run close`."""
+renewal, and the close. B2 calls `check_proxy` at §3 step 7, `start` at step 9 (which
+checks again) and passes `attach` to `launch` there, sends `close` with the seal at
+close step 0, and calls `kill_orphan` from `run close`."""
 
 from __future__ import annotations
 
@@ -4884,7 +5224,8 @@ class EgressSession:
             raise EgressUnproven("proxy-unstarted", f"bwrap reported no proxy namespace (exit {process.returncode})")
         session = cls(process, child, pidfd, ours, run_dir)
         append_event(run_dir, "egress-proxy", pid=child, start_time=_start_time(child))
-        send_message(ours, {"op": "route", "route": base64.b64encode(loaded.data).decode("ascii"), "lease": lease})
+        send_message(ours, {"op": "route", "route": base64.b64encode(loaded.data).decode("ascii"), "lease": lease,
+                            "run": run_dir.name})
         reply = session._receive(PROXY_START_TIMEOUT)
         if reply is None or reply.get("op") != "ready":
             session.kill()
@@ -4921,6 +5262,8 @@ class EgressSession:
 
     def close(self, timeout: float = CLOSE_TIMEOUT) -> EgressClosed:
         """Close step 0. B2 sends it together with the seal and waits on both."""
+        if self.pidfd < 0:
+            raise RuntimeError("this proxy session is already released")
         send_message(self._control, {"op": "close"})
         exited = bool(select.select([self.pidfd], [], [], timeout)[0])
         if not exited:
@@ -5198,8 +5541,9 @@ recorded, including any beta token pi sends that the route does not list.
 
 - [ ] **Step 4: Record item 5's status in the spec**
 
-In `docs/specs/2026-10-12-envelope-design.md`'s header, change "Item 5, the egress plan
-(autonomy-e4c0b5), is open." to "Item 5, the egress plan (autonomy-e4c0b5,
+In `docs/specs/2026-10-12-envelope-design.md`'s header, the sentence that begins
+"Item 5," spans a line break. Change "Item 5, the egress plan (autonomy-e4c0b5), is
+open." to "Item 5, the egress plan (autonomy-e4c0b5,
 `docs/plans/2026-10-17-envelope-plan-egress.md`), implemented on <date> on its launch
 arms; its full-run arms join B2." Use the date the branch lands.
 
