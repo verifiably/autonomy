@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-17T11:25:57Z
-updated: 2026-10-17T11:55:58Z
+updated: 2026-10-17T12:12:34Z
 started: 2026-10-17T11:26:48Z
 depends: []
 parent: autonomy-d9adef
@@ -29,3 +29,4 @@ Where: envelope spec decision 13, §3 steps 2, 7, 9 and Close, §6, §7, §8, §
 - 2026-10-17T11:26:48Z (main): started
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T11:55:58Z (main): plan drafted: docs/plans/2026-10-17-envelope-plan-egress.md on branch plan-egress (8387070), 10 tasks; B2 wiring items noted on autonomy-f6efe8. Agent plan review and a dry run of the plan's code in a /tmp copy dispatched before the user's review.
+- 2026-10-17T12:12:34Z (main): review: plan round 1 — verdict: revise; findings: P1 5, P2 7, P3 10; reviewer: claude-code
