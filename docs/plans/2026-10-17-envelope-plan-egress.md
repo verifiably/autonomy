@@ -2,7 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** draft, for review.
+**Status:** draft, for the user's review. Two agent review rounds (round 1: P1 5, P2 7;
+round 2: P2 2), all addressed. Three dry runs applied the plan's code to a scratch copy:
+the final one, at cc830fb's text, applied every task verbatim and passed 747 tests in
+74 s with no flakiness, and six boundary mutations were each caught by their test.
 
 **Goal:** Build decision 13's model route and proxy as a library that Plan B2 wires
 into the run, and prove it under real `bwrap`:
