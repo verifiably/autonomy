@@ -44,9 +44,14 @@ def _target(path: Path) -> tuple[Path, tuple[int, int] | None, set[tuple[int, in
         raise SandboxUnproven("denied-unreadable", str(path), f"a denied path must be stat-able: {caught}") from caught
 
 
-def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
+def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: Iterable[Path] = ()) -> None:
+    """Each source against each denied path. A source whose real path is exactly an
+    exempt path is skipped: the proxy's credential and `ca_file` are bound as single
+    files under a denied ancestor such as `<config>` (decision 13). The exemption is
+    exact, so their directories are still refused."""
     targets = [_target(path) for path in denied]
-    for source in spec.bind_sources():
+    skip = {path.resolve(strict=False) for path in exempt if not path.is_symlink()}
+    for source in sources:
         try:
             real = source.resolve(strict=True)
             identity, ancestry = _identity(real), _ancestry(real)
@@ -54,6 +59,8 @@ def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
             raise SandboxUnproven("bind-missing", str(source), f"a bind source must exist: {caught}") from caught
         except (OSError, RuntimeError) as caught:
             raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must resolve: {caught}") from caught
+        if real in skip and not source.is_symlink():
+            continue
         for target, target_identity, target_ancestry in targets:
             overlaps = (
                 real == target
@@ -66,3 +73,7 @@ def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
                 raise SandboxUnproven(
                     "bind-overlaps-denied", str(source), f"is, contains, or lies inside the denied path {target}"
                 )
+
+
+def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
+    check_sources(spec.bind_sources(), denied)

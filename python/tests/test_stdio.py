@@ -219,7 +219,7 @@ def test_a_udp_socket_on_stdio_reaches_the_host_under_network_none(tmp_path, ope
     udp, null = opened("udp"), opened("null")
     try:
         sandboxed = launch(
-            SandboxSpec(scratch=tmp_path, network="none"),
+            SandboxSpec(scratch=tmp_path),
             ["/usr/bin/python3", "-I", "-c", f"import socket; socket.socket(fileno=1).sendto(b'out', ('127.0.0.1', {port}))"],
             stdin=null, stdout=udp, stderr=null,
         )
