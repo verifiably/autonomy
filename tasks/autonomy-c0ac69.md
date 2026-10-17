@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-15T15:44:10Z
-updated: 2026-10-17T21:11:50Z
+updated: 2026-10-17T21:11:51Z
 started: 2026-10-17T20:25:13Z
 depends: []
 tags: []
@@ -39,3 +39,5 @@ During Plan B1 the editor's Pyright reported every autonomy.* import and tests/c
 - 2026-10-17T21:11:49Z (main): resumed
   provenance: {"harness_session":"codex:01a14293-c4c7-7d80-856c-cae65758e666","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-17T21:11:50Z (main): review: impl round 1 — verdict: accept; findings: accepted 3, rejected 1, excluded 1; reviewer: human
+- 2026-10-17T21:11:51Z (main): parked (waiting on agent, review): Controller: record exact set6 A=yes B=yes C=no D=yes and B inclusion=no with full human reasons, including actual system-Pyright main/all4 worktree validation. Prepare independent minimal D integration/recoverable all4archive for person approval; B remains mergeable but excluded from comparison, C dependency changes remain rejected/unrepaired. No source merge/closure/removal authorized yet.
+  provenance: {"harness_session":"codex:01a14293-c4c7-7d80-856c-cae65758e666","harness_session_source":"CODEX_THREAD_ID"}
