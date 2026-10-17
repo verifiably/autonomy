@@ -5,8 +5,8 @@ status: idea
 priority: 2
 reviewed: true
 created: 2026-10-14T01:44:16Z
-updated: 2026-10-17T09:50:53Z
-depends: [autonomy-c5c566, autonomy-a94e95, autonomy-efa755]
+updated: 2026-10-17T11:26:09Z
+depends: [autonomy-c5c566, autonomy-a94e95, autonomy-efa755, autonomy-e4c0b5]
 parent: autonomy-d9adef
 tags: []
 agent: claude-code/claude-opus-5-5
