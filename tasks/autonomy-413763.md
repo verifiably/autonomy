@@ -6,9 +6,9 @@ priority: 2
 size: xs
 complexity: low
 process: direct
-owner: crew
+owner: main
 created: 2026-10-15T15:37:56Z
-updated: 2026-10-17T12:32:03Z
+updated: 2026-10-17T19:05:08Z
 started: 2026-10-17T11:22:34Z
 depends: []
 tags: []
@@ -38,3 +38,5 @@ Plan B1 final review. CPython's socket constructor sets O_NONBLOCK on the open f
 - 2026-10-17T11:51:56Z (crew): crew: attempt 01M54TNJZN13E46M60VQ9FFFRE — verdict not-passed (worker openrouter/qwen/qwen3-coder-next, reviewer openrouter/openai/gpt-6.1-sol); report /home/keith/.local/state/crew/attempts/01M54TNJZN13E46M60VQ9FFFRE/attempt-report.md
 - 2026-10-17T11:51:57Z (crew): parked (waiting on user, review): review crew attempt 01M54TNJZN13E46M60VQ9FFFRE (verdict not-passed): branch crew/autonomy-413763-vq9fffre in .worktrees/crew-vq9fffre; merge and close, or discard
 - 2026-10-17T12:32:03Z (main): review: impl round 1 — verdict: accept; findings: accepted 2, rejected 2; reviewer: human
+- 2026-10-17T19:05:08Z (main): resumed
+  provenance: {"harness_session":"codex:01a14608-a881-7550-aadb-5b0ad12a4c13","harness_session_source":"CODEX_THREAD_ID"}
