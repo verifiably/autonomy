@@ -26,12 +26,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
-from autonomy.egress.route import always_dropped
+from autonomy.egress.route import _TOKEN, always_dropped
 
 POLL = 0.2
 SLICE = 16 * 1024
 MAX_RESPONSE_HEAD = 64 * 1024
-_STATUS = re.compile(rb"HTTP/1\.[01] ([0-9]{3})(?: (.*))?")
+_STATUS = re.compile(rb"HTTP/1\.[01] ([0-9]{3})(?: ([\t\x20-\x7e\x80-\xff]*))?")
+_VALUE_CTL = re.compile(rb"[\x00-\x08\x0a-\x1f\x7f]")
 _HEX = re.compile(rb"[0-9A-Fa-f]{1,16}")
 _DIGITS = re.compile(r"[0-9]{1,15}")
 _T = TypeVar("_T")
@@ -183,7 +184,10 @@ def send_all(gate: Gate, sock: socket.socket, data: bytes, *, watch: socket.sock
 
 def tls_context(ca_file: Path | None) -> ssl.SSLContext:
     """Verification on, always: the system trust store, or the route's `ca_file`."""
-    return ssl.create_default_context(cafile=str(ca_file) if ca_file is not None else None)
+    context = ssl.create_default_context(cafile=str(ca_file) if ca_file is not None else None)
+    # A TLS 1.2 renegotiation makes recv send a ClientHello outside the gate.
+    context.options |= ssl.OP_NO_RENEGOTIATION
+    return context
 
 
 def cut(sock: socket.socket, how: int = socket.SHUT_RDWR) -> None:
@@ -368,7 +372,7 @@ def read_response(gate: Gate, sock: socket.socket, *, watch: socket.socket | Non
         headers: list[tuple[str, str]] = []
         for line in lines:
             name, colon, value = line.partition(b":")
-            if not colon or not name or name != name.strip() or b"\n" in value or b"\r" in value:
+            if not colon or not _TOKEN.fullmatch(name.decode("latin-1")) or _VALUE_CTL.search(value):
                 raise UpstreamError("a malformed response header")
             headers.append((name.decode("latin-1").lower(), value.strip(b" \t").decode("latin-1")))
         status = int(match[1])

@@ -138,6 +138,14 @@ class Seen:
     body: bytes
 
 
+_BAD_HEADS = {
+    "bare_lf": b"HTTP/1.1 200 OK\r\nx-a\nset-cookie: s=1\r\ncontent-length: 0\r\n\r\n",
+    "bare_cr": b"HTTP/1.1 200 OK\rset-cookie: s=1\r\ncontent-length: 0\r\n\r\n",
+    "nul_name": b"HTTP/1.1 200 OK\r\nx a\x00b: v\r\ncontent-length: 0\r\n\r\n",
+    "nul_value": b"HTTP/1.1 200 OK\r\nx-a: v\x00w\r\ncontent-length: 0\r\n\r\n",
+}
+
+
 class FakeUpstream:
     """A TLS server on 127.0.0.1 standing in for the provider. `mode` picks the answer:
     - `json`: 200 with a small JSON body and a Content-Length;
@@ -285,6 +293,8 @@ class FakeUpstream:
             self.peer_closed.set()
         elif self.mode == "redirect":
             conn.sendall(b"HTTP/1.1 302 Found\r\nlocation: %s\r\ncontent-length: 0\r\n\r\n" % self.location.encode())
+        elif self.mode in _BAD_HEADS:
+            conn.sendall(_BAD_HEADS[self.mode])
         elif self.mode == "garbage":
             conn.sendall(b"NOT HTTP AT ALL\r\n\r\n")
         elif self.mode == "hugehead":

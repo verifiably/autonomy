@@ -210,7 +210,7 @@ def test_verification_is_never_disabled(tls):
     assert "certificate" in str(caught.value).lower()
 
 
-@pytest.mark.parametrize("mode", ["garbage", "hugehead", "badchunk"])
+@pytest.mark.parametrize("mode", ["garbage", "hugehead", "badchunk", "bare_lf", "bare_cr", "nul_name", "nul_value"])
 def test_a_malformed_answer_is_an_upstream_error_never_a_hang(tls, mode):  # Review Focus 2
     upstream = FakeUpstream(tls, mode=mode)
     outcome = {}
@@ -242,3 +242,8 @@ def test_the_response_head_drops_hop_and_credential_headers(tls):
     assert "request-id: req_sse" in head and "retry-after: 1" in head
     assert "set-cookie" not in head and "transfer-encoding" not in head and "keep-alive" not in head
     assert head.endswith("connection: close\r\n\r\n")
+
+
+def test_renegotiation_is_refused():
+    # A renegotiating upstream would make recv send a ClientHello outside the gate.
+    assert tls_context(None).options & ssl.OP_NO_RENEGOTIATION
