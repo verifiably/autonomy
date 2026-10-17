@@ -7,7 +7,7 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-11T20:44:01Z
-updated: 2026-10-17T09:50:42Z
+updated: 2026-10-17T09:50:43Z
 depends: [autonomy-250f4d, ops-fbc3d9, sci-bef251, sci-a45f10, autonomy-641123, autonomy-6b1f9f, autonomy-f6efe8, autonomy-efa755]
 tags: [unattended]
 agent: claude-code
@@ -30,3 +30,4 @@ Deliver a reviewed spec and plan here; the harness-side pieces are filed to thei
 ## Notes
 
 - 2026-10-11T20:45:03Z (main): Goal: ops-3f5aa6 (a science harness on pi). Report the done note there.
+- 2026-10-17T09:50:41Z (main): Narrowed (user, 2026-10-17): egress and credential-custody design moved to autonomy-efa755 and this task depends on it; allowance enforcement, accounting and science integration stay here, with the allowance check joining the proxy where autonomy-efa755 places it.
