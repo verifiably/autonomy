@@ -8,7 +8,7 @@ complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T10:16:20Z
+updated: 2026-10-17T10:24:41Z
 started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
@@ -39,3 +39,4 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T10:10:05Z (main): attached: helper.py (566 bytes): Namespace helper as checked 2026-10-17: joins the netns's owning user ns (NS_GET_USERNS), binds 127.0.0.1 there, returns the fd over SCM_RIGHTS
 - 2026-10-17T10:10:05Z (main): attached: host.py (1861 bytes): Round trip: a bwrap --unshare-all actor GETs 127.0.0.1:8471 served by the host; direct connect ENETUNREACH; the host netns cannot reach the port
 - 2026-10-17T10:16:20Z (main): review: spec round 1 — verdict: revise; findings: Critical 1, Important 3, Minor 13; reviewer: claude-code
+- 2026-10-17T10:24:41Z (main): review: spec round 2 — verdict: revise; findings: Important 1, Minor 9; reviewer: claude-code
