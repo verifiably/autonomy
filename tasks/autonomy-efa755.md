@@ -1,13 +1,15 @@
 ---
 id: autonomy-efa755
 title: "Amend the envelope spec with model-only egress and credential custody: a per-run trusted proxy is the actor's only network path and holds the provider credential"
-status: todo
+status: doing
 priority: 2
 size: m
 complexity: high
 process: direct
+owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T09:59:01Z
+updated: 2026-10-17T09:59:02Z
+started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
 tags: []
@@ -31,3 +33,5 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 ## Notes
 
 - 2026-10-17T09:59:00Z (main): Scope accepted by the user, 2026-10-17, including the credential-template replacement, the deferral move and crew-799319 as the way to configure pi; the design keeps configuration (directs pi) separate from enforcement (envelope and proxy, holding against an actor that rewrites its config). Amendment approval follows review of the drafted spec.
+- 2026-10-17T09:59:00Z (main): started
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
