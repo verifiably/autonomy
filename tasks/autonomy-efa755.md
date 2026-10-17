@@ -8,7 +8,7 @@ complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T11:16:26Z
+updated: 2026-10-17T11:16:36Z
 started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
@@ -52,3 +52,5 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T11:16:25Z (main): resumed
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T11:16:26Z (main): review: spec round 5 — verdict: revise; findings: Important 1; reviewer: human
+- 2026-10-17T11:16:36Z (main): parked (waiting on user, review): User re-reviews the egress amendment on branch spec/egress (.worktrees/spec-egress), round 5 fix in 562759f: the close transition is the boundary, non-blocking upstream writes under the lock with waits outside it, and E22's stalled-upstream lease case. On approval the agent marks the header approved, files the crew follow-up and the egress plan task, merges spec/egress, and runs tasks done.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
