@@ -1,10 +1,12 @@
 # Authority beyond the science run — brief
 
 **Date:** 2026-10-15, revised the same day after the user's review, and on 2026-10-17
-by a scope pass after the probe. **Goal:** autonomy-d9adef. **Ideas and tasks:**
-autonomy-1aac03 (the authorization contract), autonomy-d5c1cb (a development mode of
-`autonomy run`), autonomy-a94e95 (the shared-clone probe), autonomy-a41de4 (the actor
-stdio amendment), autonomy-c5c566 (the probe).
+by a scope pass after the probe and again after the user's decision on egress and
+custody. **Goal:** autonomy-d9adef. **Ideas and tasks:** autonomy-1aac03 (the
+authorization contract), autonomy-d5c1cb (a development mode of `autonomy run`),
+autonomy-efa755 (the egress and credential-custody amendment), autonomy-a94e95 (the
+shared-clone probe), autonomy-a41de4 (the actor stdio amendment), autonomy-c5c566 (the
+probe).
 
 ## 1. Problem
 
@@ -20,22 +22,34 @@ envelope does not yet provide for.
 - **The tier is the only grant.** Envelope spec §11 maps a tier onto every part of a
   grant: identity, operation and resource, scope, lifetime, revocation, approval, audit
   receipt and rollback. `publishes` is refused at open (§5). Budget enforcement,
-  credential custody and network egress are deferred to autonomy-9e8a43.
+  credential custody and network egress were deferred to autonomy-9e8a43. Since
+  2026-10-17, egress and custody belong to the shared amendment autonomy-efa755 (§5
+  question 4), and autonomy-9e8a43 keeps the budget.
 - **The envelope's checks assume a corpus.** Tiers are kernel `WritePermit`s. The
   denied set comes from the world configuration (§7). The closing check compares chain
   intervals against the session ledger (§9). A development actor writes a git worktree,
-  not a corpus. `autonomy run` is Plan B work (autonomy-641123) and does not exist yet.
-  As designed, a development run would open a writer session it never uses, and its
-  closing check would verify nothing about the worktree.
+  not a corpus. As designed, a development run would open a writer session it never
+  uses, and its closing check would verify nothing about the worktree.
+- **`autonomy run` exists up to its launch side (Plan B1, autonomy-641123, merged
+  6f82710).** The CLI (`python/src/autonomy/cli.py`) allocates the run, scratch and socket
+  directories (step 1). It applies step 2's refusals that need no world: the lease
+  floor, `stdio-refused` for fds 0–2 and the report fd. It writes `disposition.json` and
+  the report fd's first and closing lines, and exits 0, 2, 3 or 4. Steps 3–9 are a
+  `Steps` callable (`run.py`). This build's `endpoint_side_unbuilt` closes every run
+  `unwired` at step 3, before any chain is read or the actor starts, because science's
+  reads and run endpoint are unbuilt (Plan B2, autonomy-f6efe8). A development mode
+  plugs in as its own steps behind this launch side, without a world or an endpoint.
 - **The sandbox does not need a world.** Plan A's pieces depend on no corpus: the
   sandbox spec, the static check, the `ENOENT` probe, the gated launch and the namespace
   kill (`python/src/autonomy/sandbox/`, ef18e81 to 8251584). The lease and kill-switch
   design has the same independence.
-- **Actor stdio is unspecified, and the code closes stdin.** The spec never mentions
-  stdio. Plan A's gate reads its release line on stdin and then runs `exec </dev/null`
-  (`sandbox/bwrap.py`, `_GATE`). stdout and stderr are inherited from the orchestrator.
-  crew's `pi-cli-rpc` runtime spawns pi with piped stdio and speaks RPC over those pipes
-  (crew `src/scopes.ts`, `src/runtime/pi-rpc.ts`). The launch as built cannot carry it.
+- **Actor stdio is the caller's (decision 12, built in Plan B1).** Plan A's gate read
+  its release line on stdin and then reopened stdin on `/dev/null`, so it could not
+  carry crew's `pi-cli-rpc` runtime, which spawns pi with piped stdio and speaks RPC
+  over those pipes (crew `src/scopes.ts`, `src/runtime/pi-rpc.ts`). Now the gate runs
+  under `/usr/bin/python3 -I`, reads `run` on a dedicated pipe named in its argv, and
+  never touches stdin (`sandbox/bwrap.py`, `_GATE` and `launch`). The actor holds only
+  fds 0–2, which are the caller's, and `autonomy run` never writes stdout.
 - **Probe results (autonomy-c5c566, 2026-10-15).** The probe used pi 1.1.0 and
   `claude-haiku-5-5`. It reused Plan A's `SandboxSpec`, `build_argv` and `prove()` with
   `--share-net`. A copy of the launch took the gate's release on its own fd, and the
@@ -76,8 +90,8 @@ envelope does not yet provide for.
     Separately, the key appeared nowhere in pi's session files, RPC records, stdout,
     stderr or `models-store.json` (47 files scanned in each run). Keeping it out of the
     actor's reach needs a proxy that substitutes the credential, as pi's
-    containerization guide describes. That belongs to autonomy-9e8a43's credential
-    custody. Passing it with `--setenv` would also put it in bwrap's command line,
+    containerization guide describes. That belongs to the shared custody amendment,
+    autonomy-efa755. Passing it with `--setenv` would also put it in bwrap's command line,
     visible to every same-uid process.
 - **crew computes its own grants.** A grant is the kind's request intersected with the
   user's `policy.toml`, which lives outside every repository. Each attempt records the
@@ -100,12 +114,14 @@ envelope does not yet provide for.
   belongs to the caller (envelope §10).
 - The envelope spec is approved. A development mode or a change to actor stdio is a
   spec amendment.
-- autonomy-9e8a43 owns budget enforcement, credential custody and egress policy.
-  Development work reuses those answers rather than forking them.
+- Egress and credential custody are one shared amendment (autonomy-efa755) that the
+  science run and the development mode both consume. Neither forks them.
+  autonomy-9e8a43 owns allowance enforcement, accounting and the science integration.
 - Publication is never unattended.
-- **Prevention, not detection.** A push, a host change or a credential use leaves no
-  trace in the worktree. A diff after the run cannot establish that such an effect did
-  not happen, so these effects must be made unavailable at the boundary.
+- **Prevention, not detection.** A push, a host change, or a use of a credential
+  outside approved model requests leaves no trace in the worktree. A diff after the run
+  cannot establish that such an effect did not happen, so these effects must be made
+  unavailable at the boundary.
 
 ## 4. Decisions and alternatives
 
@@ -140,8 +156,10 @@ useful and correct, so neither makes crew vouch for its own boundary. *Lean (use
 A, for one lifecycle, cancellation path and evidence record across science and
 development. In that mode:
 
-- Pushes, host changes and credential use are prevented at the boundary, never
-  inferred from the worktree afterwards.
+- Pushes and host changes are prevented at the boundary, never inferred from the
+  worktree afterwards. Provider credentials are inaccessible to the actor, and their use
+  is restricted to approved model requests, which the per-run proxy of autonomy-efa755
+  makes on the actor's behalf. No other credential is reachable.
 - `quarantined` keeps the result and blocks its promotion (no merge, no close), and
   records what could not be established.
 - A `clean` boundary verdict says only that the run stayed in its envelope. Passing
@@ -186,7 +204,8 @@ directory. Binds beyond scratch are left to autonomy-d5c1cb.
    worktree needs its admin dir and the shared metadata. The credential is readable
    inside and appeared in no log.
 2. How does the development mode make pushes and host changes unavailable? Its network
-   must reach only the model endpoint, and push credentials stay out. Shared git metadata
+   reaches only the model API through autonomy-efa755's proxy, and push credentials stay
+   out. Shared git metadata
    cannot be narrowed to one branch: committing needs `refs/heads` writable, which
    exposes every branch. One option, not yet tested: give the actor a clone in scratch
    (`git clone --shared` reads objects through alternates, with the shared object store
@@ -202,18 +221,29 @@ directory. Binds beyond scratch are left to autonomy-d5c1cb.
      objects, or a bundle?
 
    *autonomy-a94e95 (probe), filed 2026-10-17.*
-3. Is credential custody shared between development and science runs? *autonomy-9e8a43's
-   spec.*
-4. When are egress and credential custody designed? The development mode is to reuse
-   autonomy-9e8a43's answers (§3), and its network must reach only the model endpoint.
-   The envelope's network modes are `none` and `host` (spec §7), so neither confines a
-   pi actor, which needs the model API. autonomy-9e8a43 is an `l` planned task, blocked on
-   Plan B2 (autonomy-f6efe8) and the science slices, and its design has not started.
-   *Lean:* design egress (model endpoint only) and credential custody (a substituting
-   proxy, §2) as one envelope amendment that both modes consume, ahead of autonomy-9e8a43,
-   and narrow autonomy-9e8a43 to use it. The alternative is to have autonomy-d5c1cb wait
-   for autonomy-9e8a43. *The user decides; on the lean, file the amendment under
-   autonomy-d9adef and make autonomy-d5c1cb depend on it.*
+3. *Answered by question 4:* credential custody is shared between development and
+   science runs.
+4. *Decided by the user, 2026-10-17:* egress and credential custody are designed now,
+   as one envelope amendment (autonomy-efa755). The envelope's network modes are `none`
+   and `host` (spec §7), and neither confines a pi actor, which needs the model API.
+   Waiting for autonomy-9e8a43 would tie a shared confinement requirement to unrelated
+   science prerequisites (Plan B2, autonomy-f6efe8, and the science slices). The
+   amendment's bounds:
+   - The actor reaches a trusted proxy that permits only the configured model API
+     operations. Arbitrary destinations and general forwarding are unavailable.
+   - The provider credential stays outside the actor's filesystem, environment and
+     process. The proxy supplies it upstream.
+   - Proxy access belongs to one run and ends on stop, expiry or revocation. Missing
+     enforcement fails closed.
+   - "Model endpoint only" is the capability. Its transport is the design's choice and
+     need not be a new `SandboxSpec.network` value.
+   - It marks where autonomy-9e8a43's allowance check joins the proxy, without
+     implementing budgeting.
+   - Verification shows model streaming succeeds, and that direct network access,
+     destination overrides and the credential are all unavailable.
+
+   autonomy-9e8a43 is narrowed to allowance enforcement, accounting and the science
+   integration. It and autonomy-d5c1cb both depend on autonomy-efa755.
 
 ## 6. Proposed decomposition
 
@@ -226,5 +256,7 @@ directory. Binds beyond scratch are left to autonomy-d5c1cb.
   1–3.
 - autonomy-a94e95 is the shared-clone and host-import probe (§5 question 2). It wakes
   autonomy-d5c1cb, which depends on it.
-- autonomy-d5c1cb stays an idea until autonomy-a94e95 answers and question 4 is settled.
-  It then becomes the design of the development-mode amendment.
+- autonomy-efa755 is the shared egress and credential-custody amendment (§5 question 4).
+  autonomy-d5c1cb and autonomy-9e8a43 both depend on it.
+- autonomy-d5c1cb stays an idea until autonomy-a94e95 answers and autonomy-efa755 is
+  approved. It then becomes the design of the development-mode amendment.
