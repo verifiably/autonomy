@@ -1,4 +1,5 @@
 import dataclasses
+import gc
 import json
 import os
 import select
@@ -442,7 +443,10 @@ def orchestrator(world: World, lease: float) -> tuple[subprocess.Popen, int]:
         [sys.executable, "-c", ORCHESTRATOR, package_parent, str(world.config), str(world.run_dir), str(lease)],
         stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
     )
-    init = json.loads(process.stdout.readline())["init"]
+    try:
+        init = json.loads(process.stdout.readline())["init"]
+    finally:
+        process.stdout.close()  # no Popen pipe outlives its test
     return process, init
 
 
@@ -594,11 +598,12 @@ def test_a_failed_start_leaves_no_proxy_and_no_descriptor(world, monkeypatch, fa
     monkeypatch.setattr(session_module, "append_event", event)
     if failure == "receive":
         monkeypatch.setattr(EgressSession, "_receive", lambda self, timeout: (_ for _ in ()).throw(OSError(5, "EIO")))
-    fds_before = len(os.listdir("/proc/self/fd"))
+    gc.collect()  # a pipe kept alive by an earlier test's cycle must not drop out mid-measurement
+    fds_before = set(os.listdir("/proc/self/fd"))
     with pytest.raises(OSError):
         world.start()
     assert exited_now(started["init"])
-    assert len(os.listdir("/proc/self/fd")) == fds_before
+    assert set(os.listdir("/proc/self/fd")) - fds_before == set()
 
 
 def test_e22_sigterm_to_the_proxy_closes_it(world):
