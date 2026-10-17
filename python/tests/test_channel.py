@@ -10,6 +10,7 @@ import pytest
 
 import autonomy.channel as channel
 from autonomy.channel import LineChannel
+from autonomy.stdio import StdioRefused
 from channels import blocking, drain, fill, one_page_pipe
 
 
@@ -40,6 +41,36 @@ def test_a_line_reaches_a_socket_and_the_callers_flags_are_untouched():
         assert theirs.recv(64) == b"hello\n"
         assert blocking(mine.fileno())
         line.close()
+
+
+def test_a_process_wide_default_socket_timeout_is_refused_not_dropped():
+    mine, theirs = socket.socketpair()
+    with mine, theirs:
+        before = os.get_blocking(mine.fileno())
+        socket.setdefaulttimeout(5.0)
+        try:
+            with pytest.raises(StdioRefused):
+                LineChannel(mine.fileno())
+        finally:
+            socket.setdefaulttimeout(None)
+        assert os.get_blocking(mine.fileno()) == before  # refused before the dup
+
+
+def test_a_default_socket_timeout_leaves_a_pipe_channel_alone():
+    read_end, write_end = os.pipe()
+    try:
+        socket.setdefaulttimeout(5.0)
+        try:
+            line = LineChannel(write_end)
+            assert line.write_line('{"run": "x"}') is True
+        finally:
+            socket.setdefaulttimeout(None)
+        assert drain(read_end) == b'{"run": "x"}\n'
+        assert blocking(write_end)  # the caller's description is untouched
+        line.close()
+    finally:
+        os.close(read_end)
+        os.close(write_end)
 
 
 def test_dev_null_is_skipped():

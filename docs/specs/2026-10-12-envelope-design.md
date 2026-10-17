@@ -375,7 +375,12 @@ while drafting, and the review may overturn them.
 
       Anything else is refused `stdio-refused`, naming the fd and what it is: a closed
       fd, a terminal or other device, a regular file, a directory, a listening,
-      unconnected or datagram socket, or a socket of another family. Each of these hands the actor a
+      unconnected or datagram socket, or a socket of another family. A process-wide
+      default socket timeout is refused the same way: CPython's
+      `socket.socket(fileno=...)` then sets `O_NONBLOCK` on the open file description,
+      and a `dup` shares that description with the caller's fd, so the check or the
+      channel's wrap would flip the caller's (and the actor's) descriptor to
+      non-blocking and closing the wrapper does not restore it. Each of these hands the actor a
       host object by descriptor, past the static check and the probe:
       - A terminal gives the actor the person's keystrokes, its ioctls and its
         termios.
@@ -432,7 +437,10 @@ while drafting, and the review may overturn them.
         another holder can fill the channel between the poll and the write. The path
         leaves the descriptor's own flags alone, because they belong to an open file
         description that the caller shares, and on fd 2 the actor too:
-        - **Socket:** `send` with `MSG_DONTWAIT` on each call.
+        - **Socket:** `send` with `MSG_DONTWAIT` on each call, under the same refusal
+          of a process-wide default socket timeout as step 2's probe: the channel's
+          `socket.socket(fileno=dup)` would otherwise set `O_NONBLOCK` on the
+          description the caller shares.
         - **Pipe:** a private descriptor obtained by opening `/proc/self/fd/<n>` with
           `O_NONBLOCK`. That is a new open file description on the same pipe, so its
           flag is independent. A `dup` would share the original description's flags.

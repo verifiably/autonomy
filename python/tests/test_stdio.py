@@ -129,6 +129,22 @@ def test_inspecting_a_socket_leaves_its_flags_alone(opened):
     assert os.get_blocking(fd) == before and os.get_inheritable(fd) is False
 
 
+def test_a_process_wide_default_socket_timeout_is_refused_before_any_dup(opened):
+    fd = opened("socketpair")
+    before = os.get_blocking(fd)
+    socket.setdefaulttimeout(5.0)
+    try:
+        with pytest.raises(StdioRefused) as caught:
+            classify(fd)
+        assert (caught.value.fd, caught.value.what) == (
+            fd,
+            "a socket, and a process-wide default socket timeout is set",
+        )
+    finally:
+        socket.setdefaulttimeout(None)
+    assert os.get_blocking(fd) == before  # refused before the dup: the caller's flags are untouched
+
+
 def test_check_stdio_reports_each_kind(opened):
     fds = (opened("null"), opened("socketpair"), opened("pipe-write"))
     assert check_stdio(fds) == ("null", "socket", "pipe")

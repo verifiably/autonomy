@@ -18,7 +18,10 @@ After a drop nothing more is written on that descriptor, so a short line is neve
 followed by another.
 
 Constructing a channel may open a descriptor, so a caller constructs it only after
-step 2 has checked fds 0-2: opened while fd 0 is closed, it would take number 0."""
+step 2 has checked fds 0-2: opened while fd 0 is closed, it would take number 0. A
+process-wide default socket timeout is refused (`StdioRefused`), not dropped: wrapping
+the socket's duplicate under one would set `O_NONBLOCK` on the open file description
+the caller shares."""
 
 from __future__ import annotations
 
@@ -27,6 +30,8 @@ import select
 import socket
 import stat
 from collections.abc import Callable
+
+from autonomy.stdio import check_no_default_socket_timeout
 
 POLL_WAIT = 1.0
 """Seconds a line may wait for its descriptor to poll writable."""
@@ -51,6 +56,7 @@ class LineChannel:
             self.dropped = True
             return
         if stat.S_ISSOCK(info.st_mode):
+            check_no_default_socket_timeout(fd)
             try:
                 self._socket = socket.socket(fileno=os.dup(fd))
             except OSError:
