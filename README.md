@@ -66,7 +66,9 @@ forward_headers = ["anthropic-version", "anthropic-beta", "content-type", "accep
 
 [header_tokens]
 anthropic-version = ["2023-06-01"]
-anthropic-beta = ["fine-grained-tool-streaming-2025-05-14", "interleaved-thinking-2025-05-14"]
+anthropic-beta = ["fine-grained-tool-streaming-2025-05-14", "interleaved-thinking-2025-05-14",
+                  "mid-conversation-output-config-2026-07-01", "thinking-binding-controls-2026-08-01",
+                  "inline-tools-2026-09-15"]
 
 [credential]
 file = "/home/you/.config/verifiably-autonomy/credentials/anthropic"  # 0600, yours, one link
@@ -78,7 +80,8 @@ path = "/v1/messages"
 queries = ["beta=true"]
 models = ["claude-haiku-5-5"]
 fields = ["model", "messages", "system", "max_tokens", "stream", "tools", "tool_choice",
-          "thinking", "temperature", "metadata", "stop_sequences", "top_p", "top_k"]
+          "thinking", "temperature", "metadata", "stop_sequences", "top_p", "top_k",
+          "output_config"]
 block_types = ["text", "image", "tool_use", "tool_result", "thinking", "redacted_thinking"]
 source_types = ["base64"]
 ```
@@ -86,7 +89,9 @@ source_types = ["base64"]
 What the route leaves out, the proxy refuses with a `403` that names the code, for
 example `body-refused` for an MCP server or a URL image source. `just live-egress
 NAME` runs pi through the proxy to the real API once and prints what the proxy
-recorded, including any beta token pi sends that the route does not list.
+recorded, including any beta token pi sends that the route does not list. The example
+is what pi 1.1.0 needed on 2026-10-17. Never list `fallbacks` in `fields`: it names
+other models, which the proxy does not check against `models`.
 
 ## Documentation
 
