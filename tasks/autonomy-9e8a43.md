@@ -7,7 +7,7 @@ size: l
 complexity: high
 process: planned
 created: 2026-10-11T20:44:01Z
-updated: 2026-10-17T09:50:41Z
+updated: 2026-10-17T09:50:42Z
 depends: [autonomy-250f4d, ops-fbc3d9, sci-bef251, sci-a45f10, autonomy-641123, autonomy-6b1f9f, autonomy-f6efe8, autonomy-efa755]
 tags: [unattended]
 agent: claude-code
@@ -18,6 +18,8 @@ Step 3 of the science-harness-on-pi goal (ops, filed 2026-10-11). The first run 
 Two acceptance criteria, kept separate because they are different claims. Accounting: the run's joined usage totals (the harness's per-conversation tokens and cost including children, plus the analysis jobs the kernel ran) say what the run consumed, attributed to the run's actor. Enforcement: a shared allowance decides whether another model call or analysis job may start, counting concurrent children and work already in flight, and a run at its allowance stops cleanly with its disposition recorded; a total that is merely reported after the fact does not satisfy this criterion.
 
 Permissions are enforced at boundaries the agent cannot reach around: the kernel writer's permit for governed writes, and an operating-system or container boundary for the shell, filesystem, network and credentials, as pi's own security doc requires; a tool hook is a policy decision point for feedback and precise denials, never the boundary. Credentials stay outside the trajectory.
+
+Not owned here (user, 2026-10-17): the design of network egress and credential custody moved to autonomy-efa755, the shared envelope amendment (a per-run trusted proxy that is the actor's only network path and holds the provider credential), which this run and the development mode (autonomy-d5c1cb) both consume. This task keeps allowance enforcement, accounting and the science integration, and implements its allowance check at the join point that amendment defines on the proxy.
 
 Outcomes: the run ends in one of the envelope's dispositions and, inside clean, in a stated outcome shape (nothing needed, proposed, proved, approval requested, recovery required). An inconclusive or refused scientific result with its evidence is an eligible success; a refusal from a broken integration is a failure. The expected evidence is written before the run.
 
