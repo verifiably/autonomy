@@ -17,6 +17,8 @@ from types import MappingProxyType
 from autonomy.baseline import append_event, fsync_dir, utc_now, write_all
 from autonomy.channel import LineChannel
 from autonomy.closing import Disposition, disposition_of
+from autonomy.egress.errors import RouteRefused
+from autonomy.egress.route import LoadedRoute, load_route
 from autonomy.membership import Finding
 from autonomy.stdio import ACTOR_FDS, StdioKind, StdioRefused, check_report_fd, check_stdio
 from autonomy.tiers import Tier
@@ -46,6 +48,7 @@ class RunRequest:
     lease: float
     report_fd: int | None
     actor_argv: tuple[str, ...]
+    model_route: str | None = None
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,7 @@ class Places:
     state: Path
     cache: Path
     runtime: Path
+    config: Path
 
 
 def _absolute(value: str) -> Path | None:
@@ -93,6 +97,7 @@ def places(env: Mapping[str, str]) -> Places:
         state=_xdg(env, "XDG_STATE_HOME", ".local", "state") / "verifiably-autonomy",
         cache=_xdg(env, "XDG_CACHE_HOME", ".cache") / "verifiably-autonomy",
         runtime=runtime,
+        config=_xdg(env, "XDG_CONFIG_HOME", ".config") / "verifiably-autonomy",
     )
 
 
@@ -162,6 +167,8 @@ class Opened:
     request: RunRequest
     dirs: RunDirs
     stdio: tuple[StdioKind, StdioKind, StdioKind]
+    places: Places
+    route: LoadedRoute | None
 
 
 Steps = Callable[[Opened], Sequence[Finding]]
@@ -214,6 +221,17 @@ def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, find
     fsync_dir(run_dir)
 
 
+def _route(name: str | None, where: Places) -> LoadedRoute | None:
+    """Step 2's route refusals (decision 13): before anything exists, so a refusal
+    leaves no run directory and writes nothing on the report fd."""
+    if name is None:
+        return None
+    try:
+        return load_route(where.config, name)
+    except RouteRefused as caught:
+        raise RunRefused(caught.code, caught.message) from None
+
+
 def _line(value: Mapping[str, object]) -> str:
     return json.dumps(value, separators=(",", ":"))
 
@@ -230,7 +248,7 @@ def execute(
     """Refuse, allocate, report the run, run `steps`, then close: `disposition.json`,
     the closing line, the exit code.
 
-    Step 2 (`refuse`, `places`) raises before anything exists, `RunRefused` or an
+    Step 2 (`refuse`, `places` and the model route) raises before anything exists, `RunRefused` or an
     error it did not expect, and leaves the report fd open and unwritten for the
     process's exit to close. From there on the report fd is closed on every way out:
     a return, a refused allocation (`RunRefused`, nothing written and nothing kept),
@@ -238,6 +256,7 @@ def execute(
     directory exists."""
     stdio = refuse(request, actor_fds=actor_fds)
     where = places(env)
+    route = _route(request.model_route, where)
     report: LineChannel | None = None
     try:
         if request.report_fd is not None:
@@ -249,7 +268,7 @@ def execute(
             _line({"run": dirs.run_id, "run_dir": str(dirs.run_dir), "scratch": str(dirs.scratch)})
         ):
             append_event(dirs.run_dir, "report-unwritten", line="run")
-        findings = tuple(steps(Opened(request, dirs, stdio)))
+        findings = tuple(steps(Opened(request, dirs, stdio, where, route)))
         disposition = disposition_of(findings)
         code = EXIT_CODES[disposition]
         write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
