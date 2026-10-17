@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-15T15:44:10Z
-updated: 2026-10-17T21:16:48Z
+updated: 2026-10-17T21:16:49Z
 started: 2026-10-17T20:25:13Z
 depends: []
 tags: []
@@ -42,4 +42,6 @@ During Plan B1 the editor's Pyright reported every autonomy.* import and tests/c
 - 2026-10-17T21:11:51Z (main): parked (waiting on agent, review): Controller: record exact set6 A=yes B=yes C=no D=yes and B inclusion=no with full human reasons, including actual system-Pyright main/all4 worktree validation. Prepare independent minimal D integration/recoverable all4archive for person approval; B remains mergeable but excluded from comparison, C dependency changes remain rejected/unrepaired. No source merge/closure/removal authorized yet.
   provenance: {"harness_session":"codex:01a14293-c4c7-7d80-856c-cae65758e666","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-17T21:16:48Z (main): resumed
+  provenance: {"harness_session":"codex:01a14293-c4c7-7d80-856c-cae65758e666","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-17T21:16:49Z (main): parked (waiting on user, decision): Person: approve prepared original independent minimal D merge, source-task closure and recoverable removal of all4set6 attempt trees/branches, or retain/handback. A=yes B=yes C=no D=yes/B excluded with exacthumanreason already recorded17362c9; actualpersonsystemPyrightvalidation preserved. All4clean, 79archivehashes/fourbundles verified; no dirtydiscard proposed. Agent refreshes safety/refs/identities beforeexecution; no source code merged/changed/removed yet.
   provenance: {"harness_session":"codex:01a14293-c4c7-7d80-856c-cae65758e666","harness_session_source":"CODEX_THREAD_ID"}
