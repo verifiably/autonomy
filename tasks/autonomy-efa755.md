@@ -7,7 +7,7 @@ size: m
 complexity: high
 process: direct
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T09:59:00Z
+updated: 2026-10-17T09:59:01Z
 depends: []
 parent: autonomy-d9adef
 tags: []
@@ -27,3 +27,7 @@ Bounds, from the user's decision:
 Done: an amendment to docs/specs/2026-10-12-envelope-design.md, approved by the user, that: specifies the proxy, its lifetime per run (open, stop, lease expiry, revocation) and its fail-closed behaviour; states how pi is pointed at it (a provider base URL with a placeholder key, as pi's containerization guide describes; compare crew-799319, a policy-granted custom provider in the attempt's models.json) so no credential is in scratch, the environment or bwrap's argv; keeps explicit that this configuration only directs pi to the proxy, while the envelope and the proxy enforce the restriction even if the actor rewrites that configuration (user, 2026-10-17); replaces the credential template in decision 12 accordingly; marks the allowance join point; moves egress and credential custody out of the §1 deferral to autonomy-9e8a43; and names E-rows that demonstrate successful model streaming through the proxy, denied direct network access, denied destination overrides (another host, a Host header or absolute URL, CONNECT), and an unavailable credential (absent from the actor's filesystem, environment, /proc and the proxy socket's reachable responses). Implementation is filed from the approval (a Plan, or with Plan B2 autonomy-f6efe8), not done here.
 
 Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md §2 (probe credential findings), §3, §5 question 4; envelope spec §1, §2 decision 12, §3 steps 1-9 and Close, §7, §8 (lease and kill), §12; python/src/autonomy/sandbox/ (spec.py network, bwrap.py launch); autonomy-c5c566's attached probe for a pi-in-sandbox harness.
+
+## Notes
+
+- 2026-10-17T09:59:00Z (main): Scope accepted by the user, 2026-10-17, including the credential-template replacement, the deferral move and crew-799319 as the way to configure pi; the design keeps configuration (directs pi) separate from enforcement (envelope and proxy, holding against an actor that rewrites its config). Amendment approval follows review of the drafted spec.
