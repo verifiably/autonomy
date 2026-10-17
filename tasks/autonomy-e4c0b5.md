@@ -1,15 +1,17 @@
 ---
 id: autonomy-e4c0b5
 title: "Envelope egress plan: model route, namespace listener, sandboxed model proxy and its close transition (decision 13; rows E21-E22 launch arms, live pi recipe)"
-status: doing
+status: done
 priority: 2
 size: l
 complexity: high
 process: planned
 owner: main
 created: 2026-10-17T11:25:57Z
-updated: 2026-10-17T18:24:08Z
+updated: 2026-10-17T18:24:18Z
 started: 2026-10-17T11:26:48Z
+completed: 2026-10-17T18:24:18Z
+closed: 2026-10-17T18:24:18Z
 depends: []
 parent: autonomy-d9adef
 tags: []
@@ -66,3 +68,7 @@ Where: envelope spec decision 13, §3 steps 2, 7, 9 and Close, §6, §7, §8, §
 - 2026-10-17T18:06:23Z (main): resumed
   provenance: {"harness_session":"claude-code:57f70fea-92bd-4831-aeec-10ab63f0c8f0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T18:24:08Z (main): attached: sdd-ledger.md (20052 bytes): SDD execution ledger: pre-flight scan, every review verdict, rulings, 56 deferred minors with the final review's triage
+- 2026-10-17T18:24:18Z (main): done
+  provenance: {"harness_session":"claude-code:57f70fea-92bd-4831-aeec-10ab63f0c8f0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T18:24:18Z (main): Egress plan Tasks 1–10 landed on main (merge d00d744, README 2ef0c0e): autonomy.egress (route, request, dialect, upstream, server, proxy, helper, session), no host network + probe check, launch before_release, --model-route, E21/E22 under real bwrap; 787 tests pass. Step 7 live run passed (pi 1.1.0 → proxy → real API, 200 streamed to completion, route closed clean) after the user's route allowed pi's three beta tokens and output_config; an over-limit body reached pi as the coded 403. Follow-up autonomy-58799c (fallbacks). Ledger attached.
+  provenance: {"harness_session":"claude-code:57f70fea-92bd-4831-aeec-10ab63f0c8f0","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
