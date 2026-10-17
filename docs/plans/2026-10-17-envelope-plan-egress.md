@@ -334,6 +334,7 @@ def test_before_release_runs_while_the_gate_still_holds_the_actor(tmp_path, stdi
     def hook(child_pid: int, pidfd: int) -> None:
         seen["child"] = child_pid
         seen["pidfd_alive"] = signal.pidfd_send_signal(pidfd, 0) is None
+        time.sleep(0.5)  # an actor already released would have touched the flag by now
         seen["ran_before_release"] = flag.exists()
 
     sandbox = launch(spec, ["/usr/bin/touch", str(flag)], before_release=hook, **stdio)
@@ -353,6 +354,7 @@ def test_a_failing_hook_aborts_and_propagates_unchanged(tmp_path, stdio):
     flag = tmp_path / "ran"
 
     def hook(child_pid: int, pidfd: int) -> None:
+        time.sleep(0.5)  # an actor already released would run in this time
         raise HookFailed("no listener")
 
     with pytest.raises(HookFailed):
@@ -4160,6 +4162,19 @@ def test_a_dead_init_is_refused(tmp_path):
     assert hold_and_try(tmp_path, kill_first).code == "listener-failed"
 
 
+def test_a_pidfd_that_no_longer_names_the_init_is_refused(tmp_path):
+    # The helper checks the pidfd after opening the namespace by pid, so a reused pid
+    # is never joined: a stale pidfd is refused even while the pid's /proc entry exists.
+    gone = subprocess.Popen(["/usr/bin/true"])
+    stale = os.pidfd_open(gone.pid)
+    gone.wait()
+    try:
+        error = hold_and_try(tmp_path, lambda child, pidfd: make_listener(child, stale))
+    finally:
+        os.close(stale)
+    assert error.code == "listener-failed" and "ProcessLookupError" in error.message
+
+
 def test_the_helper_gets_stdin_from_dev_null(monkeypatch):  # E20, the helper's arm
     seen = {}
 
@@ -4466,7 +4481,7 @@ import sys
 import textwrap
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
@@ -4497,6 +4512,7 @@ class World:
     upstream: FakeUpstream
     other: FakeUpstream
     canary: str
+    sessions: list = field(default_factory=list)
 
     def loaded(self):
         return load_route(self.config, "anthropic")
@@ -4506,7 +4522,20 @@ class World:
 
     def start(self, *, lease: float = 30.0) -> EgressSession:
         loaded = self.loaded()
-        return EgressSession.start(loaded, self.run_dir, lease=lease, denied=self.denied(loaded))
+        session = EgressSession.start(loaded, self.run_dir, lease=lease, denied=self.denied(loaded))
+        self.sessions.append(session)
+        return session
+
+    def clean(self) -> None:
+        """A failing test must not leave a proxy behind: it has no --die-with-parent, and
+        a SIGSTOPped one would wait forever. Killing a namespace's init kills it."""
+        for session in self.sessions:
+            if session.pidfd >= 0:
+                session.kill()
+        if (self.run_dir / "events.jsonl").exists():
+            kill_orphan(self.run_dir, timeout=0)
+        self.upstream.stop()
+        self.other.stop()
 
     def records(self) -> list[dict]:
         path = self.run_dir / "egress.jsonl"
@@ -4532,7 +4561,9 @@ def make_world(root: Path, tls: Tls, *, canary: str = CANARY, mode: str = "sse",
 
 @pytest.fixture
 def world(tmp_path, tls):
-    return make_world(tmp_path, tls)
+    w = make_world(tmp_path, tls)
+    yield w
+    w.clean()
 
 
 ACTOR = textwrap.dedent(r'''
@@ -4612,7 +4643,7 @@ ACTOR = textwrap.dedent(r'''
                 outcome = errno.errorcode.get(caught.errno) if caught.errno else type(caught).__name__
             report[step["name"]] = {"outcome": outcome, "seconds": time.monotonic() - started}
         elif kind == "sweep":
-            needle = step["needle"].encode()
+            needle = bytes.fromhex(step["needle"])  # hex, so the needle is not itself in this argv
             found = []
             for top, dirs, files in os.walk("/"):
                 if top in ("/proc", "/sys", "/dev", "/usr"):
@@ -4735,7 +4766,7 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
         {"kind": "connect", "name": "loopback-v6", "host": "::1", "port": 443},
         {"kind": "resolve", "name": "dns", "host": "api.anthropic.com"},
         {"kind": "abstract", "name": "abstract", "name_": abstract},
-        {"kind": "sweep", "name": "sweep", "needle": world.canary},
+        {"kind": "sweep", "name": "sweep", "needle": world.canary.encode().hex()},
     ]
     report, _ = run_actor(world, session, task)
     closed = session.close()
@@ -4771,15 +4802,19 @@ def test_a_credential_passed_by_setenv_would_sit_in_bwraps_argv(world):
 
 def test_e21_runs_are_isolated(tmp_path, tls):
     worlds = [make_world(tmp_path / name, tls, canary=f"sk-canary-{name}", mode="json") for name in ("a", "b")]
-    sessions = [w.start() for w in worlds]
-    for w, s in zip(worlds, sessions):
-        report, _ = run_actor(w, s, [ask("one")])
-        assert report["one"]["status"] == "200"
-    for w, s in zip(worlds, sessions):
-        s.close()
-        assert [line["seq"] for line in w.records() if "seq" in line] == [1]
-        (seen,) = w.upstream.seen
-        assert seen.headers["x-api-key"] == [w.canary]
+    try:
+        sessions = [w.start() for w in worlds]
+        for w, s in zip(worlds, sessions):
+            report, _ = run_actor(w, s, [ask("one")])
+            assert report["one"]["status"] == "200"
+        for w, s in zip(worlds, sessions):
+            s.close()
+            assert [line["seq"] for line in w.records() if "seq" in line] == [1]
+            (seen,) = w.upstream.seen
+            assert seen.headers["x-api-key"] == [w.canary]
+    finally:
+        for w in worlds:
+            w.clean()
 
 
 def test_e21_the_route_enforced_is_the_one_loaded(world):
@@ -4992,19 +5027,23 @@ def test_e22_a_credential_removed_before_the_start_is_unproven(world):
 
 def test_e22_a_two_line_credential_is_unproven(tmp_path, tls):
     world = make_world(tmp_path, tls, credential_text="sk-one\nsk-two\n")
-    with pytest.raises(EgressUnproven) as caught:
-        world.start()
-    assert caught.value.code == "proxy-unready" and "credential-invalid" in caught.value.message
+    try:
+        with pytest.raises(EgressUnproven) as caught:
+            world.start()
+        assert caught.value.code == "proxy-unready" and "credential-invalid" in caught.value.message
+    finally:
+        world.clean()
 
 
 def test_e22_a_failed_helper_never_releases_the_actor(world):
     session = world.start()
 
     def refused(child, pidfd):
+        time.sleep(0.5)  # an actor already released would have printed by now
         raise EgressUnproven("listener-failed", "setns: Operation not permitted")
 
     with pytest.raises(EgressUnproven):
-        run_actor(world, session, [{"kind": "sweep", "name": "ran", "needle": "x"}], make=refused)
+        run_actor(world, session, [{"kind": "connect", "name": "ran", "host": "192.0.2.1", "port": 443}], make=refused)
     assert not (world.scratch.parent / "actor.out").read_bytes()
     session.kill()
 
@@ -5014,7 +5053,7 @@ def test_e22_a_proxy_that_never_listens_is_unproven(world):
     os.kill(proxy_pid(session), signal.SIGSTOP)
     started = time.monotonic()
     with pytest.raises(EgressUnproven) as caught:
-        run_actor(world, session, [{"kind": "sweep", "name": "ran", "needle": "x"}])
+        run_actor(world, session, [{"kind": "connect", "name": "ran", "host": "192.0.2.1", "port": 443}])
     assert caught.value.code == "proxy-unlistening" and 4.5 < time.monotonic() - started < 8
     assert not (world.scratch.parent / "actor.out").read_bytes()
     session.kill()
@@ -5387,15 +5426,25 @@ import tempfile
 import time
 from pathlib import Path
 
+from autonomy.egress.errors import EgressUnproven, RouteRefused
 from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import egress_denied, load_route
 from autonomy.egress.session import EgressSession
-from autonomy.run import places
+from autonomy.run import RunRefused, places
 from autonomy.sandbox.bwrap import launch, prove
 from autonomy.sandbox.spec import SandboxSpec
+from autonomy.sandbox.static import SandboxUnproven
 
 
 def main(argv: list[str]) -> int:
+    try:
+        return _main(argv)
+    except (RouteRefused, EgressUnproven, RunRefused, SandboxUnproven) as caught:
+        print(f"refused: {caught}", file=sys.stderr)
+        return 2
+
+
+def _main(argv: list[str]) -> int:
     if not argv:
         print("usage: egress_live.py <route> [model]", file=sys.stderr)
         return 2
@@ -5498,7 +5547,7 @@ An actor has no network of its own. `--model-route NAME` gives it one path out: 
 proxy on `VERIFIABLY_MODEL_URL` (`http://127.0.0.1:4780`) that forwards only the
 route's operations to its one upstream and adds the provider credential there. The
 actor never holds the credential. Point the harness at that URL with a placeholder
-key. For pi, that is a provider `baseUrl` in its `models.json`:
+key. For pi, that is a provider `baseUrl` in its models.json:
 
 ```json
 {"providers": {"anthropic": {"baseUrl": "http://127.0.0.1:4780", "apiKey": "placeholder"}}}
