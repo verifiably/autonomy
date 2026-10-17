@@ -8,7 +8,7 @@ complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T10:24:41Z
+updated: 2026-10-17T10:33:15Z
 started: 2026-10-17T09:59:00Z
 depends: []
 parent: autonomy-d9adef
@@ -40,3 +40,4 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T10:10:05Z (main): attached: host.py (1861 bytes): Round trip: a bwrap --unshare-all actor GETs 127.0.0.1:8471 served by the host; direct connect ENETUNREACH; the host netns cannot reach the port
 - 2026-10-17T10:16:20Z (main): review: spec round 1 — verdict: revise; findings: Critical 1, Important 3, Minor 13; reviewer: claude-code
 - 2026-10-17T10:24:41Z (main): review: spec round 2 — verdict: revise; findings: Important 1, Minor 9; reviewer: claude-code
+- 2026-10-17T10:33:15Z (main): review: spec round 3 — verdict: accept; findings: Minor 8; reviewer: claude-code
