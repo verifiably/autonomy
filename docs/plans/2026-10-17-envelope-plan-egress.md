@@ -3,9 +3,11 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Status:** draft, for the user's review. Two agent review rounds (round 1: P1 5, P2 7;
-round 2: P2 2), all addressed. Three dry runs applied the plan's code to a scratch copy:
-the final one, at cc830fb's text, applied every task verbatim and passed 747 tests in
-74 s with no flakiness, and six boundary mutations were each caught by their test.
+round 2: P2 2) and one human round (round 3: P2 6, P3 1), all addressed. Four dry runs
+applied the plan's code to a scratch copy. The last, at 09dd506's text, passed 771 tests
+in 82 s with no flakiness, alone and pinned to one busy CPU. Its mutation pass found
+three fixes whose tests could not catch their mutant; those tests are strengthened
+here, each verified against its mutant in that run.
 
 **Goal:** Build decision 13's model route and proxy as a library that Plan B2 wires
 into the run, and prove it under real `bwrap`:
@@ -2141,11 +2143,12 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
   - `SendFailed(sent, attempted, message)`, an `UpstreamError` for a write that failed
     after an attempt;
   - `ActorGone(attempted: bool = False)`: the actor hung up while the proxy waited;
-  - `send_all(..., *, watch=None)` and `read_response(..., *, watch=None)` take the
-    actor's connection as `watch`;
+  - `watch` is the actor's connection: `send_all`, `read_response` and their waits
+    raise `ActorGone` when it hangs up;
   - `cut(sock, how=socket.SHUT_RDWR) -> None`;
   - `UpstreamError`;
-  - `send_all(gate: Gate, sock, data: bytes) -> None`, which raises `RouteClosed`;
+  - `send_all(gate: Gate, sock, data: bytes, *, watch=None) -> None`, which raises
+    `RouteClosed`, `SendFailed` or `ActorGone`;
   - `tls_context(ca_file: Path | None) -> ssl.SSLContext`;
   - `connect(gate: Gate, host: str, port: int, context: ssl.SSLContext, *,
     timeout: float = 30.0) -> ssl.SSLSocket`, which returns a non-blocking socket and
@@ -2153,7 +2156,7 @@ git commit -m "feat(egress): the anthropic-messages dialect: strict JSON, closed
   - `Response`, with fields `status: int`, `reason: str`,
     `headers: tuple[tuple[str, str], ...]` and `body: Iterator[bytes]`, and the
     property `request_id`;
-  - `read_response(gate: Gate, sock) -> Response`;
+  - `read_response(gate: Gate, sock, *, watch=None) -> Response`;
   - `response_head(response: Response) -> bytes`;
   - in the fixtures: the session-scoped fixture `tls -> Tls(cert: Path, key: Path)`,
     `FakeUpstream(tls, *, mode="json")` with `.port`, `.origin`, `.seen: list[Seen]`,
@@ -3482,20 +3485,28 @@ def test_a_request_waiting_on_its_body_is_answered_route_closed(serve):
     assert s.upstream.seen == []
 
 
-def test_a_close_racing_a_new_worker_never_joins_an_unstarted_thread(serve):
+def test_a_close_racing_a_new_worker_never_joins_an_unstarted_thread(serve, monkeypatch):
     # The close's snapshot of the workers waits on the lock that a start holds until
     # its thread has started: here the close begins while a worker is being started.
+    # The join bound is short, so the close reaches the new worker while it is held.
+    monkeypatch.setattr(server_module, "JOIN_TIMEOUT", 0.2)
     s = serve()
     outcome = {}
     real = threading.Thread
 
+    def closing():
+        try:
+            outcome["closed"] = s.server.close("close")
+        except BaseException as caught:
+            outcome["error"] = caught
+
     class Racing(real):
         def start(self):
             if getattr(self, "_target", None) == s.server._handle and "closer" not in outcome:
-                closer = real(target=lambda: outcome.setdefault("closed", s.server.close("close")))
+                closer = real(target=closing)
                 outcome["closer"] = closer
                 closer.start()
-                time.sleep(0.3)  # the closer is now waiting on the server's lock
+                time.sleep(0.6)  # the closer waits on the server's lock, past its join bound
             super().start()
 
     s.server._thread = Racing
@@ -3505,6 +3516,7 @@ def test_a_close_racing_a_new_worker_never_joins_an_unstarted_thread(serve):
     while "closer" not in outcome and time.monotonic() < deadline:
         time.sleep(0.01)
     outcome["closer"].join(10)
+    assert "error" not in outcome, outcome.get("error")
     assert outcome["closed"] is True
     assert s.records()[-1]["closed"] == "close"
 
@@ -3543,6 +3555,9 @@ def test_a_worker_stuck_past_the_join_still_gets_its_line(serve, monkeypatch):
 
     monkeypatch.setattr(socket, "getaddrinfo", slow)
     s = serve()
+    offered = []  # every line the server asks to write, so a duplicate shows even if dropped
+    write = s.server.recorder.line
+    monkeypatch.setattr(s.server.recorder, "line", lambda record: (offered.append(dict(record)), write(record)))
     threading.Thread(target=lambda: exchange(s.port, raw_request(body=message())), daemon=True).start()
     assert resolving.wait(10)
     s.server.close("close")
@@ -3551,6 +3566,7 @@ def test_a_worker_stuck_past_the_join_still_gets_its_line(serve, monkeypatch):
     assert (lines[0]["ended"], lines[0]["refused"], lines[0]["forwarded"]) == ("route-closed", "route-closed", False)
     time.sleep(2.0)  # the lookup returns, and the worker finishes
     assert s.records() == lines
+    assert [record.get("seq") for record in offered] == [1, None]
 
 
 def test_no_record_holds_the_credential(served):
@@ -3676,8 +3692,8 @@ def test_a_normalizing_matcher_would_forward_a_dot_segment(serve, monkeypatch):
 def test_a_buffering_proxy_would_deliver_the_first_event_late(serve, monkeypatch):
     real = server_module.read_response
 
-    def buffered(gate, sock):
-        response = real(gate, sock)
+    def buffered(gate, sock, **kwargs):
+        response = real(gate, sock, **kwargs)
         response.body = iter([b"".join(response.body)])
         return response
 
@@ -3734,9 +3750,9 @@ JOIN_TIMEOUT = 2.0
 
 
 class Recorder:
-    """`egress.jsonl`: one line per request, written when it ends, then the closing line.
-    Nothing follows the closing line: a worker still running after the close's bounded
-    join loses its line, and its request was cut at the transition."""
+    """`egress.jsonl`: one line per request, written when it ends, then the closing line,
+    which is always last. A worker still running after the close's bounded join gets
+    its line from the close (`ProxyServer.close`); nothing is written after it."""
 
     def __init__(self, fd: int) -> None:
         self._fd = fd
@@ -3815,7 +3831,6 @@ class ProxyServer:
         self._upstreams: set[socket.socket] = set()
         self._threads: list[threading.Thread] = []
         self._outstanding: dict[int, dict[str, object]] = {}
-        self._finalized: set[int] = set()
         self._shut = False
         self._in_flight = 0
         self._lock = threading.Lock()
@@ -3857,14 +3872,13 @@ class ProxyServer:
         with self._lock:
             # A worker still running (a DNS lookup that has not returned) must not lose
             # its request's line: write it now, as cut, and suppress the worker's own.
-            for seq, live in sorted(self._outstanding.items()):
+            for _, live in sorted(self._outstanding.items()):
                 record = dict(live)
                 record["ended"] = "route-closed"
                 if not record["forwarded"]:
                     record["refused"] = "route-closed"
-                self._finalized.add(seq)
                 self.recorder.line(record)
-            self._outstanding.clear()
+            self._outstanding.clear()  # their workers' own lines are now never written
             self.recorder.line({"at": utc_now(), "closed": cause, "last_seq": self.gate.last_seq})
         return True
 
@@ -3888,13 +3902,12 @@ class ProxyServer:
         return True
 
     def _finish(self, record: dict[str, object]) -> None:
-        """Write a request's line, unless the close already wrote it."""
+        """Write a request's line, unless the close already wrote it: an accepted
+        request is outstanding until one of the two writes its line."""
         with self._lock:
             seq = record["seq"]
-            if seq is not None:
-                if seq in self._finalized:
-                    return
-                self._outstanding.pop(int(seq), None)
+            if seq is not None and self._outstanding.pop(int(seq), None) is None:
+                return
             self.recorder.line(record)
 
     def _track(self, sock: socket.socket, *, upstream: bool) -> bool:
@@ -5327,6 +5340,33 @@ def exited_now(pid: int) -> bool:
         os.close(fd)
 
 
+def test_a_killed_orphan_is_settled_only_once_it_has_exited(world, monkeypatch):
+    # The real SIGKILL lands 0.5 s late, as an exit that takes time: kill_orphan must
+    # wait for it, not settle when the signal call returns.
+    process, init = orchestrator(world, lease=30.0)
+    children = Path(f"/proc/{init}/task/{init}/children").read_text().split()
+    os.kill(int(children[0]), signal.SIGSTOP)
+    process.kill()
+    process.wait()
+    real = signal.pidfd_send_signal
+
+    def slow_exit(pidfd, sig):
+        target = os.pidfd_open(init)
+
+        def later():
+            try:
+                real(target, sig)
+            finally:
+                os.close(target)
+
+        threading.Timer(0.5, later).start()
+
+    monkeypatch.setattr(session_module.signal, "pidfd_send_signal", slow_exit)
+    closed = kill_orphan(world.run_dir, timeout=0.5)
+    assert closed.timed_out
+    assert exited_now(init)
+
+
 def test_an_orphan_that_exits_before_the_signal_is_settled_without_error(world, monkeypatch):
     process, init = orchestrator(world, lease=30.0)
     children = Path(f"/proc/{init}/task/{init}/children").read_text().split()
@@ -6030,6 +6070,8 @@ def test_an_answer_passes():
 
 @pytest.mark.parametrize(("lines", "records", "exit_code", "closed", "reason"), [
     ([LINE], answered(stop="error", error="overloaded_error"), 0, CLOSED, "stopped 'error'"),
+    ([LINE], answered(stop="length"), 0, CLOSED, "stopped 'length'"),
+    ([LINE], answered(error="overloaded_error"), 0, CLOSED, "overloaded_error"),
     ([LINE], answered(text=""), 0, CLOSED, "no text"),
     ([LINE], answered()[:1], 0, CLOSED, "never settled"),
     ([LINE], [{"type": "agent_settled", "aborted": True}], 0, CLOSED, "aborted"),
