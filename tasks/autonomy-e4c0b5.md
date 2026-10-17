@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-17T11:25:57Z
-updated: 2026-10-17T16:22:09Z
+updated: 2026-10-17T16:22:19Z
 started: 2026-10-17T11:26:48Z
 depends: []
 parent: autonomy-d9adef
@@ -51,3 +51,5 @@ Where: envelope spec decision 13, §3 steps 2, 7, 9 and Close, §6, §7, §8, §
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T16:22:07Z (main): review: plan round 5 — verdict: accept; findings: none; reviewer: human
 - 2026-10-17T16:22:08Z (main): plan approved by user 2026-10-17 (round 5). Execute with superpowers:subagent-driven-development in .worktrees/plan-egress (branch plan-egress) from a fresh session: baseline just test-fast first; Tasks 1–10 in order, a fresh implementer per task, each followed by independent spec-compliance and code-quality reviews; final whole-branch review; ask the user before Task 10 Step 7 (live recipe, real API).
+- 2026-10-17T16:22:19Z (main): parked (waiting on agent, session): Agent, in a fresh session: resume autonomy-e4c0b5 (tasks start), cd .worktrees/plan-egress, run the baseline just test-fast, then execute docs/plans/2026-10-17-envelope-plan-egress.md with superpowers:subagent-driven-development, Tasks 1–10 in order; ask the user before Task 10 Step 7's live recipe.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
