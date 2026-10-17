@@ -21,7 +21,8 @@ E20), §13 and §14 to match. It follows the probe autonomy-c5c566. Approved 202
 **Amendment of 2026-10-17** (autonomy-efa755): egress and credential custody. It adds
 decision 13. It moves both out of autonomy-9e8a43's deferral (§1), replaces decision 12's
 credential template, removes the `host` network mode, and changes §3, §4, §6, §7, §8,
-§9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Status: draft, for review.
+§9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Status: draft, for human
+review, after three agent review rounds (the third accepted; its minors are applied).
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
