@@ -1,15 +1,16 @@
 ---
 id: autonomy-efa755
 title: "Amend the envelope spec with model-only egress and credential custody: a per-run trusted proxy is the actor's only network path and holds the provider credential"
-status: doing
+status: done
 priority: 2
 size: m
 complexity: high
 process: direct
 owner: main
 created: 2026-10-17T09:50:27Z
-updated: 2026-10-17T11:25:44Z
+updated: 2026-10-17T11:26:27Z
 started: 2026-10-17T09:59:00Z
+completed: 2026-10-17T11:26:27Z
 depends: []
 parent: autonomy-d9adef
 tags: []
@@ -57,3 +58,7 @@ Where: the brief docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-17T11:25:43Z (main): resumed
   provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-17T11:25:43Z (main): review: spec round 6 — verdict: accept; findings: none; reviewer: human
+- 2026-10-17T11:26:27Z (main): done
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-17T11:26:27Z (main): Amendment approved 2026-10-17 (human round 6) after three agent and three human review rounds; merged dd58ff6. Decision 13: per-run sandboxed model proxy behind a loopback listener made in the actor's netns, anthropic-messages dialect with closed lists, credential outside the actor, close transition as the boundary, admit/settle join points; rows E21-E22. Filed: plan autonomy-e4c0b5 (9e8a43 and d5c1cb depend on it), crew-718636.
+  provenance: {"harness_session":"claude-code:8d3345f1-e50f-41b0-b5f0-0aedb418be65","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
