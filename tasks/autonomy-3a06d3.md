@@ -1,13 +1,13 @@
 ---
 id: autonomy-3a06d3
-title: "Resolve egress review follow-ups: model positions, response completion and namespace proof"
+title: "Resolve egress review follow-ups: positions below the top level, response completion and namespace proof"
 status: todo
 priority: 2
 size: xs
 complexity: low
 process: direct
 created: 2026-10-19T00:11:42Z
-updated: 2026-10-19T00:11:42Z
+updated: 2026-10-19T00:38:13Z
 depends: []
 parent: autonomy-d9adef
 tags: []
