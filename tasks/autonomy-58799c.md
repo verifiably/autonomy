@@ -1,12 +1,12 @@
 ---
 id: autonomy-58799c
-title: "Dialect: check a body's fallbacks models against the route's models"
+title: "Dialect: close fallbacks and the message- and block-level positions the route does not check"
 status: idea
 priority: 2
 reviewed: true
 reviewed_at: 2026-10-19T00:11:45Z
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-19T00:11:45Z
+updated: 2026-10-19T00:37:34Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
 tags: []
