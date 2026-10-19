@@ -7,7 +7,7 @@ size: s
 complexity: low
 process: direct
 created: 2026-10-17T19:00:18Z
-updated: 2026-10-19T00:10:34Z
+updated: 2026-10-19T00:10:35Z
 depends: []
 tags: [sandbox]
 agent: claude-code/claude-opus-5-5
@@ -21,3 +21,7 @@ Where: python/src/autonomy/sandbox/bwrap.py (_PROBE, probe); python/tests/test_s
 
 Captured idea (preserved):
 The probe's network check expects ENETUNREACH to 192.0.2.1 and 2001:db8::1, which a host with no default route (or IPv4-only) also gives, so there it cannot tell a shared network from an unshared one; the suite skips the negative there. The static guarantee (build_argv never emits --share-net) holds, but the probe could also compare its /proc/self/ns/net inode with one the orchestrator passes in. From autonomy-e4c0b5's final review (Minor 3).
+
+## Notes
+
+- 2026-10-19T00:10:35Z (main): scope: scoped; 316c68b confirms the runtime probe checks only connect outcomes and the shared-net negative skips without an IPv4 default route; defined namespace-identity proof, strict evidence failures and route-independent checks; priority 3, size s, complexity low, process direct; no sandbox escape demonstrated
