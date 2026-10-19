@@ -7,7 +7,7 @@ size: s
 complexity: low
 process: direct
 created: 2026-10-17T19:00:18Z
-updated: 2026-10-19T00:38:05Z
+updated: 2026-10-19T00:38:06Z
 depends: []
 parent: autonomy-3a06d3
 tags: [sandbox]
@@ -26,3 +26,4 @@ The probe's network check expects ENETUNREACH to 192.0.2.1 and 2001:db8::1, whic
 ## Notes
 
 - 2026-10-19T00:10:35Z (main): scope: scoped; 316c68b confirms the runtime probe checks only connect outcomes and the shared-net negative skips without an IPv4 default route; defined namespace-identity proof, strict evidence failures and route-independent checks; priority 3, size s, complexity low, process direct; no sandbox escape demonstrated
+- 2026-10-19T00:38:05Z (main): scope: rescoped after brief review; the identity check moves from the probe to launch before release, so it proves the actor's own namespace; compare device and inode, confirm the pidfd is live after the stat; parent stat of /proc/<child-pid>/ns/net confirmed on this host
