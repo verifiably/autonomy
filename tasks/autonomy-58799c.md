@@ -6,7 +6,7 @@ priority: 2
 reviewed: true
 reviewed_at: 2026-10-19T00:11:45Z
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-19T00:37:34Z
+updated: 2026-10-19T00:37:35Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
 tags: []
@@ -18,3 +18,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
 ## Notes
 
 - 2026-10-19T00:11:45Z (main): scope: briefed; 316c68b confirms fallback models and message-object keys/roles are unchecked; retained the captured live finding and framed fail-closed refusal versus explicit fallback validation; brief: docs/notes/2026-10-18-egress-proof-gaps-brief.md; waits on autonomy-d0387e
+- 2026-10-19T00:37:35Z (main): scope: brief revised after review; the gap widens past model selection to tool and source positions in open message and block keys (the example route's inline-tools and mid-conversation-output-config betas), and to values of allowed top-level fields; fallbacks is reachable only through operator misconfiguration; still waits on autonomy-d0387e
