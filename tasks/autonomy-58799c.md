@@ -4,8 +4,8 @@ title: "Dialect: check a body's fallbacks models against the route's models"
 status: idea
 priority: 2
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-19T00:11:43Z
-depends: []
+updated: 2026-10-19T00:11:44Z
+depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
 tags: []
 agent: claude-code/claude-opus-5-5
