@@ -1,12 +1,12 @@
 ---
 id: autonomy-c9508e
-title: "Proxy: end a cut response abortively so any client sees an error"
+title: "Proxy: make a cut response detectable to any HTTP client"
 status: idea
 priority: 2
 reviewed: true
 reviewed_at: 2026-10-19T00:11:47Z
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-19T00:11:47Z
+updated: 2026-10-19T00:37:48Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
