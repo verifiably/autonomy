@@ -4,8 +4,8 @@ title: "Proxy: end a cut response abortively so any client sees an error"
 status: idea
 priority: 2
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-19T00:11:45Z
-depends: []
+updated: 2026-10-19T00:11:46Z
+depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
 agent: claude-code/claude-opus-5-5
