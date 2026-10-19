@@ -6,7 +6,7 @@ priority: 2
 reviewed: true
 reviewed_at: 2026-10-19T00:11:47Z
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-19T00:37:48Z
+updated: 2026-10-19T00:37:49Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
@@ -18,3 +18,4 @@ Every proxied response is close-delimited, so a stream cut by an upstream error 
 ## Notes
 
 - 2026-10-19T00:11:47Z (main): scope: briefed; 316c68b confirms close-delimited actor responses and shutdown-before-close on both completion paths; reset behavior and its shutdown interaction remain unproven; brief: docs/notes/2026-10-18-egress-proof-gaps-brief.md; waits on autonomy-9570b0
+- 2026-10-19T00:37:49Z (main): scope: brief revised after review; an abortive close must replace the FIN from both _release and close()'s survivor cut and win the stop path's cross-thread race, so the brief now leans to proxy-owned chunked framing; mechanism follows autonomy-9570b0
