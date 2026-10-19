@@ -1,13 +1,13 @@
 ---
 id: autonomy-9570b0
-title: Establish how a cut proxy response can reliably signal an HTTP client error
+title: "Establish how a cut proxy response can reliably signal an HTTP client error: framing or abortive close"
 status: todo
 priority: 2
 size: s
 complexity: mid
 process: direct
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-19T00:37:47Z
+updated: 2026-10-19T00:37:48Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
