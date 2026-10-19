@@ -7,7 +7,7 @@ size: s
 complexity: mid
 process: direct
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-19T00:11:46Z
+updated: 2026-10-19T00:37:47Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
@@ -15,12 +15,12 @@ source: docs/notes/2026-10-18-egress-proof-gaps-brief.md
 agent: codex
 ---
 
-Question: Does an abortive actor-socket close reliably expose detectable proxy response cuts through the current shutdown paths, or is proxy-owned chunked framing required?
+Question: Does proxy-owned chunked framing, with a terminator only on completion, make every detectable cut of a proxied response an HTTP client error, and can an abortive close (SO_LINGER {1,0}) match it once both FIN paths change?
 
-Where to start: python/src/autonomy/egress/server.py::_handle, _release and close; egress/upstream.py::cut and response_head; python/tests/egress_fixtures.py and test_egress_server.py (badchunk and route-close cases); docs/notes/2026-10-18-egress-proof-gaps-brief.md; autonomy-e4c0b5's attached final review.
+Where to start: python/src/autonomy/egress/server.py::_handle, _release and close; egress/upstream.py::cut and response_head; python/tests/egress_fixtures.py and test_egress_server.py (badchunk and route-close cases); envelope design decision 13 ("in framing of its own"); docs/notes/2026-10-18-egress-proof-gaps-brief.md; autonomy-e4c0b5's attached final review. Two paths send a FIN today: _release shuts with SHUT_RDWR before close, and close() shuts survivors with SHUT_RDWR from its own thread after the join. A client sees that FIN as a clean end before any RST.
 
-Bound: one small real-loopback matrix covering normal completion, an upstream framing failure after the head, and route stop mid-body, observed with a raw TCP reader and a standard-library HTTP client. Compare SO_LINGER {1,0} with the existing shutdown order; test a minimal chunk-framing alternative only if reset does not meet the acceptance cases. Preserve readable pre-response 403/502 answers. Identify the limit where the upstream itself ends an unframed body without detectable failure. No production proxy redesign, benchmark, paid API or live desktop use.
+Bound: one small real-loopback matrix covering route stop mid-body (first), an upstream framing failure after the head, and normal completion, observed with a raw TCP reader and a standard-library HTTP client. Test minimal chunk framing and an abortive close that replaces both FIN paths; for the reset, record whether the stop path's race can be won reliably. Preserve readable pre-response 403/502 answers. Identify the limit where the upstream itself ends an unframed body without detectable failure. No production proxy redesign, benchmark, paid API or live desktop use.
 
-Expected result: record client results and reproducible commands/test cases on this task and in the brief, then recommend the smallest reliable mechanism and explicit limits. Keep the bounded close, streaming, settle callback and final-record behavior as acceptance constraints for later implementation.
+Expected result: record client results and reproducible commands/test cases on this task and in the brief, then recommend the smallest reliable mechanism (the brief leans to framing) and explicit limits. Keep the bounded close, streaming, settle callback and final-record behavior as acceptance constraints for later implementation.
 
 Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<finding>" before this result's branch merges.
