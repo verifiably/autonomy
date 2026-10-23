@@ -4,8 +4,8 @@ title: "Specialist panels: role agents discussing a research question"
 status: idea
 priority: 2
 created: 2026-10-09T17:39:25Z
-updated: 2026-10-23T18:27:15Z
-depends: []
+updated: 2026-10-23T18:27:16Z
+depends: [autonomy-9e8a43]
 tags: [quick-add]
 source: "mindful:thought:47f2f857a23d382e61fa6f4bb210b109"
 agent: claude-code/claude-opus-5-5
