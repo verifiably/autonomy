@@ -25,6 +25,11 @@ decision 13. It moves both out of autonomy-9e8a43's deferral (§1), replaces dec
 credential template, removes the `host` network mode, and changes §3, §4, §6, §7, §8,
 §9, §10, §11, §12 (rows E21 and E22), §13 and §14 to match. Approved 2026-10-17 (human
 review round 6), after three agent review rounds and three human ones.
+**Amendment of 2026-10-22** (autonomy-cb258b): what Plan B1 shipped and this text did
+not state. §3 steps 1 and 2 gain how the places resolve and the refusals
+`runtime-dir-unset`, `home-unknown` and `allocation-failed`, decision 12's *On failure*
+gains the exit on an unexpected failure, §3's close names exit 2 beside the
+disposition codes, and row E1's CLI arm covers them.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -469,11 +474,20 @@ while drafting, and the review may overturn them.
         that is closed, or whose `fstat` `(st_dev, st_ino)` equals that of fd 0, 1 or
         2, such as `3>&2`. A duplicate of the actor's channel would carry the lines
         where the actor can read and forge them.
-      - **On failure.** A refusal at step 2 writes nothing on the report fd. A run that
-        closes at any later step, including one that never starts the actor, still
-        writes the closing line after its `disposition.json`. If the orchestrator dies,
-        the fd reaches EOF with no closing line, and the run is closed with `run close`
-        (§3 *Orphans*).
+      - **On failure.** A refusal at step 1 or 2 writes nothing on the report fd. A run
+        that closes at any later step, including one that never starts the actor,
+        still writes the closing line after its `disposition.json`. If the orchestrator
+        dies, the fd reaches EOF with no closing line, and the run is closed with
+        `run close` (§3 *Orphans*).
+      - **On an unexpected failure.** An error that no step handles ends
+        `autonomy run` with one diagnostic line on stderr, never a traceback. While no
+        run directory exists, it exits 2, as a refusal does, and writes nothing on the
+        report fd. Once step 1 has made one, it exits 4: the run has no
+        `disposition.json`, the diagnostic names its directory as left for
+        `run close`, and the report fd is closed after the first line, so the caller
+        sees EOF with no closing line, as when the orchestrator dies. A run whose
+        `disposition.json` is already durable keeps its disposition's exit code and
+        is not left for `run close`, whatever fails after it.
       - **Without `--report-fd`,** a program has only the exit code.
     - **What the channel cannot do.** It grants nothing. The tier, the sandbox spec and
       the handle are fixed before the actor starts, and no byte on stdin widens them.
@@ -805,7 +819,24 @@ named disposition, and the actor never starts.
      `<cache>` defaults to `$XDG_CACHE_HOME/verifiably-autonomy`.
    - **Host-side socket directory:** `$XDG_RUNTIME_DIR/va/<run-id[:12]>/`, short
      because of the 107-byte `AF_UNIX` limit.
-2. **Refuse on configuration** (exit 2, no run directory kept) when:
+   - **How the places resolve:** `$XDG_STATE_HOME`, `$XDG_CACHE_HOME` and
+     `$XDG_CONFIG_HOME` (decision 13's `<config>`) count only when absolute. An unset,
+     empty or relative value is ignored, as the XDG base directory spec says, and the
+     spec's default under the home directory is used: `.local/state`, `.cache` and
+     `.config`. The home directory is `$HOME` when it is absolute, and otherwise the
+     passwd entry's home, so an empty or relative `$HOME` is treated like a relative
+     XDG value. It is looked up only when a default needs it. `$XDG_RUNTIME_DIR` has
+     no default, because the endpoint's socket lives there.
+   - **All three or none:** each directory is new, and a collision fails rather than
+     sharing one. A directory that cannot be made is refused `allocation-failed`
+     (exit 2): the directories this step made are removed first, and their parents,
+     which every run shares, stay.
+2. **Refuse on configuration** (exit 2, no run directory kept). The checks that need
+   no `science` read, and the resolution of step 1's places, run before step 1 makes
+   anything. Refuse when:
+   - `$XDG_RUNTIME_DIR` is unset, empty or relative (`runtime-dir-unset`);
+   - a default in step 1 needs the home directory, and neither `$HOME` nor the passwd
+     entry gives an absolute one (`home-unknown`);
    - the tier is `publishes`;
    - the write corpus is not among the world's corpus roots;
    - the lease is below the floor (§8);
@@ -908,7 +939,9 @@ Then:
    sealed tips.
 4. **Write `disposition.json`** (§9), fsync it, write the closing line on the report
    fd (decision 12), and exit with the disposition's code: 0 `clean`, 3 `quarantined`,
-   4 `unwired`.
+   4 `unwired`. The other codes come before a disposition: 2 for a refusal at step 1 or
+   2, and 2 or 4 for an unexpected failure, by whether a run directory exists
+   (decision 12 *On an unexpected failure*).
 
 **Orphans.** A run directory with a baseline and no disposition belongs to an
 orchestrator that died.
@@ -1505,7 +1538,7 @@ named, never passed.
 
 | row | claim | test | negative |
 |---|---|---|---|
-| E1 | every tier's permit is the table's; `publishes`, an empty mints map, and a non-reachable family are refused at open | unit: each constant against literal permits; `run --tier publishes` exits 2 with no run directory | a tier built from `full()` fails the unit |
+| E1 | every tier's permit is the table's; `publishes`, an empty mints map, and a non-reachable family are refused at open; step 1's places resolve as §3 says, its refusals and step 2's keep nothing, and an unexpected failure exits 2 or 4 with one diagnostic line | unit: each constant against literal permits; `run --tier publishes` exits 2 with no run directory; an unset, empty or relative `XDG_RUNTIME_DIR` is refused `runtime-dir-unset`; an empty or relative XDG directory falls back to its default, and an unset, empty or relative `HOME` to the passwd entry; no usable home is refused `home-unknown` only when a default needs it; `run` with an absolute `XDG_RUNTIME_DIR` that cannot be made exits 2 `allocation-failed` with no run or scratch directory and nothing on the report fd, and again with stderr a one-page pipe the caller has filled and never reads; steps that raise after allocation, a `RuntimeError` and a `KeyboardInterrupt`, exit 4 with one diagnostic line naming the run and no traceback, no `disposition.json`, and the report fd closed after the first line | a tier built from `full()` fails the unit; an allocation that keeps what it made before the failure leaves a run directory; a fallback that resolves a relative value against the working directory puts the run there; a last-resort handler that lets the error propagate prints a traceback and exits 1 |
 | E2 | `closing` classifies every entry type and gives each row's disposition and the precedence | unit: constructed evidence for every row, every entry type and each pair of rows; a normal commit's intent, registration and settlement are all members | swapping two precedence ranks fails a pair case; dropping the settlement rule turns the normal-commit case `quarantined` |
 | E3 | the ledger reader types a torn tail and an unknown line as findings | unit over byte fixtures | a reader that raises fails the fixture |
 | E4 | the static check refuses aliases of the denied set | unit: a symlink to a corpus, a parent of the operations root, `/` | an unrelated directory passes |
