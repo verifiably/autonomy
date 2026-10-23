@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: docs/spec-run-refusals
 created: 2026-10-15T15:44:08Z
-updated: 2026-10-23T01:13:49Z
+updated: 2026-10-23T01:13:59Z
 started: 2026-10-23T01:13:49Z
 depends: []
 tags: []
@@ -25,4 +25,6 @@ Add them to §3 steps 1–2, decision 12's *On failure*, and the exit-code list;
 ## Notes
 
 - 2026-10-23T01:13:49Z (main): started
+  provenance: {"harness_session":"claude-code:32e73931-f581-4452-9364-51f207f4e015","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-23T01:13:59Z (docs/spec-run-refusals): resumed
   provenance: {"harness_session":"claude-code:32e73931-f581-4452-9364-51f207f4e015","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
