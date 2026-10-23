@@ -412,6 +412,27 @@ def test_steps_that_raise_after_allocation_exit_4_with_one_diagnostic(tmp_path, 
     assert json.loads(first)["run"] == run_dir.name
 
 
+RAISING_PLACES = """
+import autonomy.run as run
+def places(env):
+    raise RuntimeError("places failed\\nbefore allocation")
+run.places = places
+"""
+
+
+def test_an_unexpected_error_before_allocation_exits_2_with_one_diagnostic(tmp_path, pipes):
+    report = pipes["report_write"]
+    io = pipes["io"]
+    io.prelude = RAISING_PLACES
+    status, _ = autonomy(tmp_path, [*RUN, "--report-fd", str(report), *ACTOR], io)
+    assert status == 2
+    assert runs(tmp_path) == [] and scratches(tmp_path) == []
+    (failure,) = drain(pipes["err"]).decode().splitlines()
+    assert failure == "autonomy: failed: RuntimeError: places failed before allocation"
+    os.close(pipes["report_write"])
+    assert read_all(pipes["report"]) == b""
+
+
 @pytest.mark.parametrize("value", ["99999999999", "2147483648", "\u0663", "-1"])
 def test_a_report_fd_that_is_not_a_descriptor_number_is_a_usage_error(tmp_path, pipes, value):  # I1 (d), M2
     status, _ = autonomy(tmp_path, [*RUN, "--report-fd", value, *ACTOR], pipes["io"])
