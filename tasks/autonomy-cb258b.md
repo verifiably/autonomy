@@ -1,15 +1,17 @@
 ---
 id: autonomy-cb258b
 title: Amend the envelope spec with autonomy run's configuration refusals and its exit on an unexpected failure
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: docs/spec-run-refusals
 created: 2026-10-15T15:44:08Z
-updated: 2026-10-23T01:41:25Z
+updated: 2026-10-23T01:41:53Z
 started: 2026-10-23T01:13:49Z
+completed: 2026-10-23T01:41:53Z
+closed: 2026-10-23T01:41:53Z
 depends: []
 tags: []
 source: autonomy-641123
@@ -32,3 +34,7 @@ Add them to §3 steps 1–2, decision 12's *On failure*, and the exit-code list;
 - 2026-10-23T01:22:35Z (docs/spec-run-refusals): review: spec round 1 — verdict: revise; findings: Important 2, Minor 7; reviewer: claude-code/claude-opus-5-5
 - 2026-10-23T01:36:58Z (docs/spec-run-refusals): round 1 addressed at 9b9afc0: I1 durable vs published stated in three cases; I2 new test test_an_unexpected_error_before_allocation_exits_2_with_one_diagnostic (fails with the handler mutated to always exit 4); minors M1-M7 fixed. Suite: one unidentified failure in 1 of 6 full runs (102 s vs 85 s, load avg ~10); 5 later runs 791 passed; tt keeps no log to name it.
 - 2026-10-23T01:41:25Z (docs/spec-run-refusals): review: spec round 2 — verdict: accept; findings: Minor 5; reviewer: claude-code/claude-opus-5-5
+- 2026-10-23T01:41:53Z (docs/spec-run-refusals): done
+  provenance: {"harness_session":"claude-code:32e73931-f581-4452-9364-51f207f4e015","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-23T01:41:53Z (docs/spec-run-refusals): envelope spec states autonomy run's configuration refusals (runtime-dir-unset, home-unknown, allocation-failed), place resolution and check order, and the exit on an unexpected failure (2 before step 1 returns, 4 until disposition.json is durable, its own code after; B2 brings the code to the last); row E1 extended; new test for the exit-2 arm. Two review rounds, accepted; deferred minors on autonomy-f6efe8.
+  provenance: {"harness_session":"claude-code:32e73931-f581-4452-9364-51f207f4e015","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
