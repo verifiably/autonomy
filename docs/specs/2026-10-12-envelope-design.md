@@ -31,7 +31,7 @@ step 2's checks, how the places resolve, and the refusals `runtime-dir-unset`,
 `home-unknown` and `allocation-failed`. Decision 12's *On failure* covers step 1, and a
 new bullet, *On an unexpected failure*, gives that exit, with the rule B2
 (autonomy-f6efe8) brings the code to: a durable `disposition.json` keeps its exit code.
-§3's close names the codes that come before a disposition, and row E1's unit and CLI
+§3's close names the codes that come before a durable disposition, and row E1's unit and CLI
 arms cover all of it.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
@@ -488,17 +488,16 @@ while drafting, and the review may overturn them.
           on the report fd. A directory step 1 failed to remove may remain; the
           removal's error is the one reported.
         - **From then until `disposition.json` is durable** (written and fsynced, then
-          its directory fsynced), it exits 4, the code of the `unwired` that
-          `run close` settles at least. The diagnostic names the run directory as left
-          for `run close`. The report fd is closed with at most the first line, so the
+          its directory fsynced), it exits 4, `unwired`'s code, and the run is left
+          for `run close`, which the diagnostic names with the run directory. The report fd is closed with at most the first line, so the
           caller sees EOF with no closing line, as when the orchestrator dies. A
           `disposition.json` linked into place whose directory fsync failed is such a
           run too, and `run close` prints that disposition (§9).
         - **Once `disposition.json` is durable,** the run keeps its disposition's exit
           code whatever fails after it, and is not left for `run close`. If the closing
           line was not written, a caller that runs `run close` gets the existing
-          disposition (§9). B1 still exits 4 when a write after the disposition
-          fails; B2 (autonomy-f6efe8) brings the code to this rule.
+          disposition (§9). B1 still exits 4 when anything fails after the
+          disposition; B2 (autonomy-f6efe8) brings the code to this rule.
       - **Without `--report-fd`,** a program has only the exit code.
     - **What the channel cannot do.** It grants nothing. The tier, the sandbox spec and
       the handle are fixed before the actor starts, and no byte on stdin widens them.
@@ -951,14 +950,16 @@ Then:
 2. **Kill the actor's namespace** if it is still alive (§8).
 3. **Run the closing check** (§9) over the intervals from the baseline heads to the
    sealed tips.
-4. **Write `disposition.json`** (§9), fsync it, write the closing line on the report
+4. **Write `disposition.json`** (§9), fsync it and its directory, write the closing line on the report
    fd (decision 12), and exit with the disposition's code: 0 `clean`, 3 `quarantined`,
    4 `unwired`. The other codes come before a durable disposition: 2 for a refusal at
    step 1 or 2, and 2 or 4 for an unexpected failure, by whether step 1 has returned
    (decision 12 *On an unexpected failure*).
 
 **Orphans.** A run directory with a baseline and no disposition belongs to an
-orchestrator that died.
+orchestrator that died. A run directory with no baseline, which an unexpected failure
+between steps 1 and 3 leaves, has no interval to check; how `run close` settles it is
+B2's to specify (autonomy-f6efe8).
 
 - **What happens to the endpoint:** it sees EOF on its control socket and seals
   within one read, writing `seal.json` itself.
