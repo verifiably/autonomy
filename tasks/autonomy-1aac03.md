@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T21:30:22Z
+updated: 2026-10-25T21:33:57Z
 started: 2026-10-25T21:14:55Z
 depends: []
 parent: autonomy-d9adef
@@ -41,3 +41,4 @@ Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; en
   provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-25T21:23:44Z (authorization-contract): Spec drafted at docs/specs/2026-10-25-authorization-contract-design.md (8db5593 on authorization-contract, worktree .worktrees/authorization-contract). Shape: vocabulary (gate, approval surface, grant); seven parts of a grant; operator > orchestrator > actor with part-by-part narrowing and the stated single-user-host limit; a class table (governed writes, unattended operation, spend, credential, egress, publication, host changes) with enforcement points; staging; relay's future grant-request path with conditions; refusal-code catalog; the tier recast; consumers; rows A1-A5. Asks for no code; A3 joins Plan B2. Builder check and fresh-context spec review round 1 dispatched next.
 - 2026-10-25T21:30:22Z (authorization-contract): review: spec round 1 — verdict: revise; findings: Important 7, Minor 7; reviewer: claude-code/claude-fable-5-1
+- 2026-10-25T21:33:57Z (authorization-contract): Builder check (fresh subagent, 0ae2f43) asked five questions; none needs the user. Rulings written into revision 26e4b17: (1) the spend class has two admission points, the proxy's admit and the endpoint's dispatch of run acts, from autonomy-9e8a43's own criterion; (2) crew's three enforced limits judged by one test (outside the worker's reach): wall-clock stays enforced, token and dollar ceilings advisory while the credential is in the trajectory, the environment allowlist is a starting state; handed to crew as an amendment to review there, not applied from here; (3) autonomy-9e8a43's first run is an operator invocation whether typed or started by crew supervised, so the operator-to-orchestrator manifest class is due before the first start no person makes; (4) once the allowance class exists a routed run names an allowance or is refused at step 2, the allowance lives under <config> and is digested into baseline.json, and the design states its unit and overrun; (5) no code registry or checklist document: §8 maps classes to where their codes live, and the review dispatch cites §3, §5 and §8. Calls 2 and 4 are mine and flagged for the user's review.
