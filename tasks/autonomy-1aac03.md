@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T21:53:29Z
+updated: 2026-10-25T22:44:27Z
 started: 2026-10-25T21:14:55Z
 depends: []
 parent: autonomy-d9adef
@@ -46,4 +46,6 @@ Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; en
 - 2026-10-25T21:49:08Z (authorization-contract): review: spec round 3 — verdict: revise; findings: Important 1, Minor 5; reviewer: claude-code/claude-fable-5-1
 - 2026-10-25T21:53:16Z (authorization-contract): review: spec round 4 — verdict: accept; findings: Minor 1; reviewer: claude-code/claude-fable-5-1
 - 2026-10-25T21:53:29Z (authorization-contract): parked (waiting on user, review): User reviews docs/specs/2026-10-25-authorization-contract-design.md (revision a1c9664 on branch authorization-contract, worktree .worktrees/authorization-contract), including the two calls flagged as mine: crew's token and dollar ceilings relabelled advisory while the credential is in the trajectory (§4, handed to crew as an amendment), and a routed run naming an allowance or being refused once the allowance class exists (§9). On approval: mark the spec approved, merge authorization-contract into main (personal profile allows a local merge), file the crew amendment task citing §4 and §13 item 4, add row A3 to Plan B2 (autonomy-f6efe8) and row A4 to the science slice, then tasks done. No plan is needed: the spec asks for no code.
+  provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-25T22:44:27Z (authorization-contract): resumed
   provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
