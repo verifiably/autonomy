@@ -6,9 +6,9 @@ priority: 2
 size: m
 complexity: high
 process: planned
-owner: main
+owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T21:14:55Z
+updated: 2026-10-25T21:15:11Z
 started: 2026-10-25T21:14:55Z
 depends: []
 parent: autonomy-d9adef
@@ -35,4 +35,6 @@ Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; en
 - 2026-10-15T10:40:03Z (main): scope: briefed; parented under goal autonomy-d9adef; envelope §11 already maps a tier onto every grant part, and ops split §5.5, relay §4.3 and crew §4.2-4.3 each state the gate-is-not-a-grant boundary without a mechanism; framed contract-first (i) vs mechanism (ii), lean i with the budget allowance in autonomy-9e8a43 as the first mechanical class; waits on user questions: contract or mechanism, whether crew's policy grant is an autonomy grant, whether a relay authorization answer can ever grant; brief: docs/notes/2026-10-15-authority-and-development-actors-brief.md
 - 2026-10-15T10:51:31Z (main): scope: scoped; the user settled the brief's three questions on 2026-10-15 (contract first with enforcement class by class; crew's grant beneath an autonomy ceiling; a relay answer never grants, and the approval surface is distinct from the issuer); promoted to todo as the contract design, P2, m, high, planned; checked against the envelope spec at 409dae7, crew core design revision 9 and relay's typed-interaction spec
 - 2026-10-25T21:14:55Z (main): started
+  provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-25T21:15:11Z (authorization-contract): resumed
   provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
