@@ -1,15 +1,17 @@
 ---
 id: autonomy-1aac03
 title: "Design autonomy's authorization contract: who may grant what, how delegation narrows it, and where each limit is enforced"
-status: doing
+status: done
 priority: 2
 size: m
 complexity: high
 process: planned
 owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T23:09:04Z
+updated: 2026-10-25T23:09:43Z
 started: 2026-10-25T21:14:55Z
+completed: 2026-10-25T23:09:43Z
+closed: 2026-10-25T23:09:43Z
 depends: []
 parent: autonomy-d9adef
 tags: []
@@ -59,3 +61,7 @@ Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; en
 - 2026-10-25T23:08:46Z (authorization-contract): resumed
   provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-25T23:09:04Z (authorization-contract): review: spec round 10 — verdict: revise; findings: Important 1; reviewer: codex/gpt-6-astra
+- 2026-10-25T23:09:43Z (authorization-contract): done
+  provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-25T23:09:43Z (authorization-contract): Authorization contract design spec approved by the user 2026-10-25 (docs/specs/2026-10-25-authorization-contract-design.md, revision afa6ed7): grant parts, operator-orchestrator-actor delegation, class table with enforcement points, gate vs surface vs grant, tier recast, consumers, rows A1-A5. Asks for no code: A3 noted on autonomy-f6efe8, A4 on sci-a1d45f, the crew amendment filed as crew-93202b.
+  provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
