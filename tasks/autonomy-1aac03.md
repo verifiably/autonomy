@@ -8,13 +8,14 @@ complexity: high
 process: planned
 owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T21:15:11Z
+updated: 2026-10-25T21:23:44Z
 started: 2026-10-25T21:14:55Z
 depends: []
 parent: autonomy-d9adef
 tags: []
 source: ops-cb9749
 agent: claude-code
+spec: docs/specs/2026-10-25-authorization-contract-design.md
 ---
 
 Why: designs across the stack name autonomy as the owner of authority to act: spending, publication, host changes, unattended operation (ops docs/specs/2026-10-03-agent-layer-split-design.md §5.5 and §9; relay's typed-interaction spec §4.3; crew core design §4.2-4.3 and §10 decision 1; goal ops-cb50a8). The only grant autonomy defines today is a tier on a science run (envelope spec §11). The agent-layer split handed autonomy this boundary (source ops-cb9749).
