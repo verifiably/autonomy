@@ -266,12 +266,13 @@ to crew's first slice, which marks three limits enforced (crew §4.3, §6.3):
   `src/scopes.ts`, `setTimeout` around the scope's stop); systemd receives only a
   stop timeout, which bounds the stop, not the run. A worker under the same account
   can `SIGSTOP` crew and keep running inside its existing scope past the deadline,
-  without the scope escape crew already marks advisory. It becomes enforced when the
-  deadline leaves crew's process: a unit property such as `RuntimeMaxSec` on the
-  scope, which the user manager applies whatever happens to crew (on a single-user
-  host still within the account's reach, as the limit below states), or the
-  envelope's lease under `autonomy run`, which the sandbox's pid namespace keeps out
-  of the actor's reach.
+  without the scope escape crew already marks advisory. It becomes enforced only
+  where the deadline is held where the worker cannot reach: the envelope's lease
+  under `autonomy run`, which the endpoint and the proxy hold outside the sandbox's
+  pid namespace (envelope §8). A unit property such as `RuntimeMaxSec` on the scope
+  moves the deadline out of crew's process, so it survives crew being stopped, but
+  the user manager is in the same account's reach (crew §4.3 lists it among the
+  worker's advisory reach), so the mark does not change.
 - **the token and dollar ceilings are advisory while the credential is in the
   trajectory.** crew meters pi's own usage report after each turn; a worker holding
   the key can call the provider directly, outside the meter. The ceilings become
@@ -288,11 +289,10 @@ post-hoc digests) is advisory, whatever it prevents in practice. So in the first
 slice as built, the two limits crew marks enforced on the worker's run, wall-clock
 time and the ceilings, are advisory under a hostile worker; the third, the
 environment allowlist, is enforced as a starting state and bounds no effect. This
-relabels two rows of crew §4.3's table (the
-token and dollar ceilings, and wall-clock time) and is handed to crew as an
-amendment to review there, not applied from here (§13). The attempt's snapshot of the
-autonomy term is the run's receipt identity (its run id and the digest of
-`baseline.json`), not a restatement.
+relabels two rows of crew §4.3's table (the token and dollar ceilings, and
+wall-clock time) and is handed to crew as an amendment to review there, not applied
+from here (§13). The attempt's snapshot of the autonomy term is the run's receipt
+identity (its run id and the digest of `baseline.json`), not a restatement.
 
 **Limit, stated.** On a single-user host, the operator and every orchestrator run under
 one account, and the operator → orchestrator hop is enforced by configuration
@@ -563,7 +563,7 @@ marked *(pending)* land with the plan that builds the behaviour they test.
 | A2 | the tier fills §9's table from existing records | every cell of §9 names a record or mechanism that envelope §5–§9 and §12 already test: identity and approval E1, E7; operation E7, E19; scope E4–E6, E14, E15, E21; lifetime and revocation E9–E11, E20, E22; receipt E20 (the report lines match `disposition.json`), E21 (no credential in `baseline.json`), E22 (the recorded route digest); rollback E2, E17; the enforcement point E8, E19 | a cell that names nothing testable is a gap in this document |
 | A3 *(pending, Plan B2)* | an actor that invokes `autonomy run` inside its sandbox gains nothing (§4): it is refused before any run directory exists on the host and can open no session | under real `bwrap`, an actor whose argv runs the same `autonomy` package under `python3 -I` with `--tier coordination -- true`: exit 2 `runtime-dir-unset` (the environment is cleared), no run directory on the host, nothing on the host's report fd; the same with `--model-route <name>` still exits 2 `runtime-dir-unset`; with the actor exporting an absolute `XDG_RUNTIME_DIR` under scratch and `--model-route <name>`, exit 2 `route-unknown` and no run directory anywhere, the refusal preceding allocation; with `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` all under scratch and no route, the nested run either is refused at step 2 by a world check B2 places there, or allocates under scratch and closes `unwired` at step 3 or 4 with no endpoint of its own (`baseline-unavailable` when its `science` read fails, or `endpoint-unavailable` when `science serve --run` is refused `handle-mode` by the CLI in handle mode); in both cases it opens no session and the host's `<state>/runs/` gains no directory; with all four XDG directories under scratch, an actor-written route and credential file, and `--model-route` naming it, step 2 passes on the actor's bytes, the run ends the same way, no proxy start is recorded, and the host's `<config>` and `<state>` are untouched | a sandbox that binds the host's `$XDG_RUNTIME_DIR`, `<state>` or `<config>` (a test hook) lets the nested run allocate on the host or load an operator route; one that lets the nested `science` run outside handle mode against bound host configuration and corpora (a test hook), with the outer run at `report-only` or the nested run naming a write corpus the outer run does not claim, so that `corpus-claimed` cannot mask the result, lets it launch an endpoint and open a session |
 | A4 *(pending, science)* | an `authorization` answer from any surface changes no permit | a run at `coordination` whose actor receives an `authorization` answer of yes over its stdio and then runs a declared command minting `proposition` through the handle is refused before the body runs, and a body that lies is refused again at the act, `permit-exceeded` (governing §5.2; E19's refusal reached from the surface side); the same actor running a declared `publish`-class command is refused the same way; the answer appears in no run record | a run opened at `mints:{proposition: corpus-write}` admits the proposition, which is the tier's business, not the answer's, and still refuses the `publish`-class command, because no unattended tier admits the `publish` family (envelope §5); a test that drives the act without the declaration misses the first refusal |
-| A5 *(crew)* | crew's attempt record marks a limit enforced only when its enforcement point is outside the worker's reach (§4) | crew's tests, after crew reviews §4's relabeling: an attempt without an autonomy run records wall-clock time and the token and dollar ceilings advisory, with the environment recorded as its starting state, until the scope carries a deadline the user manager applies on its own, outside crew's process; one under `autonomy run` with a route records the tier, route, lease and sandbox enforced, the ceilings enforced only once the allowance class exists, and the run id and `baseline.json` digest as the snapshot | an attempt that records a metered ceiling as enforced while the credential is in the trajectory, or wall-clock time as enforced while the deadline is a timer in crew's process, fails |
+| A5 *(crew)* | crew's attempt record marks a limit enforced only when its enforcement point is outside the worker's reach (§4) | crew's tests, after crew reviews §4's relabeling: an attempt without an autonomy run records wall-clock time and the token and dollar ceilings advisory, with the environment recorded as its starting state, whether or not the scope carries a `RuntimeMaxSec`; one under `autonomy run` with a route records the tier, route, lease and sandbox enforced, the ceilings enforced only once the allowance class exists, and the run id and `baseline.json` digest as the snapshot | an attempt that records a metered ceiling as enforced while the credential is in the trajectory, or wall-clock time as enforced while the deadline is a timer in crew's process, fails |
 
 A4's actor-side half needs no new code: the answer is bytes on stdio (decision 12),
 and the refusal is E19's, which waits on the science slice. A5 is filed to crew with
@@ -586,11 +586,11 @@ names what each consumer does with it:
    §6's split between the boundary verdict and crew's acceptance.
 4. **crew:** an amendment to crew core §4.3 and §6.3, filed as a task citing this
    document's §4: the token and dollar ceilings are advisory while the credential is
-   in the trajectory, wall-clock time is advisory while its deadline is a timer in
-   crew's process (a scope `RuntimeMaxSec`, applied by the user manager, would make
-   it enforced against the worker, though not against the account), the environment
-   allowlist is a starting state; row A5 follows it. crew-799319 records the route and the run's
-   receipt identity as the autonomy term.
+   in the trajectory, wall-clock time is advisory under a same-account worker (a scope
+   `RuntimeMaxSec` moves the deadline out of crew's process without changing the
+   mark), the environment allowlist is a starting state; row A5 follows it.
+   crew-799319 records the route and the run's receipt identity as the autonomy
+   term.
 5. **relay and flows:** nothing to build; §7 restates their stated boundaries with the
    reason. relay-f58531's and flows-912ac5's designs are not amended by this document.
 
@@ -605,13 +605,12 @@ names what each consumer does with it:
 - **Capability tokens (macaroons, signed caveats) as the grant shape.** They are
   sound: an authenticated token is verified at the endpoint, outside the actor, and a
   macaroon's caveats support the narrowing §4 asks of operations, resources, scope
-  and lifetime. They are
-  not taken because no current consumer needs their machinery (minting, caveat
-  verification, key custody for the verifier) beyond what the stack's enforcement
-  points already bind without a token: a permit fixed in another process, a
-  namespace, a proxy. The endpoint-bound design is kept; a token scheme stays open
-  for a consumer that needs delegation across hosts or processes the endpoint cannot
-  see.
+  and lifetime. They are not taken because no current consumer needs their machinery
+  (minting, caveat verification, key custody for the verifier) beyond what the
+  stack's enforcement points already bind without a token: a permit fixed in another
+  process, a namespace, a proxy. The endpoint-bound design is kept; a token scheme
+  stays open for a consumer that needs delegation across hosts or processes the
+  endpoint cannot see.
 - **An inbox answer as a grant for low-consequence classes.** Even a small class
   would need the surface authenticated and the answer bound to a request with all of
   §3's parts; that is §7.3, and it is not smaller for a small class.
