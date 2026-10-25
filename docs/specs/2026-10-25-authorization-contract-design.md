@@ -2,10 +2,14 @@
 
 **Date:** 2026-10-25
 **Status:** draft, for the user's review. Four fresh-context agent review rounds
-preceded it: round 1 found 7 Important and 7 Minor, round 2 found 2 Important and 5
-Minor, round 3 found 1 Important and 5 Minor, round 4 accepted with 1 Minor; all are
-addressed in this text. A builder check between rounds 1 and 2 asked five questions,
-answered in §4, §5, §8 and §9.
+preceded the first hand-over: round 1 found 7 Important and 7 Minor, round 2 found 2
+Important and 5 Minor, round 3 found 1 Important and 5 Minor, round 4 accepted with 1
+Minor. A builder check between rounds 1 and 2 asked five questions, answered in §4,
+§5, §8 and §9. The user's review (round 5, relayed from codex/gpt-6-astra) found 1
+Important and 2 Minor: crew's wall-clock limit is a cooperative timeout, A4's
+comparison kind, and the capability-token rationale; four scoped agent rounds (6–9)
+checked the corrections, the last accepting with 2 Minor. All are addressed in this
+text.
 **Task:** autonomy-1aac03, under the goal autonomy-d9adef. Source: ops-cb9749, the
 agent-layer split that handed autonomy the authority boundary.
 
@@ -262,17 +266,18 @@ worker's reach, whether that point is the envelope's (§5) or crew's own runner.
 to crew's first slice, which marks three limits enforced (crew §4.3, §6.3):
 
 - **wall-clock time per scope is a cooperative timeout, advisory until its deadline
-  is held outside the worker's reach.** The deadline is a timer in crew's own process (crew's
-  `src/scopes.ts`, `setTimeout` around the scope's stop); systemd receives only a
-  stop timeout, which bounds the stop, not the run. A worker under the same account
-  can `SIGSTOP` crew and keep running inside its existing scope past the deadline,
-  without the scope escape crew already marks advisory. It becomes enforced only
-  where the deadline is held where the worker cannot reach: the envelope's lease
+  is held outside the worker's reach.** The deadline is a timer in crew's own process
+  (crew's `src/scopes.ts`, `setTimeout` around the scope's stop); systemd receives
+  only a stop timeout, which bounds the stop, not the run. A worker under the same
+  account can `SIGSTOP` crew and keep running inside its existing scope past the
+  deadline, without the scope escape crew already marks advisory. It becomes enforced
+  only when the deadline is held where the worker cannot reach: the envelope's lease
   under `autonomy run`, which the endpoint and the proxy hold (envelope §8) outside
-  the sandbox's pid namespace (decision 13 and §7). A unit property such as `RuntimeMaxSec` on the scope
-  moves the deadline out of crew's process, so it survives crew being stopped, but
-  the user manager is in the same account's reach (crew §4.3 lists it among the
-  worker's advisory reach), so the mark does not change.
+  the sandbox's pid namespace (decision 13 and §7). A unit property such as
+  `RuntimeMaxSec` on the scope moves the deadline out of crew's process, so it
+  survives crew being stopped, but the user manager is in the same account's reach
+  (crew §4.3 lists it among the worker's advisory reach), so the mark does not
+  change.
 - **the token and dollar ceilings are advisory while the credential is in the
   trajectory.** crew meters pi's own usage report after each turn; a worker holding
   the key can call the provider directly, outside the meter. The ceilings become
