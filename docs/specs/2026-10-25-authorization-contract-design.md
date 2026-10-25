@@ -181,13 +181,13 @@ make an attended effect. The operator's authority is expressed in two forms:
 - **Configuration the operator owns**, kept where no actor and no orchestrator can
   write it: the world configuration (which corpora exist and which are denied), the
   model routes under `<config>/routes/` and each route's credential file (envelope
-  decision 13), the lease, which the operator chooses above autonomy's own floor, and
-  crew's `policy.toml` under the user's configuration directory,
+  decision 13), and crew's `policy.toml` under the user's configuration directory,
   outside every repository and every attempt's workspace (crew §4.2). The envelope
   adds `<config>` and every credential file to the denied set, so this configuration
   is unreachable from inside a run by construction.
-- **Invocation**: running `autonomy run` with a tier and a route, or running crew on a
-  kind. An invocation is an approval (§3 part 5) only when the operator makes it, or
+- **Invocation**: running `autonomy run` with a tier, a route and a lease (chosen
+  above autonomy's own floor, which is a constant of the code, not configuration), or
+  running crew on a kind. An invocation is an approval (§3 part 5) only when the operator makes it, or
   when an orchestrator makes it under a ceiling the operator delegated beforehand.
 
 **An orchestrator** is a program that composes runs and never reaches inside one
@@ -206,12 +206,16 @@ its namespaces. This is what decision 3's last clause means mechanically. **Runn
 autonomy command establishes no authority**, because the command is a capability and
 the authority is in what the caller can reach: an actor that runs `autonomy run`
 inside its sandbox is refused before a run directory exists on the host, in the
-order step 2 checks: `runtime-dir-unset` first, for every invocation, because the
-sandbox clears the environment; if the actor exports an absolute `XDG_RUNTIME_DIR`
-itself, `route-unknown` for any route, because `<config>` is denied; without a route,
-`allocation-failed` unless the actor also points the state and cache directories into
-scratch, in which case the nested run allocates there and can still open no session,
-because `science` and the chains it would write are denied to it. §12 row A3 tests
+order step 2 checks. The tier, lease and stdio checks come first and pass for a
+nested invocation that inherits the actor's stdio; then `runtime-dir-unset`, the first
+check that reads the environment, which the sandbox clears; if the actor exports an
+absolute `XDG_RUNTIME_DIR` itself, `route-unknown` for any route, because `<config>`
+is denied; without a route, `allocation-failed` unless the actor also points the
+state and cache directories into scratch. A nested run that allocates there still
+opens no session of its own: the only `science` it can reach runs in handle mode
+under the outer session's permit (envelope §4), where `science serve --run` is
+refused `handle-mode`, so it has no endpoint; and the chains are denied to it as to
+any actor. It closes `unwired` with no run directory on the host. §12 row A3 tests
 each step.
 
 **Delegation narrows every part.** Writing grant(x) for the grant a principal holds:
@@ -389,8 +393,10 @@ contract fixes what that path must look like before anyone builds it:
 2. **The answer binds to the request's revision.** An answer to an earlier text of the
    request is stale and refused, as relay already does for artifacts.
 3. **The surface is authenticated.** relay's local socket takes `surface` as a
-   declared origin, not proof (relay's detached-ask design, 2026-10-24), and its HTTP
-   guard assigns phone or desktop from the path. Until a surface proves the person's
+   declared origin, not proof: the socket's mode is its only local authentication
+   (relay §7.2), the HTTP guard sets `surface` from the request path and overwrites
+   what a client sent (relay §7.3), and relay's detached-ask design (2026-10-24, in
+   relay's records) keeps it so. Until a surface proves the person's
    identity to the issuer, no remote answer reaches this path, local answers stay
    under 7.2, and the whole path waits.
 4. **The issuer decides.** autonomy reads the answer and its provenance and issues, or
@@ -420,7 +426,7 @@ and the `TierRefused`, `RunRefused` and `SandboxUnproven` codes carry what is bu
 | class | where the codes are defined and tested | representative codes (built unless marked) |
 |---|---|---|
 | governed writes | `tiers` at open (E1); the endpoint and kernel at declaration and at each act (E19, pending the science slice); the closing check (E2, E17) | `publishes-unattended`, `mints-empty`, `unknown-kind`, `route-not-admitted`, `family-unreachable`; `permit-exceeded` *(pending)*; `permit-mismatch`, `entry-foreign`, `chain-discontinuous`, `world-moved`, `basis-moved` |
-| unattended operation | step 2 (E1); the static check and probe (E4, E5); steps 3–7 and the seal (pending B2); the closing check | `runtime-dir-unset`, `allocation-failed`, `lease-below-floor`, `stdio-refused`; `bind-overlaps-denied`, `bind-missing`, `probe-failed`; `orphaned-run`, `baseline-pending`, `baseline-raced`, `endpoint-unavailable` *(pending)*; `run-sealed` *(pending)*, `seal-timeout`, `seal-missing`, `orchestrator-lost` |
+| unattended operation | step 2 (E1); the static check and probe (E4, E5); steps 3–7 (pending B2) and the seal (pending B2 and the science slice); the closing check | `runtime-dir-unset`, `allocation-failed`, `lease-below-floor`, `stdio-refused`; `bind-overlaps-denied`, `bind-missing`, `probe-failed`; `orphaned-run`, `baseline-pending`, `baseline-raced`, `endpoint-unavailable` *(pending)*; `run-sealed` *(pending)*, `seal-timeout`, `seal-missing`, `orchestrator-lost` |
 | model spend, credential use, egress | step 2's route and credential checks and the proxy (E21, E22 launch arms); the allowance *(pending, autonomy-9e8a43)* | `route-unknown`, `route-invalid`, `credential-unavailable`, `route-closed`, `egress-unproven`, `egress-lost`; decision 13's body, header and path refusals; the allowance's codes, to be named |
 
 A class design names its codes in its own table, tests each in a verification row
@@ -533,8 +539,8 @@ marked *(pending)* land with the plan that builds the behaviour they test.
 | row | claim | test | negative |
 |---|---|---|---|
 | A1 | a class design is complete only when it fills §3's seven parts, names its enforcement point under §5's two rules, and lists its codes under §8 | review checklist, applied to autonomy-9e8a43's and autonomy-d5c1cb's designs before approval | a design that leaves a part blank without a written reason is sent back |
-| A2 | the tier fills §9's table from existing records | every cell of §9 names a record or mechanism that envelope §5–§9 and §12 already test: identity and approval E1, E7; operation E7, E19; scope E4–E6, E14, E21; lifetime and revocation E9–E11, E20, E22; receipt E1, E20 (`sandbox.stdio`), E21; rollback E2, E17; the enforcement point E8, E19 | a cell that names nothing testable is a gap in this document |
-| A3 *(pending, Plan B2)* | an actor that invokes `autonomy run` inside its sandbox gains nothing (§4): it is refused before any run directory exists on the host and can open no session | under real `bwrap`, an actor whose argv runs the same `autonomy` package under `python3 -I` with `--tier coordination -- true`: exit 2 `runtime-dir-unset` (the environment is cleared), no run directory on the host, nothing on the host's report fd; the same with `--model-route <name>` exits 2 `route-unknown`; with the actor exporting `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` under scratch, the nested run allocates there, reaches step 3 at most and closes `unwired` (`baseline-unavailable`), because `science` and the chains are denied, and the host's `<state>/runs/` gains no directory | a sandbox that binds the host's `$XDG_RUNTIME_DIR`, `<state>` or `<config>` (a test hook) lets the nested run allocate on the host or find a route |
+| A2 | the tier fills §9's table from existing records | every cell of §9 names a record or mechanism that envelope §5–§9 and §12 already test: identity and approval E1, E7; operation E7, E19; scope E4–E6, E14, E15, E21; lifetime and revocation E9–E11, E20, E22; receipt E20 (the report lines match `disposition.json`), E21 (no credential in `baseline.json`), E22 (the recorded route digest); rollback E2, E17; the enforcement point E8, E19 | a cell that names nothing testable is a gap in this document |
+| A3 *(pending, Plan B2)* | an actor that invokes `autonomy run` inside its sandbox gains nothing (§4): it is refused before any run directory exists on the host and can open no session | under real `bwrap`, an actor whose argv runs the same `autonomy` package under `python3 -I` with `--tier coordination -- true`: exit 2 `runtime-dir-unset` (the environment is cleared), no run directory on the host, nothing on the host's report fd; the same with `--model-route <name>` still exits 2 `runtime-dir-unset`; with the actor exporting an absolute `XDG_RUNTIME_DIR` under scratch and `--model-route <name>`, exit 2 `route-unknown` and no run directory anywhere, the refusal preceding allocation; with `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` all under scratch and no route, the nested run allocates there and closes `unwired` at step 3 or 4 with no endpoint of its own (`baseline-unavailable` when its `science` read fails, or `endpoint-unavailable` when `science serve --run` is refused `handle-mode` through the handle), and the host's `<state>/runs/` gains no directory | a sandbox that binds the host's `$XDG_RUNTIME_DIR`, `<state>` or `<config>` (a test hook) lets the nested run allocate on the host or find a route; one that hands the nested run a second endpoint handle lets it open a session |
 | A4 *(pending, science)* | an `authorization` answer from any surface changes no permit | a run at `coordination` whose actor receives an `authorization` answer of yes over its stdio and then runs a declared `publish`-class command through the handle is refused before the body runs, and a body that lies is refused again at the act, `permit-exceeded` (governing §5.2; E19's refusal reached from the surface side); the answer appears in no run record | a run opened at a wider tier admits the kind, which is the tier's business, not the answer's; a test that drives the act without the declaration misses the first refusal |
 | A5 *(crew)* | crew's attempt record marks a limit enforced only when its enforcement point is outside the worker's reach (§4) | crew's tests, after crew reviews §4's relabeling: an attempt without an autonomy run records wall-clock time enforced and the token and dollar ceilings advisory, with the environment recorded as its starting state; one under `autonomy run` with a route records the tier, route, lease and sandbox enforced, the ceilings enforced only once the allowance class exists, and the run id and `baseline.json` digest as the snapshot | an attempt that records a metered ceiling as enforced while the credential is in the trajectory fails |
 
