@@ -44,8 +44,8 @@ as given:
   gate demands is flows' (flows-912ac5).
 - **Question policy:** when to ask a person and how (lore). This document says what
   an answer can and cannot do, not when to ask for one.
-- **Publication's own design.** It stays attended (governing §6; envelope §5). This
-  document only places it.
+- **Publication's own design.** It stays attended (governing §7.1 states the rule;
+  §6.1 defines the act; envelope §5 refuses the tier). This document only places it.
 
 ## 1. Problem
 
@@ -153,13 +153,21 @@ in this stack.
 7. **Rollback.** What happens to the effects when the grant is found to have been
    exceeded or wrong. The contract distinguishes **held** from **rolled back**: a
    `quarantined` run holds its effects and lists them; undoing them is a person's act.
-   An effect that cannot be held or undone (a push, a publication, a host change, a
-   spend) is not made unattended; it is made unavailable at the boundary (§5) or kept
-   attended and staged (§6).
+   An effect that cannot be held or undone is never left to the closing check. It has
+   one of three dispositions, named by its class (§5):
+   - **unavailable at the boundary:** a push, a host change, a credential used outside
+     the proxy. Nothing to roll back, because the effect cannot happen;
+   - **bounded before the effect:** a spend. An admission point decides each unit
+     before it is caused, exhaustion stops the run with its disposition recorded, and
+     the receipt records every admission. What was admitted is spent and stays spent;
+     the bound is the rollback;
+   - **attended and staged:** a publication, a cutover. The operator's own act (§6).
 
-A grant missing a part is not narrower, it is unbounded in that part. That is why the
-tier refuses an empty mints map and a non-reachable family rather than defaulting them
-(envelope §5): a default is a part nobody named.
+A grant missing a part is not narrower, it is unbounded in that part. The tier
+refuses an empty mints map and a non-reachable family rather than defaulting them
+(envelope §5 gives its own reasons: an empty map is `coordination` by another name);
+read under this contract, each refusal keeps a part from being filled by a default
+nobody named.
 
 ## 4. Issuers and delegation
 
@@ -172,8 +180,9 @@ make an attended effect. The operator's authority is expressed in two forms:
 
 - **Configuration the operator owns**, kept where no actor and no orchestrator can
   write it: the world configuration (which corpora exist and which are denied), the
-  model routes and credential files under `<config>/routes/` (envelope decision 13),
-  the lease floor, and crew's `policy.toml` under the user's configuration directory,
+  model routes under `<config>/routes/` and each route's credential file (envelope
+  decision 13), the lease, which the operator chooses above autonomy's own floor, and
+  crew's `policy.toml` under the user's configuration directory,
   outside every repository and every attempt's workspace (crew §4.2). The envelope
   adds `<config>` and every credential file to the denied set, so this configuration
   is unreachable from inside a run by construction.
@@ -196,11 +205,14 @@ reach nothing that carries authority: the corpora, the world root, the run direc
 its namespaces. This is what decision 3's last clause means mechanically. **Running an
 autonomy command establishes no authority**, because the command is a capability and
 the authority is in what the caller can reach: an actor that runs `autonomy run`
-inside its sandbox is refused before a run directory exists (`runtime-dir-unset`,
-since the sandbox clears the environment; `allocation-failed` if the actor sets the
-variable to a path its namespaces do not hold; `route-unknown` for any route) and can
-open no session, because the chains it would write are denied to it. §12 row A3 tests
-that.
+inside its sandbox is refused before a run directory exists on the host, in the
+order step 2 checks: `runtime-dir-unset` first, for every invocation, because the
+sandbox clears the environment; if the actor exports an absolute `XDG_RUNTIME_DIR`
+itself, `route-unknown` for any route, because `<config>` is denied; without a route,
+`allocation-failed` unless the actor also points the state and cache directories into
+scratch, in which case the nested run allocates there and can still open no session,
+because `science` and the chains it would write are denied to it. §12 row A3 tests
+each step.
 
 **Delegation narrows every part.** Writing grant(x) for the grant a principal holds:
 
@@ -230,13 +242,32 @@ The three are different kinds of thing, and the intersection is taken part by pa
   intersection does not grant ends the attempt `refused-at-start` (crew §4.2).
 
 crew records the request, the policy digest, the grant and every narrowing, and marks
-each limit **enforced** or **advisory** (crew §4.3). Under this contract, a limit is
-*enforced* only when its enforcement point is in §5's table with state *enforced* and
-the run is under it; everything else crew does (its environment allowlist, its git and
-`gh` speed bumps, its `tasks` shim, its post-hoc digests) is advisory, whatever it
-prevents in practice, because the worker could reach around it. The attempt's snapshot
-of the autonomy term is the run's receipt identity (its run id and `baseline.json`),
-not a restatement.
+each limit **enforced** or **advisory** (crew §4.3). Under this contract one test
+decides the mark: a limit is *enforced* when its enforcement point is outside the
+worker's reach, whether that point is the envelope's (§5) or crew's own runner. Applied
+to crew's first slice, which marks three limits enforced (crew §4.3, §6.3):
+
+- **wall-clock time per scope stays enforced.** The runner stops the transient unit
+  from outside the worker's process, and the worker cannot extend it. What the worker
+  starts through a process that already exists escapes the scope, which crew already
+  marks advisory.
+- **the token and dollar ceilings are advisory while the credential is in the
+  trajectory.** crew meters pi's own usage report after each turn; a worker holding
+  the key can call the provider directly, outside the meter. The ceilings become
+  enforced only under a run whose requests all pass the proxy, where the allowance
+  admits each one (§5's spend row). crew's "one turn can run past a ceiling" (§6.3)
+  is the bounded-overrun shape §9 asks the allowance design to decide for itself.
+- **the environment allowlist is an enforced starting state and bounds no reach.** It
+  is scope (§3 part 3): the worker starts with exactly that environment, and can still
+  read every path and host the account can. It is recorded as what it is, not as a
+  limit on effects.
+
+Everything else crew does (its git and `gh` speed bumps, its `tasks` shim, its
+post-hoc digests) is advisory, whatever it prevents in practice. This relabels one
+row of crew §4.3's table (the token and dollar ceilings) and is handed to crew as an
+amendment to review there, not applied from here (§13). The attempt's snapshot of the
+autonomy term is the run's receipt identity (its run id and the digest of
+`baseline.json`), not a restatement.
 
 **Limit, stated.** On a single-user host, the operator and every orchestrator run under
 one account, and the operator → orchestrator hop is enforced by configuration
@@ -248,33 +279,40 @@ start by hand (the loop, or crew with `unattended` on for a source) is the consu
 that needs the operator → orchestrator hop made mechanical: an operator-owned
 manifest naming, per orchestrator, the tiers, routes, corpora and lease it may ask for,
 read at step 2 and digested into the receipt. That is a class design of its own, and
-not this one (decision 1).
+not this one (decision 1). The ordering rule for autonomy-9e8a43 follows: its first
+run is an operator invocation whether the operator types it or crew starts it in its
+supervised mode, where the user starts every attempt (crew §4.3); the manifest class
+becomes due before the first start no person makes, and not before.
 
 ## 5. Consequence classes and their enforcement points
 
 Each class is a kind of effect with its own consequence and recovery. For each, the
-table gives who issues the grant and from which ceiling, the enforcement point, and the
-state today. "Attended" means no grant exists and none is planned: the effect is the
-operator's own act.
+table gives who issues the grant and from which ceiling, the enforcement point, what
+the approved designs say, and what runs today. The last two columns differ because
+every science run still closes `unwired` before its actor starts, until Plan B2 lands;
+a reader who needs to know where a limit is enforced *now* reads the *built* column.
+"Attended" means no grant exists and none is planned: the effect is the operator's own
+act.
 
-| class | effect | issuer and ceiling | enforcement point | state |
-|---|---|---|---|---|
-| **governed writes** | minting kernel kinds into a corpus or the store root | operator (world configuration; tier at invocation); an orchestrator may choose a lower tier | the kernel writer's permit, bound in the endpoint and checked at every act (`permit-exceeded`); the closing check's interval and ledger comparison | enforced: the tier (envelope §5, §9) |
-| **unattended operation** | an actor running with no person watching | operator (invocation; crew policy's `unattended` flag beneath) | the envelope as a whole: the sandbox proven twice, the lease, the seal, the kill switch, the dispositions; `unwired` whenever a guard cannot see | enforced for science runs; development actors wait on autonomy-d5c1cb |
-| **model spend** | requests to a provider, which models, and how much | operator (the route; the allowance's limits); an orchestrator or policy may set a lower budget | the model proxy's admission point, where autonomy-9e8a43's allowance check joins (envelope decision 13) | the route is enforced; the allowance is the next class |
-| **credential use** | any use of an operator secret | operator; never delegated below the proxy | the proxy's custody: the credential is outside the actor's filesystem, environment and process; the denied set holds the file and `<config>` | enforced (decision 13) |
-| **network egress** | reaching any destination | operator (the route) | the actor's own network namespace, whose only listener is the route's; the proxy's body and header checks | enforced (decision 13) |
-| **publication** | `publish` acts; anything that leaves the operator's custody for a commons | operator, in person | `publishes` is refused at open; the publish permit exists only on the interactive path under a full permit | attended, always (governing §6, envelope §5) |
-| **host changes** | writes outside the run: a push, a merge, a PR, a service, a global tool or configuration, a repointed launcher | operator, in person | inside the envelope: the denied set, no host network, no credential, so the effect is unavailable, not detected; for development actors, autonomy-d5c1cb makes pushes and host metadata unavailable at the boundary; in an attended agent session: the operator's instructions, which are not mechanical | attended; unavailable inside the envelope |
+| class | effect | issuer and ceiling | enforcement point | designed | built |
+|---|---|---|---|---|---|
+| **governed writes** | minting kernel kinds into a corpus or the store root | operator (world configuration; tier at invocation); an orchestrator may choose a lower tier | the kernel writer's permit, bound in the endpoint and checked at every act (`permit-exceeded`); the closing check's interval and ledger comparison | the tier (envelope §5, §9, approved) | the tier's data and refusals (`tiers`, E1) and the closing comparison (E2, E17); the endpoint and kernel arms (E7, E19) wait on Plan B2 (autonomy-f6efe8) and the science and beliefs slices |
+| **unattended operation** | an actor running with no person watching | operator (invocation; crew policy's `unattended` flag beneath) | the envelope as a whole: the sandbox proven twice, the lease, the seal, the kill switch, the dispositions; `unwired` whenever a guard cannot see | science runs (envelope, approved); development actors wait on autonomy-d5c1cb | the launch side (Plan B1: steps 1–2, the sandbox, the gate, the report fd; E1, E4–E6, E20's launch arm); every run still closes `unwired` at step 3 until B2 |
+| **model spend** | requests to a provider, which models, and how much; kernel analysis jobs the run starts | operator (the route; the allowance's limits); an orchestrator or policy may set a lower budget | two admission points, one per road to a spend: the model proxy's `admit`, where autonomy-9e8a43's allowance check joins (envelope decision 13), and the endpoint's dispatch of a `run` act for analysis jobs, which the same allowance must count (autonomy-9e8a43's criterion names both) | the route (decision 13, approved); the allowance is the next class | the route's checks and the proxy's refusals (the egress plan, E21–E22 launch arms); no allowance |
+| **credential use** | any use of an operator secret | operator; never delegated below the proxy | the proxy's custody: the credential is outside the actor's filesystem, environment and process; the denied set holds the file and `<config>` | decision 13, approved | the proxy and its credential checks (E21–E22 launch arms); the full-run arms wait on B2 |
+| **network egress** | reaching any destination | operator (the route) | the actor's own network namespace, whose only listener is the route's; the proxy's body and header checks | decision 13, approved | the namespace, the listener, the probe's network check (E21–E22 launch arms) |
+| **publication** | `publish` acts; anything that leaves the operator's custody for a commons | operator, in person | `publishes` is refused at open; the publish permit exists only on the interactive path under a full permit | attended, always (governing §7.1, envelope §5) | the refusal at open (E1) |
+| **host changes** | writes outside the run: a push, a merge, a PR, a service, a global tool or configuration, a repointed launcher | operator, in person | inside the envelope: the denied set, no host network, no credential, so the effect is unavailable, not detected; for development actors, autonomy-d5c1cb makes pushes and host metadata unavailable at the boundary; in an attended agent session: the operator's instructions, which are not mechanical | attended; unavailable inside the envelope | the denied set and the network namespace (E4–E5, E21); development actors: nothing yet |
 
 Two rules hold across the table.
 
 **Prevention, not detection.** An effect that leaves no trace in what the closing check
 reads (a push, a spend, a host change, a credential used elsewhere) cannot be
-quarantined after the fact, so it is made unavailable at the boundary (brief §3). A
-check that finds a breach afterwards is evidence, never enforcement: crew's digests of
-user files are observations for a person (crew §5.4), and the contract never lists
-them as an enforcement point.
+quarantined after the fact, so it is decided before it happens: made unavailable at
+the boundary, or bounded at an admission point, by §3 part 7's dispositions (brief
+§3). A check that finds a breach afterwards is evidence, never enforcement: crew's
+digests of user files are observations for a person (crew §5.4), and the contract
+never lists them as an enforcement point.
 
 **The boundary is the one the constrained party cannot reach around.** A tool hook, an
 allowlist in the actor's own process, an environment variable it can unset, or a
@@ -307,8 +345,8 @@ lets an actor do the work without holding the consequence:
 
 So the development mode's `quarantined` holds a result and blocks its promotion
 (brief §4): "no merge, no close" is cut over and the task's closing gate kept attended.
-crew's "nothing an attempt produces is merged, pushed or closed without the user"
-(crew §4.3) is the same rule from the orchestrator's side.
+crew's rule that nothing an attempt produces is merged, pushed or closed without the
+user (crew §4.3) is the same rule from the orchestrator's side.
 
 ## 7. Gates, approval surfaces and the issuer
 
@@ -372,19 +410,28 @@ against, and the refusal says the safe next action where one exists. One decisio
 point per enforcement point; a request is decoded into a typed operation there and
 judged against the grant (the thesis's "encode settled boundaries mechanically").
 
-The codes that exist today, by class:
+This document keeps no registry of codes. Each class's codes are defined and tested
+where its enforcement point lives, and the table below says where that is, with
+representative codes so a reader can recognise the class. The envelope's own lists are
+the catalogs for the classes it enforces: step 2's refusals (envelope §3), the closing
+check's findings (§9) and decision 13's proxy refusals; the code's `closing.SEVERITY`
+and the `TierRefused`, `RunRefused` and `SandboxUnproven` codes carry what is built.
 
-| class | where | codes |
+| class | where the codes are defined and tested | representative codes (built unless marked) |
 |---|---|---|
-| governed writes | `tiers` at open; the kernel writer at each act; the closing check | `publishes-unattended`, `mints-empty`, `unknown-kind`, `route-not-admitted`, `family-unreachable`, `routes-unexpected`, `unknown-tier`; `permit-exceeded`, `run-sealed`; `permit-mismatch`, `actor-mismatch`, `entry-foreign` |
-| unattended operation | step 2; steps 3–7; the seal | `lease-below-floor`, `orphaned-run`, `stdio-refused`; `baseline-*`, `endpoint-unavailable`, `sandbox-unproven`, `egress-unproven`; `seal-timeout`, `orchestrator-lost` |
-| model spend, credential use, egress | step 2; the proxy | `route-unknown`, `route-invalid`, `credential-unavailable`; the proxy's per-request refusals (`route-closed`, and decision 13's body, header and path refusals) |
+| governed writes | `tiers` at open (E1); the endpoint and kernel at declaration and at each act (E19, pending the science slice); the closing check (E2, E17) | `publishes-unattended`, `mints-empty`, `unknown-kind`, `route-not-admitted`, `family-unreachable`; `permit-exceeded` *(pending)*; `permit-mismatch`, `entry-foreign`, `chain-discontinuous`, `world-moved`, `basis-moved` |
+| unattended operation | step 2 (E1); the static check and probe (E4, E5); steps 3–7 and the seal (pending B2); the closing check | `runtime-dir-unset`, `allocation-failed`, `lease-below-floor`, `stdio-refused`; `bind-overlaps-denied`, `bind-missing`, `probe-failed`; `orphaned-run`, `baseline-pending`, `baseline-raced`, `endpoint-unavailable` *(pending)*; `run-sealed` *(pending)*, `seal-timeout`, `seal-missing`, `orchestrator-lost` |
+| model spend, credential use, egress | step 2's route and credential checks and the proxy (E21, E22 launch arms); the allowance *(pending, autonomy-9e8a43)* | `route-unknown`, `route-invalid`, `credential-unavailable`, `route-closed`, `egress-unproven`, `egress-lost`; decision 13's body, header and path refusals; the allowance's codes, to be named |
 
-A class design adds its codes to this catalog and to a verification row with a
-negative arm, as the envelope's rows do. Where a refusal has a safe next action, the
-message names it: `publishes-unattended` says that publication is the operator's;
+A class design names its codes in its own table, tests each in a verification row
+with a negative arm as the envelope's rows do, and says for each whether the bound is
+hard or admits a bounded overrun. Where a refusal has a safe next action, the message
+names it: `publishes-unattended` says that publication is the operator's;
 `permit-exceeded` names the tier that would admit the kind; `route-closed` names the
-run's close.
+run's close. The completeness check of §1 is applied by citing this document's §3, §5
+and §8 in the review dispatch for the class design; it needs no document of its own.
+If the codes a class ships drift from its design, a reference document under `docs/`
+is the remedy then, filed by that class.
 
 ## 9. The tier, recast as the contract's first instance
 
@@ -410,22 +457,41 @@ Two things the recasting makes visible:
   tier and the route digest, so the hop from orchestrator to actor is auditable; the
   hop from operator to orchestrator is the limit stated in §4.
 - **The budget allowance (autonomy-9e8a43) fills the same table.** Its identity is the
-  run's; its operation is a model request; its resource is the allowance's pool; its
-  scope is the proxy's admission point; its lifetime is the run's or the pool's; its
-  revocation is the route's close; its approval is the operator's allowance
+  run's; its operations are a model request and an analysis job; its resource is the
+  allowance's pool; its scope is the run's network namespace, whose only way out is the
+  route's listener, and the endpoint's dispatch, so that no request and no job has
+  another road; its enforcement points are the proxy's `admit` and the endpoint's
+  dispatch of a `run` act; its lifetime is the run's or the pool's; its revocation is
+  the route's close and the seal; its approval is the operator's allowance
   configuration, which an orchestrator may lower; its receipt is `egress.jsonl` with
-  the admission decision per request; its rollback is held (a run at its allowance
-  stops with its disposition recorded, autonomy-9e8a43). That design fills in the
-  blanks and names its codes; this contract only shows that the table closes.
+  the admission decision per request, and the ledger for jobs; its rollback is bounded
+  before the effect (§3 part 7): a run at its allowance stops with its disposition
+  recorded. Three calls the contract makes for it, each mine and each open to that
+  design's review:
+  - **once the class exists, a routed run names an allowance** (its own, or a default
+    the route's operator configuration carries), and a routed run with none is refused
+    at step 2, because a spend with no amount is a grant unbounded in part 2. Until
+    then, decision 13's `admit` stays as it is;
+  - **the allowance lives where its admission point reads it**: operator configuration
+    under `<config>`, read once at step 2 and digested into `baseline.json` like the
+    route, so that an orchestrator's lowering is recorded and an actor cannot reach it;
+  - **the design states its unit and its overrun**: `admit` sees a request's model and
+    size before any response, so a token or dollar bound is either reserved up front or
+    admits a bounded overrun by requests in flight, and the design says which, names
+    the bound in its refusal code, and says what the first slice counts (per run, as
+    crew §10 decision 3 leaves cross-run pooling to whoever schedules).
+
+  That design fills in the rest and names its codes; this contract only shows that
+  the table closes.
 
 ## 10. Consumers
 
 | consumer | takes from this contract | may not |
 |---|---|---|
-| **crew's policy grant** (crew §4.2–4.3; crew-799319) | the intersection rule of §4; the enforced-or-advisory test of §5; the receipt identity as its autonomy snapshot | mark a limit enforced without an enforcement point in §5; widen a run beyond the operator's configuration; treat a successful review as a grant |
+| **crew's policy grant** (crew §4.2–4.3; crew-799319) | the intersection rule and the enforced-or-advisory test of §4; the receipt identity as its autonomy snapshot | mark a limit enforced when the worker can reach around its enforcement point; widen a run beyond the operator's configuration; treat a successful review as a grant |
 | **relay's authorization class** (relay §4.3; relay-f58531) | §7.2: local-only, grants nothing; §7.3's conditions for the future path | store or deliver anything an enforcement point reads; authenticate a surface by declaration |
 | **flows' gates** (ops §5.5; flows-912ac5) | §7.1: a gate authorizes the next task state only | be read by any enforcement point; become the record of an `authorization` answer |
-| **the budget allowance** (autonomy-9e8a43) | §9's pre-filled table; §8's requirement for codes with a safe next action; §5's admission point | enforce in the actor's process; account without the receipt |
+| **the budget allowance** (autonomy-9e8a43) | §9's pre-filled table and its three calls; §8's requirement for codes with a safe next action and a stated overrun; §5's two admission points | enforce in the actor's process; account without the receipt; count model requests and leave analysis jobs uncounted |
 | **the development mode** (autonomy-d5c1cb) | §5's host-changes row and §6's staging: pushes and host metadata unavailable, `quarantined` holds and blocks promotion, acceptance separate from the boundary verdict | infer a clean boundary from a worktree diff; let crew vouch for its own boundary |
 | **the loop** (sub-project 7) and any unattended orchestrator | §4's limit: it is the consumer that makes the operator → orchestrator hop mechanical | run under the operator's full ceiling by default |
 
@@ -467,13 +533,14 @@ marked *(pending)* land with the plan that builds the behaviour they test.
 | row | claim | test | negative |
 |---|---|---|---|
 | A1 | a class design is complete only when it fills §3's seven parts, names its enforcement point under §5's two rules, and lists its codes under §8 | review checklist, applied to autonomy-9e8a43's and autonomy-d5c1cb's designs before approval | a design that leaves a part blank without a written reason is sent back |
-| A2 | the tier fills §9's table from existing records | every cell of §9 names a record or mechanism that envelope §5–§9 and §12 already test (rows E1, E4–E6, E7, E8, E10, E21, E22) | a cell that names nothing testable is a gap in this document |
+| A2 | the tier fills §9's table from existing records | every cell of §9 names a record or mechanism that envelope §5–§9 and §12 already test: identity and approval E1, E7; operation E7, E19; scope E4–E6, E14, E21; lifetime and revocation E9–E11, E20, E22; receipt E1, E20 (`sandbox.stdio`), E21; rollback E2, E17; the enforcement point E8, E19 | a cell that names nothing testable is a gap in this document |
 | A3 *(pending, Plan B2)* | an actor that invokes `autonomy run` inside its sandbox gains nothing (§4): it is refused before any run directory exists on the host and can open no session | under real `bwrap`, an actor whose argv runs the same `autonomy` package under `python3 -I` with `--tier coordination -- true`: exit 2 `runtime-dir-unset` (the environment is cleared), no run directory on the host, nothing on the host's report fd; the same with `--model-route <name>` exits 2 `route-unknown`; with the actor exporting `XDG_RUNTIME_DIR`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` under scratch, the nested run allocates there, reaches step 3 at most and closes `unwired` (`baseline-unavailable`), because `science` and the chains are denied, and the host's `<state>/runs/` gains no directory | a sandbox that binds the host's `$XDG_RUNTIME_DIR`, `<state>` or `<config>` (a test hook) lets the nested run allocate on the host or find a route |
-| A4 | an `authorization` answer from any surface changes no permit | a run at `coordination` whose actor receives an `authorization` answer of yes over its stdio and then requests a `publication` kind is refused `permit-exceeded`; the answer appears in no run record | this is E7's permit check reached from the surface side; a run opened at a wider tier admits the kind, which is the tier's business, not the answer's |
-| A5 | crew's attempt record marks a limit enforced only for a run under an enforcement point in §5 | crew's tests (crew-owned): an attempt without an autonomy run records every limit advisory; one under `autonomy run` records the tier, route, lease and sandbox enforced and the rest advisory, with the run id as the snapshot | an attempt that records its environment allowlist as enforced fails |
+| A4 *(pending, science)* | an `authorization` answer from any surface changes no permit | a run at `coordination` whose actor receives an `authorization` answer of yes over its stdio and then runs a declared `publish`-class command through the handle is refused before the body runs, and a body that lies is refused again at the act, `permit-exceeded` (governing §5.2; E19's refusal reached from the surface side); the answer appears in no run record | a run opened at a wider tier admits the kind, which is the tier's business, not the answer's; a test that drives the act without the declaration misses the first refusal |
+| A5 *(crew)* | crew's attempt record marks a limit enforced only when its enforcement point is outside the worker's reach (§4) | crew's tests, after crew reviews §4's relabeling: an attempt without an autonomy run records wall-clock time enforced and the token and dollar ceilings advisory, with the environment recorded as its starting state; one under `autonomy run` with a route records the tier, route, lease and sandbox enforced, the ceilings enforced only once the allowance class exists, and the run id and `baseline.json` digest as the snapshot | an attempt that records a metered ceiling as enforced while the credential is in the trajectory fails |
 
 A4's actor-side half needs no new code: the answer is bytes on stdio (decision 12),
-and the kernel's refusal is E7's. A5 is filed to crew with this document (§13).
+and the refusal is E19's, which waits on the science slice. A5 is filed to crew with
+this document (§13).
 
 ## 13. Delivery
 
@@ -481,15 +548,20 @@ This document asks for no code of its own. It lands as a design spec here, and i
 names what each consumer does with it:
 
 1. **This repository:** row A3 joins Plan B2's rows (autonomy-f6efe8), since it needs
-   a sandboxed actor that can reach the vendored CLI and a host-side check of the run
-   directory. Row A4's assertion joins E7 when the endpoint exists. The README's usage
-   section gains a sentence pointing at this contract when the next class lands; no
-   behaviour changes now.
-2. **autonomy-9e8a43:** fills §9's second table and §8's codes for the allowance.
+   a sandboxed actor that can reach the `autonomy` package and a host-side check of
+   the run directory. Row A4 joins E19 when the science slice lands. The README's
+   usage section gains a sentence pointing at this contract when the next class lands;
+   no behaviour changes now.
+2. **autonomy-9e8a43:** fills §9's second table, including the three calls made there,
+   and names its codes under §8; its criterion's analysis jobs keep their admission
+   point in the endpoint's dispatch (§5), which is a science slice that design orders.
 3. **autonomy-d5c1cb:** fills §5's host-changes row for development actors and keeps
    §6's split between the boundary verdict and crew's acceptance.
-4. **crew:** row A5 and the enforced-or-advisory test of §5, filed as a task citing
-   this document; crew-799319 records the route and run id as the autonomy term.
+4. **crew:** an amendment to crew core §4.3 and §6.3, filed as a task citing this
+   document's §4: the token and dollar ceilings are advisory while the credential is
+   in the trajectory, the environment allowlist is a starting state, wall-clock time
+   stays enforced; row A5 follows it. crew-799319 records the route and the run's
+   receipt identity as the autonomy term.
 5. **relay and flows:** nothing to build; §7 restates their stated boundaries with the
    reason. relay-f58531's and flows-912ac5's designs are not amended by this document.
 
