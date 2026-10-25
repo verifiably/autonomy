@@ -1,7 +1,9 @@
 # Authorization contract — design
 
 **Date:** 2026-10-25
-**Status:** draft, for the user's review. Four fresh-context agent review rounds
+**Status:** approved 2026-10-25 by the user, after round 10 (one Important: the
+lease is renewable and bounds continued authority, not run duration), applied in this
+text. Four fresh-context agent review rounds
 preceded the first hand-over: round 1 found 7 Important and 7 Minor, round 2 found 2
 Important and 5 Minor, round 3 found 1 Important and 5 Minor, round 4 accepted with 1
 Minor. A builder check between rounds 1 and 2 asked five questions, answered in §4,
@@ -270,10 +272,11 @@ to crew's first slice, which marks three limits enforced (crew §4.3, §6.3):
   (crew's `src/scopes.ts`, `setTimeout` around the scope's stop); systemd receives
   only a stop timeout, which bounds the stop, not the run. A worker under the same
   account can `SIGSTOP` crew and keep running inside its existing scope past the
-  deadline, without the scope escape crew already marks advisory. It becomes enforced
-  only when the deadline is held where the worker cannot reach: the envelope's lease
-  under `autonomy run`, which the endpoint and the proxy hold (envelope §8) outside
-  the sandbox's pid namespace (decision 13 and §7). A unit property such as
+  deadline, without the scope escape crew already marks advisory. A total wall-clock
+  ceiling becomes enforced only when its timer and stop path are outside the
+  worker's reach. The envelope's lease separately bounds continued authority after
+  renewals cease (envelope §8: the orchestrator renews it every lease/3); it does not
+  impose a maximum run duration. A unit property such as
   `RuntimeMaxSec` on the scope moves the deadline out of crew's process, so it
   survives crew being stopped, but the user manager is in the same account's reach
   (crew §4.3 lists it among the worker's advisory reach), so the mark does not
