@@ -6,7 +6,7 @@ priority: 2
 reviewed: true
 reviewed_at: 2026-10-23T18:27:16Z
 created: 2026-10-09T17:39:25Z
-updated: 2026-10-23T18:27:17Z
+updated: 2026-10-25T18:34:58Z
 depends: [autonomy-9e8a43]
 tags: [quick-add]
 source: "mindful:thought:47f2f857a23d382e61fa6f4bb210b109"
@@ -22,3 +22,4 @@ Apply an agent roles system (as in hq-91e028's pairwise flow: leader/follower, a
 - 2026-10-17T09:40:51Z (main): scope: shelved; step 4 of ops-3f5aa6 (which depends on it), after the step 3 run autonomy-9e8a43 (todo, blocked on Plan B2 autonomy-f6efe8 and the science slices); the 2026-10-11 constraints (parallel readers feeding one admitting writer; model diversity is not evidential independence) stand; related crew-9b4b47 (cross-harness delegation) and hq-91e028 (pair flow, shelved)
 - 2026-10-23T18:27:15Z (main): unshelved
 - 2026-10-23T18:27:16Z (main): scope: briefed; correction with user agreement 2026-10-23: the 2026-10-17 shelf waited on a task (autonomy-9e8a43's bounded unattended run and evidence report), so the wait is now a dependency edge instead and the task is an idea again; it re-enters review by itself when autonomy-9e8a43 closes. ops-3f5aa6 keeps its edge to this step, and its shelved_dep warning clears. The 2026-10-11 constraints and the on-wake home question (crew runs the analysts, autonomy keeps the one admitting writer) stand.
+- 2026-10-25T18:34:58Z (main): Accepted boundary handoff from crew-aaab30, 2026-10-25: crew amendment revision 2 (4406de0), docs/specs/2026-10-25-orchestration-boundaries-design.md, integrated into crew authority at d7dcc92. Crew owns participant/team composition and execution references; lore owns role/context contracts, domains own specialized scientific knowledge. Parallel analysts still feed one admitting writer; science owns outcomes and autonomy owns authorization/enforcement and research-specific action selection. Preserve the bounded-run prerequisite, measured single-agent baseline, envelope/recovery gates and this idea’s lifecycle. This records composition ownership, not permission for a panel or research run.
