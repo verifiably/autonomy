@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T21:49:08Z
+updated: 2026-10-25T21:53:16Z
 started: 2026-10-25T21:14:55Z
 depends: []
 parent: autonomy-d9adef
@@ -44,3 +44,4 @@ Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; en
 - 2026-10-25T21:33:57Z (authorization-contract): Builder check (fresh subagent, 0ae2f43) asked five questions; none needs the user. Rulings written into revision 26e4b17: (1) the spend class has two admission points, the proxy's admit and the endpoint's dispatch of run acts, from autonomy-9e8a43's own criterion; (2) crew's three enforced limits judged by one test (outside the worker's reach): wall-clock stays enforced, token and dollar ceilings advisory while the credential is in the trajectory, the environment allowlist is a starting state; handed to crew as an amendment to review there, not applied from here; (3) autonomy-9e8a43's first run is an operator invocation whether typed or started by crew supervised, so the operator-to-orchestrator manifest class is due before the first start no person makes; (4) once the allowance class exists a routed run names an allowance or is refused at step 2, the allowance lives under <config> and is digested into baseline.json, and the design states its unit and overrun; (5) no code registry or checklist document: §8 maps classes to where their codes live, and the review dispatch cites §3, §5 and §8. Calls 2 and 4 are mine and flagged for the user's review.
 - 2026-10-25T21:42:28Z (authorization-contract): review: spec round 2 — verdict: revise; findings: Important 2, Minor 5; reviewer: claude-code/claude-fable-5-1
 - 2026-10-25T21:49:08Z (authorization-contract): review: spec round 3 — verdict: revise; findings: Important 1, Minor 5; reviewer: claude-code/claude-fable-5-1
+- 2026-10-25T21:53:16Z (authorization-contract): review: spec round 4 — verdict: accept; findings: Minor 1; reviewer: claude-code/claude-fable-5-1
