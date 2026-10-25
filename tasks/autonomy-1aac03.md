@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: authorization-contract
 created: 2026-10-04T10:54:36Z
-updated: 2026-10-25T22:44:28Z
+updated: 2026-10-25T22:49:44Z
 started: 2026-10-25T21:14:55Z
 depends: []
 parent: autonomy-d9adef
@@ -50,3 +50,4 @@ Where: brief docs/notes/2026-10-15-authority-and-development-actors-brief.md; en
 - 2026-10-25T22:44:27Z (authorization-contract): resumed
   provenance: {"harness_session":"claude-code:f55d5b38-7219-4d59-ae77-05c40bbf0d6f","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-25T22:44:28Z (authorization-contract): review: spec round 5 — verdict: revise; findings: Important 1, Minor 2; reviewer: codex/gpt-6-astra
+- 2026-10-25T22:49:44Z (authorization-contract): review: spec round 6 — verdict: revise; findings: Important 1, Minor 4; reviewer: claude-code/claude-fable-5-1
