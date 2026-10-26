@@ -523,7 +523,7 @@ Two things the recasting makes visible:
 
 | consumer | takes from this contract | may not |
 |---|---|---|
-| **crew's policy grant** (crew §4.2–4.3; crew-799319) | the intersection rule and the enforced-or-advisory test of §4; the receipt identity as its autonomy snapshot | mark a limit enforced when the worker can reach around its enforcement point; widen a run beyond the operator's configuration; treat a successful review as a grant |
+| **crew's policy grant** (crew §4.2–4.3; crew-718636) | the intersection rule and the enforced-or-advisory test of §4; the receipt identity as its autonomy snapshot | mark a limit enforced when the worker can reach around its enforcement point; widen a run beyond the operator's configuration; treat a successful review as a grant |
 | **relay's authorization class** (relay §4.3; relay-f58531) | §7.2: local-only, grants nothing; §7.3's conditions for the future path | store or deliver anything an enforcement point reads; authenticate a surface by declaration |
 | **flows' gates** (ops §5.5; flows-912ac5) | §7.1: a gate authorizes the next task state only | be read by any enforcement point; become the record of an `authorization` answer |
 | **the budget allowance** (autonomy-9e8a43) | §9's pre-filled table and its three calls; §8's requirement for codes with a safe next action and a stated overrun; §5's two admission points | enforce in the actor's process; account without the receipt; count model requests and leave analysis jobs uncounted |
@@ -592,13 +592,13 @@ names what each consumer does with it:
    point in the endpoint's dispatch (§5), which is a science slice that design orders.
 3. **autonomy-d5c1cb:** fills §5's host-changes row for development actors and keeps
    §6's split between the boundary verdict and crew's acceptance.
-4. **crew:** an amendment to crew core §4.3 and §6.3, filed as a task citing this
+4. **crew:** an amendment to crew core §4.3 and §6.3, filed as crew-93202b citing this
    document's §4: the token and dollar ceilings are advisory while the credential is
    in the trajectory, wall-clock time is advisory under a same-account worker (a scope
    `RuntimeMaxSec` moves the deadline out of crew's process without changing the
    mark), the environment allowlist is a starting state; row A5 follows it.
-   crew-799319 records the route and the run's receipt identity as the autonomy
-   term.
+   crew-718636, crew's first attempt under `autonomy run`, records the route and the
+   run's receipt identity as the autonomy term.
 5. **relay and flows:** nothing to build; §7 restates their stated boundaries with the
    reason. relay-f58531's and flows-912ac5's designs are not amended by this document.
 
