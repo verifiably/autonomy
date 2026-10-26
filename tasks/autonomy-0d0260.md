@@ -6,9 +6,9 @@ priority: 2
 size: xs
 complexity: low
 process: direct
-owner: main
+owner: docs/contract-crew-citation
 created: 2026-10-26T00:44:14Z
-updated: 2026-10-26T00:44:22Z
+updated: 2026-10-26T00:44:29Z
 started: 2026-10-26T00:44:22Z
 depends: []
 tags: [docs]
@@ -26,4 +26,6 @@ Done: both citations name crew-718636, and §13 item 4 names the filed amendment
 - 2026-10-26T00:44:14Z (add): created
   provenance: {"harness_session":"claude-code:ac9dc5b6-0311-4a51-bb79-5269090734fd","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"user"}
 - 2026-10-26T00:44:22Z (main): started
+  provenance: {"harness_session":"claude-code:ac9dc5b6-0311-4a51-bb79-5269090734fd","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-26T00:44:29Z (docs/contract-crew-citation): resumed
   provenance: {"harness_session":"claude-code:ac9dc5b6-0311-4a51-bb79-5269090734fd","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
