@@ -1,13 +1,15 @@
 ---
 id: autonomy-0d0260
 title: "Correct the authorization contract's crew citation: crew-718636, not crew-799319, records the autonomy term"
-status: todo
+status: doing
 priority: 2
 size: xs
 complexity: low
 process: direct
+owner: main
 created: 2026-10-26T00:44:14Z
-updated: 2026-10-26T00:44:14Z
+updated: 2026-10-26T00:44:22Z
+started: 2026-10-26T00:44:22Z
 depends: []
 tags: [docs]
 source: crew-93202b
@@ -23,3 +25,5 @@ Done: both citations name crew-718636, and §13 item 4 names the filed amendment
 
 - 2026-10-26T00:44:14Z (add): created
   provenance: {"harness_session":"claude-code:ac9dc5b6-0311-4a51-bb79-5269090734fd","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"user"}
+- 2026-10-26T00:44:22Z (main): started
+  provenance: {"harness_session":"claude-code:ac9dc5b6-0311-4a51-bb79-5269090734fd","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
