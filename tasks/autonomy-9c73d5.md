@@ -7,7 +7,7 @@ size: xs
 complexity: low
 process: direct
 created: 2026-10-28T19:57:23Z
-updated: 2026-10-28T19:57:23Z
+updated: 2026-10-28T19:58:31Z
 depends: []
 tags: []
 source: ops-2dee86
@@ -21,3 +21,4 @@ Incidental finding during ops-2dee86, not a publication regression. python/tests
 
 - 2026-10-28T19:57:23Z (add): created
   provenance: {"harness_session":"codex:01a183c3-cdb6-7bf0-bdee-ea9db2b6fb1b","harness_session_source":"CODEX_THREAD_ID","origin":"agent"}
+- 2026-10-28T19:58:31Z (main): concerns: autonomy-e4c0b5 defect — the close-race regression fixture can publish its closer before start and then join an unstarted thread.
