@@ -1,15 +1,27 @@
 ---
 id: autonomy-58799c
 title: "Dialect: close fallbacks and the message- and block-level positions the route does not check"
-status: idea
+status: todo
 priority: 2
+size: m
+complexity: mid
+process: planned
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T09:16:17Z
+updated: 2026-10-29T09:19:31Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
 tags: []
 agent: claude-code/claude-opus-5-5
+spec: docs/specs/2026-10-12-envelope-design.md
 ---
+
+Why: implement the human-approved 2026-10-29 decision-13 amendment in docs/specs/2026-10-12-envelope-design.md (approved frozen revision b1a325b6b10535de846441acc3c8f9f6375a5f45; status recorded in a5d3c2b). Research autonomy-d0387e established unchecked nested control keys, including message and block positions, and characterized 67 cases plus four offline pi 1.1.0 / SDK 0.129.0 captures. [ref:brief] holds the evidence and limitations. Neither offline body acceptance nor SDK presence proves a provider escape. The design dependency autonomy-a1d778 is complete and integrated.
+
+Done: enforce the approved finite fields and tool-type vocabulary at route load, refusing fallbacks including default; close every admitted message, block, source, client-tool, cache, citations, effort, thinking, tool-choice and metadata control object. Apply required-field, primitive, nullability, source/context and recursive route checks exactly as the approved amendment specifies. Preserve opaque client input/schema, pi plain/effort traffic, unchanged forwarded bytes, existing refusal codes and strict-JSON behavior. Update affected tests, shared fixtures and README. Prove extra-key rejection for each admitted object/variant, source/context pairings, nested effort permission, opaque data and byte preservation with no upstream connection for invalid requests. No new dependency, provider dialect, schema walker, route-schema expansion, live API, accounting, response-completion or namespace work.
+
+Where: python/src/autonomy/egress/route.py and dialect.py; python/tests/test_egress_route.py, test_egress_dialect.py, test_egress_server.py and egress_fixtures.py; README model route. Read the approved spec and [ref:brief]. Research evidence stays immutable on autonomy-d0387e: those probes assert old verdicts and are not fix tests. Produce and obtain human review of an implementation plan before product code changes; use an isolated worktree, hydrate it and defer the full-suite baseline to execution setup.
+
+Captured original finding (historical, preserved verbatim):
 
 The anthropic-messages dialect closes top-level fields but checks only `model` against the route's `models`. pi 1.1.0 sends `fallbacks: [{model: ...}]` when a model's compat lists allowedFallbackModels; a route that listed `fallbacks` in `fields` would let the upstream answer with models outside `models`. Today the README warns never to list it. Options: treat `fallbacks[].model` as a model position checked against `models`, or refuse `fallbacks` in route parsing. Also check whether keys on message objects (pi's mid-conversation `{role: system, output_config}` messages) are closed. Found during autonomy-e4c0b5's live run (2026-10-17).
 
