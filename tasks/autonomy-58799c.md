@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T10:08:06Z
+updated: 2026-10-29T10:09:24Z
 started: 2026-10-29T09:19:33Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
@@ -78,3 +78,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
 - 2026-10-29T09:55:53Z (fix/closed-messages): Merged-base baseline at b6815997: just test exited 1, 805 passed / 1 failed in 115.98s. Failure test_successful_responses_have_valid_http_framing[empty304], expected complete, got route-closed. Inspected test and server ordering: bodyless HTTPResponse.read returns before worker finalization, then explicit server.close races its gate check. Filed autonomy-26f787 for the separate test-ordering defect; no unrelated fix in this branch. Running focused reproduction then repeating unchanged full baseline. Logs retained in execution workspace.
 - 2026-10-29T09:58:04Z (fix/closed-messages): Baseline rerun before first code edit: just test exited 0, 806 passed in 92.81s on merged b6815997 (subsequent commits only tracker notes). Focused framing rerun 7 passed. Prior baseline failure retained and tracked in autonomy-26f787. Task 1 route tests now run RED before parser changes.
 - 2026-10-29T10:08:06Z (fix/closed-messages): Task 1 committed c1d7a11 after RED 8 failures → GREEN 68; fast 817 passed. Task 2 complete: RED 322 failed / 329 passed → GREEN 725 focused passed; fast 657 passed with existing coverage no-sysmon-context warning. Exact placeholder/custom-tool/400-digit unit and HTTP positives pass. just check and diff checks pass; two existing unlinked_step warnings remain. No source-route/API/credential expansion beyond approved contract. Preparing fresh whole-branch review; spec not yet marked implemented.
+- 2026-10-29T10:09:24Z (fix/closed-messages): attached: plan-round-4-report.md (2301 bytes): Full round-4 plan acceptance of f3d686d by claude-code/claude-opus-5-5 and explicit human approval
