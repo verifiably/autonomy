@@ -33,14 +33,15 @@ new bullet, *On an unexpected failure*, gives that exit, with the rule B2
 (autonomy-f6efe8) brings the code to: a durable `disposition.json` keeps its exit code.
 §3's close names the codes that come before a durable disposition, and row E1's unit and CLI
 arms cover all of it.
-**Proposed amendment of 2026-10-29** (autonomy-a1d778, prerequisite of
-autonomy-58799c): close the `anthropic-messages` control objects. **Pending human
-review; not implemented.** This draft narrows decision 13's operator-configurable
-fields and tool types and defines their nested shapes. Earlier approvals above
-remain approvals of the earlier contract, not of this proposal. The subsection
-*Closed anthropic-messages body* below records the alternatives, compatibility
-cost and acceptance matrix. All choices in this amendment are the author's
-recommendation, not recorded human decisions.
+**Amendment of 2026-10-29** (autonomy-a1d778, prerequisite of autonomy-58799c):
+close the `anthropic-messages` control objects. **Approved 2026-10-29 (human
+review round 2), not implemented.** Human approval covers frozen revision
+`b1a325b6b10535de846441acc3c8f9f6375a5f45`, after one independent builder check
+with no findings. This amendment narrows decision 13's operator-configurable
+fields and tool types and defines their nested shapes. The subsection *Closed
+anthropic-messages body* below records the alternatives, compatibility cost and
+acceptance matrix. The author's proposed choices there were accepted by this
+review; implementation and its plan remain autonomy-58799c's work.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -638,7 +639,7 @@ while drafting, and the review may overturn them.
       shapes; the route can narrow them, never add a shape. A new provider feature
       stays unavailable until the dialect defines it through review and the route
       permits it. A feature header token alone grants no body capability.
-    - **Closed anthropic-messages body (proposed 2026-10-29).** The goal is to
+    - **Closed anthropic-messages body (approved 2026-10-29).** The goal is to
       close unchecked provider control positions while preserving admitted pi
       plain/effort requests, opaque client data and unchanged forwarded bytes.
       This is a finite supported subset of pi 1.1.0's bundled Anthropic SDK 0.129.0,
