@@ -8,13 +8,14 @@ complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T09:20:40Z
+updated: 2026-10-29T09:25:20Z
 started: 2026-10-29T09:19:33Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
 tags: []
 agent: claude-code/claude-opus-5-5
 spec: docs/specs/2026-10-12-envelope-design.md
+plan: docs/plans/2026-10-29-closed-messages-policy.md
 ---
 
 Why: implement the human-approved 2026-10-29 decision-13 amendment in docs/specs/2026-10-12-envelope-design.md (approved frozen revision b1a325b6b10535de846441acc3c8f9f6375a5f45; status recorded in a5d3c2b). Research autonomy-d0387e established unchecked nested control keys, including message and block positions, and characterized 67 cases plus four offline pi 1.1.0 / SDK 0.129.0 captures. [ref:brief] holds the evidence and limitations. Neither offline body acceptance nor SDK presence proves a provider escape. The design dependency autonomy-a1d778 is complete and integrated.
