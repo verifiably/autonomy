@@ -7,7 +7,7 @@ size: s
 complexity: mid
 process: direct
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:21:46Z
+updated: 2026-10-29T09:21:47Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
@@ -25,3 +25,5 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-19T00:11:47Z (main): scope: briefed; 316c68b confirms close-delimited actor responses and shutdown-before-close on both completion paths; reset behavior and its shutdown interaction remain unproven; brief: docs/notes/2026-10-18-egress-proof-gaps-brief.md; waits on autonomy-9570b0
 - 2026-10-19T00:37:49Z (main): scope: brief revised after review; an abortive close must replace the FIN from both _release and close()'s survivor cut and win the stop path's cross-thread race, so the brief now leans to proxy-owned chunked framing; mechanism follows autonomy-9570b0
 - 2026-10-29T09:20:53Z (fix/response-completion): autonomy-9570b0: 30 real-loopback cases plus 60 stop/survivor repeats pass. Recommend proxy-owned chunked framing, terminal zero chunk only on successful body completion; reset requires both FIN paths replaced plus serialized descriptor closure. Unframed upstream EOF cannot establish semantic completeness. Brief updated; attachments on autonomy-9570b0.
+- 2026-10-29T09:21:47Z (fix/response-completion): scope: scoped; autonomy-9570b0 loopback evidence settles chunking over resets, with upstream EOF and framing-validation limits retained; origin: original filing unavailable (no occurrence/session stamp); prior final review identifies this as an agent follow-up. This session user explicitly requests investigation then fix. Direct process: bounded framing change, existing contract, concrete regression checks.
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
