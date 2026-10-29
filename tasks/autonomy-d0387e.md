@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:02:43Z
+updated: 2026-10-29T02:02:59Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -30,4 +30,6 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 ## Notes
 
 - 2026-10-29T02:02:43Z (main): started
+  provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T02:02:59Z (research/egress-policy): resumed
   provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
