@@ -3,10 +3,8 @@ id: autonomy-c9508e
 title: "Proxy: make a cut response detectable to any HTTP client"
 status: idea
 priority: 2
-reviewed: true
-reviewed_at: 2026-10-19T00:11:47Z
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-19T00:37:49Z
+updated: 2026-10-29T09:20:53Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
@@ -19,3 +17,4 @@ Every proxied response is close-delimited, so a stream cut by an upstream error 
 
 - 2026-10-19T00:11:47Z (main): scope: briefed; 316c68b confirms close-delimited actor responses and shutdown-before-close on both completion paths; reset behavior and its shutdown interaction remain unproven; brief: docs/notes/2026-10-18-egress-proof-gaps-brief.md; waits on autonomy-9570b0
 - 2026-10-19T00:37:49Z (main): scope: brief revised after review; an abortive close must replace the FIN from both _release and close()'s survivor cut and win the stop path's cross-thread race, so the brief now leans to proxy-owned chunked framing; mechanism follows autonomy-9570b0
+- 2026-10-29T09:20:53Z (fix/response-completion): autonomy-9570b0: 30 real-loopback cases plus 60 stop/survivor repeats pass. Recommend proxy-owned chunked framing, terminal zero chunk only on successful body completion; reset requires both FIN paths replaced plus serialized descriptor closure. Unframed upstream EOF cannot establish semantic completeness. Brief updated; attachments on autonomy-9570b0.
