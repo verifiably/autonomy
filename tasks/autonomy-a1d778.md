@@ -1,0 +1,37 @@
+---
+id: autonomy-a1d778
+title: Design the closed anthropic-messages policy from the egress brief
+status: todo
+priority: 2
+size: m
+complexity: high
+process: planned
+created: 2026-10-29T09:02:18Z
+updated: 2026-10-29T09:02:18Z
+depends: [autonomy-d0387e]
+parent: autonomy-3a06d3
+tags: []
+source: docs/notes/2026-10-18-egress-proof-gaps-brief.md
+agent: codex
+origin: agent
+---
+
+Why: autonomy-d0387e established the unchecked nested control positions and a finite supported-subset recommendation in research e8fdb3a, clarified in b76482d. The validator, route parser, README and decision 13 are unchanged from research baseline 7097495 at scope baseline 141f31a. Decision 13 currently permits operator-listed fields and server tool types; narrowing them requires a reviewed contract amendment. [ref:brief] contains the current/proposed matrix, pinned SDK provenance, precise proposed shapes and acceptance obligations. This is an agent-derived design follow-up, not approval to narrow the contract.
+
+Decision to resolve: recommend finite key/value schemas at every admitted control object and refuse fallbacks at route load, including the server-selected default. Compare retaining broader operator-configured features through explicitly defined schemas. Model-name validation alone is insufficient because fallbacks also carry per-attempt overrides. Present the compatibility cost of excluding server tools, MCP/container and optional SDK features for user review; do not treat implemented behavior as the intended scope.
+
+Done: produce and obtain the user's review of a written decision-13 amendment in the existing envelope design, following the project's frozen-revision review gates. Specify supported fields, message roles/keys, blocks, sources and pairings, client tools, cache/citation controls and top-level value variants, including required fields, primitive types and nullability. Preserve opaque client input/schema, pi plain/effort traffic, recursive content checks, route permissions, and unchanged request bytes. Distinguish provider behavior not verified by the offline evidence. Record a reviewable acceptance matrix and explicit unsupported features. No production implementation or implementation plan in this task; its reviewed design becomes input to a later scope pass for autonomy-58799c.
+
+Where: [ref:brief], especially Nested-policy investigation / Smallest recommended policy / Contract, acceptance and remaining limits; [ref:envelope], decision 13; python/src/autonomy/egress/dialect.py and route.py; python/tests/test_egress_dialect.py and test_egress_route.py; README model route. autonomy-d0387e holds all eight evidence/review attachments, including 67 characterization cases and four offline pi 1.1.0 / SDK 0.129.0 captures. Those probes assert current verdicts and are not fix tests. No repeated research, paid API, desktop use, new provider dialect, general schema walker, route-schema expansion or accounting work.
+
+Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<reviewed design outcome, revision and remaining implementation scope>" before this result's branch merges, so the idea is scoped against the reviewed contract.
+
+## References
+
+- brief (input, required, kind=brief): docs/notes/2026-10-18-egress-proof-gaps-brief.md — established nested-policy evidence, alternatives and acceptance obligations
+- envelope (input, required, kind=spec): docs/specs/2026-10-12-envelope-design.md — decision 13 is the current contract to amend through review
+
+## Notes
+
+- 2026-10-29T09:02:18Z (add): created
+  provenance: {"harness_session":"codex:01a186e3-3aaf-7182-859e-f668c80750f9","harness_session_source":"CODEX_THREAD_ID","origin":"agent"}
