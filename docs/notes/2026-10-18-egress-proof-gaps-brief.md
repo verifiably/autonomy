@@ -84,6 +84,47 @@ merely to accommodate an unchecked provider feature. Keep readable pre-response
 403/502 errors and successful response completion. Do not use a paid API or live
 desktop for this research.
 
+## Response-completion investigation (2026-10-29, autonomy-9570b0)
+
+The pre-fix baseline `5720ee9` passed `just test`: **791 tests**. The attached
+`test_completion_probe.py` compares the actual proxy over loopback, with test-only
+chunking or reset patches. It covers both worker cleanup and a forced survivor
+cleanup (`JOIN_TIMEOUT=0`), malformed upstream chunking after the head, normal
+Content-Length completion, and unframed upstream EOF. Each case has a raw TCP
+reader and Python's `http.client.HTTPResponse`: **30 cases passed**.
+
+| Mechanism | Stop / survivor stop / bad upstream chunk | Normal completion / unframed EOF |
+| --- | --- | --- |
+| Current close delimiting | Raw reader and HTTP client see clean EOF | Clean EOF |
+| Proxy-owned chunking | Raw reader sees EOF without a zero chunk; HTTP client raises `IncompleteRead` | Zero chunk; HTTP client returns the unchanged body |
+| Reset on incomplete responses | Both readers raise `ConnectionResetError` | Clean EOF |
+
+The reset prototype replaces **both** actor-side `SHUT_RDWR` paths with linger-zero
+close, preserves successful FINs, and serializes reset calls with an already-closed
+descriptor check. Without that serialization, the worker and survivor close raced
+and the worker raised `EBADF`. Five additional runs of the stop/survivor subset
+exercise the race but do not prove reliability across operating systems or arbitrary
+schedules. See attached `completion-races.txt` for results. Already received bytes
+can be lost to a reset; the experiment consumes the first streamed event before stop.
+
+**Recommendation:** use proxy-owned HTTP/1.1 chunked framing for responses that
+permit a body. Reframe each nonempty decoded upstream piece and write the zero
+chunk only after the body iterator finishes successfully on an open route. Preserve
+bodyless 204/304 responses, bounded close, streaming, payload-byte accounting,
+settlement and the final record. Keep local pre-response 403/502 answers length
+delimited. A raw TCP reader must parse framing to detect the cut; the guarantee is
+for HTTP clients that validate response framing and consume the response to its end.
+
+Neither mechanism detects semantic truncation when the upstream itself ends an
+unframed body without a detectable error. HTTP completion is also distinct from
+settlement callback success. No paid API, benchmark or desktop was used.
+
+Reproduce on the pre-fix revision with this task's attachment:
+`PYTHONPATH=tests just test-one ../tasks/files/autonomy-9570b0/test_completion_probe.py -q -s`.
+The script is an investigation prototype, not a production regression test; its
+`current` cases intentionally assert the old behavior. The production fix and its
+regression tests belong to autonomy-c9508e.
+
 ## Alternatives
 
 - **Positions below the top level:** reject `fallbacks` at route load, or support
