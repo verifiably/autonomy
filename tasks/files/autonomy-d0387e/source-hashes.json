@@ -1,0 +1,7 @@
+{
+  "@anthropic-ai/sdk/package.json": "3da3840a09a3bfeac32aed68cfd7fa9ac952f41a00cabe335f806caa2966f3f1",
+  "@anthropic-ai/sdk/resources/beta/messages/messages.d.ts": "851da95a0fa1c05c5c70f849c5a14801b20312ee8e395dd25382434721a8b047",
+  "@anthropic-ai/sdk/resources/messages/messages.d.ts": "f843e5d6ec9023475465370a53228d630110315f6de9c3426cc109a7e89be665",
+  "@earendil-works/pi-ai/package.json": "a8f10d5157b335379ae00edf9c25ae7a15bfc0f3a76107d4376a3779bb5b2995",
+  "@earendil-works/pi-ai/dist/api/anthropic-messages.js": "beb7ec1ad646151f73ee0199c2b30b944d4066e9ba0fa47421aa446ab3d7ec96"
+}
