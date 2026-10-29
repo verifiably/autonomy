@@ -1,21 +1,24 @@
 ---
 id: autonomy-a1d778
 title: Design the closed anthropic-messages policy from the egress brief
-status: doing
+status: done
 priority: 2
 size: m
 complexity: high
 process: planned
-owner: main
+owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:05:57Z
+updated: 2026-10-29T09:17:33Z
 started: 2026-10-29T09:05:57Z
+completed: 2026-10-29T09:17:32Z
+closed: 2026-10-29T09:17:32Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
 tags: []
 source: docs/notes/2026-10-18-egress-proof-gaps-brief.md
 agent: codex
 origin: agent
+spec: docs/specs/2026-10-12-envelope-design.md
 ---
 
 Why: autonomy-d0387e established the unchecked nested control positions and a finite supported-subset recommendation in research e8fdb3a, clarified in b76482d. The validator, route parser, README and decision 13 are unchanged from research baseline 7097495 at scope baseline 141f31a. Decision 13 currently permits operator-listed fields and server tool types; narrowing them requires a reviewed contract amendment. [ref:brief] contains the current/proposed matrix, pinned SDK provenance, precise proposed shapes and acceptance obligations. This is an agent-derived design follow-up, not approval to narrow the contract.
@@ -38,4 +41,28 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
 - 2026-10-29T09:02:18Z (add): created
   provenance: {"harness_session":"codex:01a186e3-3aaf-7182-859e-f668c80750f9","harness_session_source":"CODEX_THREAD_ID","origin":"agent"}
 - 2026-10-29T09:05:57Z (main): started
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:06:41Z (design/closed-messages-policy): resumed
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:07:05Z (design/closed-messages-policy): Intent provenance: filing event matched to codex:01a186e3-3aaf-7182-859e-f668c80750f9, rollout lines 111/114 (add call and created result at 2026-10-29T09:02:18Z). Human ask was "$scope autonomy-58799c"; finite-schema recommendation and design follow-up were agent-added. Original idea filing event unavailable: no creation/session stamp; no origin_session. Using the recorded brief and decision 13 without treating that recommendation as human approval. Planned design-only work in .worktrees/closed-messages-policy, branch design/closed-messages-policy; just setup completed. Full-suite baseline deferred to implementation setup under the planned-work rule. No trial enrolled.
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:13:17Z (design/closed-messages-policy): review: spec round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
+- 2026-10-29T09:13:18Z (design/closed-messages-policy): attached: builder-check-report.md (706 bytes): Full read-only builder check of frozen b1a325b by codex/gpt-6.1-sol; no important unanswered questions
+- 2026-10-29T09:13:19Z (design/closed-messages-policy): attached: review-ledger.md (1579 bytes): Spec review ledger, verification limits and pending human gate; no rulings or deferred minors
+- 2026-10-29T09:13:57Z (design/closed-messages-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages-policy","state":"kept","verification":"verified","purpose":"Frozen proposed decision-13 amendment b1a325b on design/closed-messages-policy, pending human design review; hydrated, clean, review report and ledger attached","next_owner":"task:autonomy-a1d778","cleanup_trigger":"After human approval and local integration, harvest timings and inspect ignored files, plan ledger and host pointers before removal"}
+- 2026-10-29T09:13:58Z (design/closed-messages-policy): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy","state":"kept","verification":"verified","purpose":"Controller copies of the full builder report and review ledger; identical committed attachments verified","next_owner":"task:autonomy-a1d778","cleanup_trigger":"After human review, retain updated review evidence on the task and resolve the ledger before worktree cleanup","manifest":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy/manifest.sha256","sha256":"35775b2be522900c2550ae2dfeeba7337d19d1f0b529e155d59fed02674d1e53"}
+- 2026-10-29T09:13:59Z (design/closed-messages-policy): parked (waiting on user, review): User reviews autonomy repository frozen b1a325b6b10535de846441acc3c8f9f6375a5f45:docs/specs/2026-10-12-envelope-design.md in .worktrees/closed-messages-policy. After approval, agent records human review, completes the design task, wakes and scopes autonomy-58799c, and integrates design/closed-messages-policy locally; implementation plan needs separate review.
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:15:16Z (design/closed-messages-policy): resumed
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:15:36Z (design/closed-messages-policy): review: spec round 2 — verdict: accept; findings: none; reviewer: human
+- 2026-10-29T09:15:36Z (design/closed-messages-policy): Human approved the proposed closed subset with "Approve" in this session, referring to frozen autonomy b1a325b6b10535de846441acc3c8f9f6375a5f45:docs/specs/2026-10-12-envelope-design.md. Approval includes finite control shapes, route-load fallback refusal and documented compatibility limits. Implementation plan remains separately gated.
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:16:16Z (design/closed-messages-policy): attached: review-ledger-approved.md (1995 bytes): Builder and human design review outcomes for b1a325b; approved, no rulings or deferred minors
+- 2026-10-29T09:17:30Z (design/closed-messages-policy): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy","state":"kept","verification":"verified","purpose":"Updated builder and human review ledger plus builder report; current bytes match committed task attachments","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"Immediate local integration and checked removal this turn; all current files already attached","manifest":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy/manifest.sha256","sha256":"053552003d1e2394bbe56aff1f9f7f3b60ee40e2a9486170cb4e05abc413f01f"}
+- 2026-10-29T09:17:30Z (design/closed-messages-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages-policy","state":"kept","verification":"verified","purpose":"Human-approved design branch ready for immediate local integration; clean tracked files and no host pointers in 132 inspected paths","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"Integrate to main and remove after ignored-file dispositions; tt-report already succeeded"}
+- 2026-10-29T09:17:31Z (design/closed-messages-policy): Cleanup dispositions: ignored .superpowers/ contains the builder report, approved review ledger and derived hash manifest; report and current ledger match committed task attachments, earlier ledger also retained, and there are no rulings or deferred minors. Ignored python/.venv/ is regenerable dependency installation from just setup. Both ignored entries may be discarded after integration. tt-report succeeded. just check and git diff --check pass; no product changes or suite run in this design-only task.
+- 2026-10-29T09:17:32Z (design/closed-messages-policy): done
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:17:32Z (design/closed-messages-policy): Human approved frozen b1a325b decision-13 amendment; recorded approved status in a5d3c2b without changing the behavioral contract. Builder review accepted without findings; full report and both review ledgers attached. Five pinned source hashes verified; just check and diff checks pass. Woke autonomy-58799c for scoping and separately reviewed implementation planning. Integrating locally and cleaning the design worktree this turn.
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}

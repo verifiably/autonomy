@@ -33,6 +33,15 @@ new bullet, *On an unexpected failure*, gives that exit, with the rule B2
 (autonomy-f6efe8) brings the code to: a durable `disposition.json` keeps its exit code.
 §3's close names the codes that come before a durable disposition, and row E1's unit and CLI
 arms cover all of it.
+**Amendment of 2026-10-29** (autonomy-a1d778, prerequisite of autonomy-58799c):
+close the `anthropic-messages` control objects. **Approved 2026-10-29 (human
+review round 2), not implemented.** Human approval covers frozen revision
+`b1a325b6b10535de846441acc3c8f9f6375a5f45`, after one independent builder check
+with no findings. This amendment narrows decision 13's operator-configurable
+fields and tool types and defines their nested shapes. The subsection *Closed
+anthropic-messages body* below records the alternatives, compatibility cost and
+acceptance matrix. The author's proposed choices there were accepted by this
+review; implementation and its plan remain autonomy-58799c's work.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -570,12 +579,14 @@ while drafting, and the review may overturn them.
         - a method, an exact path, and the exact query strings allowed (pi sends
           `POST /v1/messages?beta=true`);
         - `models`, the values allowed in the body's `model` field;
-        - `fields`, the closed set of top-level body fields allowed. A route that
-          lists none of `mcp_servers` and `container` refuses both;
-        - `tool_types`, the values allowed for `type` in each element of the body's
-          `tools`. An element without `type` is a client tool, which the actor's
-          own process runs. Every server tool has a `type`, so it is refused unless
-          listed;
+        - `fields`, the top-level body fields permitted from the dialect's finite
+          set in *Closed anthropic-messages body* below. An undefined field makes
+          the route `route-invalid`; this includes `fallbacks`, `mcp_servers` and
+          `container`, even when the operator lists them;
+        - `tool_types`, the subset of the dialect's defined explicit tool types
+          permitted in each `tools` element. This amendment defines only `custom`.
+          An element without `type` is a client tool, which the actor's own process
+          runs. An undefined tool type makes the route `route-invalid`;
         - `block_types`, the content block types allowed, and `source_types`, the
           source types allowed in a block's `source`. pi needs `text`, `image`,
           `tool_use`, `tool_result`, `thinking` and `redacted_thinking`, and `base64`.
@@ -623,9 +634,214 @@ while drafting, and the review may overturn them.
       control socket, so the route that is enforced is the one recorded. The proxy
       never reads `<config>`.
 
-      Whether a provider feature reaches outside hosts is the operator's judgement
-      when writing a route. The dialect's closed lists, checked at their own positions,
-      make a new provider feature unavailable until a route names it.
+      Whether an available provider feature reaches outside hosts is the operator's
+      judgement when writing a route. The dialect first defines its supported control
+      shapes; the route can narrow them, never add a shape. A new provider feature
+      stays unavailable until the dialect defines it through review and the route
+      permits it. A feature header token alone grants no body capability.
+    - **Closed anthropic-messages body (approved 2026-10-29).** The goal is to
+      close unchecked provider control positions while preserving admitted pi
+      plain/effort requests, opaque client data and unchanged forwarded bytes.
+      This is a finite supported subset of pi 1.1.0's bundled Anthropic SDK 0.129.0,
+      not support for every field that SDK defines. The governing layer remains the
+      [user and autonomy design](https://github.com/verifiably/beliefs/blob/main/docs/superpowers/specs/2026-08-29-user-and-autonomy-layer-design.md).
+
+      **Evidence and alternatives.** Research autonomy-d0387e, commits `e8fdb3a`
+      and `b76482d`, records 67 current/proposed cases and four offline serializer
+      captures in the [egress brief](../notes/2026-10-18-egress-proof-gaps-brief.md)
+      and its task attachments. Current `check_body` admits extra message, block
+      and control keys. The README route already refuses fallback bodies and inline
+      `tool_addition` blocks. Listing `fallbacks` in a route admits unvalidated model
+      alternatives, including `"default"`. None of these offline observations proves
+      that a provider executes an injected capability or a network escape.
+
+      The author recommends finite control schemas and route-load fallback refusal.
+      Retaining arbitrary operator-listed fields/server tools would require an
+      explicit schema for each, expanding this slice into MCP, container and server
+      tool policy. Checking only fallback model names misses server defaults and
+      per-attempt `thinking`, `output_config`, `max_tokens` and `speed` overrides;
+      supporting them would also need an accounting decision. Both alternatives are
+      rejected for this slice. A recursive blacklist is rejected because client
+      input/schema can contain the same names without being provider instructions.
+
+      **Rules common to every shape.** Each control object admits exactly the keys
+      listed below. Unknown keys or discriminants are refused at their own position,
+      including on otherwise empty objects. Required keys must be present; optional
+      means absence is allowed, not null. Null is allowed only where explicitly
+      stated. Strings, booleans, objects and arrays are JSON types; booleans never
+      count as numbers or integers. Numbers must be finite; integer fields admit
+      integer JSON tokens, not floats or numeric strings. There is no coercion,
+      default insertion, field removal, rewriting or silent fallback. Arrays may be
+      empty, including the captured system message's `content: []`. Provider ranges,
+      token minima, name syntax, role sequencing, matching tool-use ids and semantic
+      validity remain provider concerns; this validation grants neither budget nor
+      authority to run client tools. Existing body-size and depth refusals remain.
+
+      **Route-load boundary and top-level values.** `fields` can contain only the
+      following names. It must still contain `model`; other existing nonempty-list,
+      duplicate and route checks remain. A request must contain `model`, `messages`
+      and `max_tokens`, and all present fields must be permitted by the operation.
+      A route may omit a required request field and consequently admit no request;
+      this amendment adds no new route satisfiability check. All top-level values
+      below are non-null; optionality refers to field presence.
+
+      | Field | Required value shape |
+      | --- | --- |
+      | `model` | String in the operation's `models`; missing, wrong type or unlisted stays `model-refused` |
+      | `messages` | Array of checked message objects below |
+      | `max_tokens` | Integer |
+      | `system` | String or array of checked text blocks |
+      | `stream` | Boolean |
+      | `tools` | Array of checked client tools below |
+      | `tool_choice` | Closed choice object below |
+      | `thinking` | Closed thinking object below |
+      | `output_config` | Closed effort object below |
+      | `metadata` | Object with optional `user_id`: string or null |
+      | `stop_sequences` | Array of strings |
+      | `temperature`, `top_p` | Finite number |
+      | `top_k` | Integer |
+
+      `fallbacks` is undefined for every value (array, `"default"`, null or any other
+      shape). Listing it, any other undefined field, or any `tool_types` entry other
+      than `custom` is `route-invalid` before any actor runs. No route keys or schema
+      dependency are added. Existing seven block types and five source types remain
+      the only listable ones. An omitted client tool `type` remains allowed regardless
+      of `tool_types`; explicit `"custom"` requires that list entry. Explicit null
+      tool type remains refused, retaining today's behavior despite SDK nullability.
+
+      **Messages and content contexts.** A message requires `role` and `content`.
+      Role is `user`, `assistant` or `system`; content is a string or array of checked
+      blocks. Every message admits only those two keys, plus optional `output_config`
+      on a `system` message. That value is null or the effort object below; even null
+      requires `output_config` in the operation's `fields`. It is refused on user or
+      assistant messages. `clear_at` and all message model/tool/source keys are
+      unsupported. A system message with no content remains refused.
+
+      At top-level `system`, arrays contain only text blocks (the pinned SDK's
+      shape). Within message content, all seven defined block types may occur,
+      regardless of message role, subject to `block_types`. Within `tool_result`
+      content, arrays contain only text, image or document blocks. Within a document's
+      content source, arrays contain only text or image blocks. These context checks
+      intersect the route lists; a broad list cannot widen a context. The author
+      chooses these SDK context restrictions explicitly: today's generic walker can
+      admit other route-listed blocks there. They preserve authorized documents and
+      recursive checks through tool result → document → content source → image.
+
+      **Blocks.** Each row lists all admitted keys. Required keys are listed in the
+      middle column; all others are optional. Every `type` is the row's exact string
+      and must be in `block_types`. Every optional `cache_control` is null or the cache
+      object below. Optional scalar keys are non-null except those marked nullable.
+
+      | Block | Required keys and types besides `type` | Optional keys and types |
+      | --- | --- | --- |
+      | `text` | `text`: string | `cache_control` |
+      | `image` | `source`: checked image source | `cache_control` |
+      | `document` | `source`: checked document source | `cache_control`; `citations`: null or citations object; `context`, `title`: string or null |
+      | `tool_use` | `id`, `name`: strings; `input`: opaque JSON | `cache_control` |
+      | `tool_result` | `tool_use_id`: string | `content`: string or checked array in its context; `is_error`: boolean; `cache_control` |
+      | `thinking` | `thinking`, `signature`: strings | None |
+      | `redacted_thinking` | `data`: string | None |
+
+      `tool_result.content` may be absent, but may not be null. An `input` key must
+      exist even when its opaque value is null. Text citations, image transformations,
+      `caller` and `toolset_name` are undefined keys, even when null. Document
+      `citations` is a different control position: its object admits only optional
+      boolean `enabled`, so `{}` is valid and `enabled: null` is refused.
+
+      **Sources and recursion.** Each source is a non-null object with required
+      `type` in `source_types` and all the keys in its row; no optional or extra keys.
+      Each leaf is a string; the media-type values and parent pairings are closed:
+
+      | Source `type` | Other required keys and values | Admitted parent |
+      | --- | --- | --- |
+      | `base64` | `media_type`: `image/jpeg`, `image/png`, `image/gif` or `image/webp`; `data`: string | Image |
+      | `base64` | `media_type`: `application/pdf`; `data`: string | Document |
+      | `text` | `media_type`: `text/plain`; `data`: string | Document |
+      | `content` | `content`: string or checked text/image block array | Document |
+      | `url` | `url`: string | Image or document |
+      | `file` | `file_id`: string | Image or document |
+
+      Base64 encoding, URL syntax/scheme and stored-file existence are not validated
+      here. URL and file sources retain their existing operator opt-in, with no
+      expansion of defaults. A source on any other block is an unknown key and is
+      refused. Each defined child is checked recursively with the same closure and
+      route permissions; data strings are never parsed as further provider controls.
+
+      **Client tools and cache.** A tool requires a string `name` and the key
+      `input_schema`.
+      The latter's value, like `tool_use.input`, is opaque JSON: no key inspection,
+      recursive blacklist or JSON Schema validation, including of remote-looking
+      `$ref` values. This is an explicit data exception to control-shape validation;
+      even scalar/null values are left to provider validation. Optional keys are
+      `type` (authorized `"custom"` only), string `description`, null-or-cache
+      `cache_control`, boolean-or-null `eager_input_streaming`, and non-null booleans
+      `strict` and `defer_loading`. Missing required keys refuse. pi's deferred tool
+      placeholder still passes. `allowed_callers`, `input_examples` and all other
+      tool keys refuse. Server tools, MCP and containers have no admitted shape.
+      A cache object requires `type: "ephemeral"` and admits only optional
+      `ttl: "5m"|"1h"`; `ttl: null` refuses. Cache is admitted only at the tool/block
+      positions listed here, not as an additional top-level field.
+
+      **Effort, thinking and tool choice.** The same effort object is used at
+      top-level `output_config` and system-message `output_config`. It has only
+      optional `effort: "low"|"medium"|"high"|"xhigh"|"max"|null`; `{}` is valid.
+      Only the system-message parent can itself be null. `format` and `task_budget`
+      refuse; structured output schemas introduce no additional opaque region.
+
+      Thinking requires `type` and admits exactly these variants. `disabled` and
+      `between_tools` admit no other keys. `enabled` also requires integer
+      `budget_tokens` and admits optional `display` and `block_binding`. `adaptive`
+      admits optional `display` and `block_binding` without `budget_tokens`.
+      `display` is `summarized|omitted|updates|null`. `block_binding` is null or an
+      object with only optional `prefix_mismatch_behavior: error|drop_block|null`;
+      an empty binding object is valid. The null variants follow pinned declarations.
+
+      Tool choice requires `type`. `auto` and `any` admit only optional non-null
+      boolean `disable_parallel_tool_use`; `tool` additionally requires string
+      `name`; `none` admits no other keys. Choice names need not match a tool in this
+      request; matching is provider semantic validation, not a new permission list.
+
+      **Compatibility and acceptance.** This deliberately narrows the earlier
+      contract that an operator could list server tools, MCP and containers. It
+      also excludes `clear_at`, output format/task budget, text citations, image
+      transformations, caller/toolset metadata, tool examples, unsupported content
+      contexts and optional top-level nulls. Inline additions/removals remain
+      unsupported. A later reviewed extension can define a feature's complete shape;
+      listing a header token or route field is insufficient. Clients must send a
+      supported request or receive a refusal; the proxy never strips options or
+      silently substitutes a model. The README and fixtures change with enforcement,
+      not in this design-only task. Budget/accounting, response validation/completion,
+      namespace proof, other dialects and semantic prompt-mediated effects stay in
+      their separate work; this amendment claims no provider acceptance or escape.
+
+      The later implementation must meet this matrix without treating the research
+      probes (which assert old verdicts) as regression tests:
+
+      | Case family | Required verdict / evidence |
+      | --- | --- |
+      | `plain`, `pi-plain`, `pi-effort`, `system-effort`, deferred placeholder | Accept under their captured route; preserve effort and empty message content |
+      | `pi-inline`, inline client/server additions, inline route type | Keep body refusal; undefined route type is `route-invalid` |
+      | `fallback-array`, `fallback-default`, `pi-fallback` | Keep `body-refused` under the example route |
+      | Listed fallbacks, unknown field or server tool type | Change to `route-invalid`, including otherwise unused entries |
+      | Extra message/block/source/tool/control keys, unknown roles/discriminants | `body-refused`; one extra-key negative per admitted object and variant |
+      | Required keys, primitives, nullability, nonfinite numbers | Positives and negatives at each parent/leaf, including boolean-as-integer and fractional integer refusals |
+      | Effort on system versus user/assistant, omitted route permission | Only authorized system occurrence accepts; null also needs permission |
+      | Seven block types × five source types and content contexts | Exhaust valid/invalid parent pairings, required source keys and media types, narrowed route lists |
+      | Document sources with explicit opt-in, absent tool-result content, empty citations | Accept every supported source and optional case; refuse unlisted URL/file at every depth |
+      | Recursion | Exercise top-level system, every message role, tool-result content and document content sources; same extra-key and route refusals on descendants |
+      | Opaque input/schema with model/tool/source-looking keys and remote-looking `$ref` | Accept without traversing data; duplicate-key/UTF-8 JSON rules still apply everywhere |
+      | Byte preservation and boundary ordering | Prove a valid raw body reaches the fake upstream byte-for-byte and invalid bodies do not connect upstream; keep strict JSON error codes |
+
+      Malformed JSON remains `request-malformed`; missing or refused model remains
+      `model-refused`; other request-shape refusals use `body-refused` and the existing
+      readable HTTP 403. Route errors use `route-invalid`. Preserve existing ordering
+      of model checking before other body checks. Implementation can use small
+      explicit validators in the existing `dialect.py`/`route.py`; helper boundaries
+      and focused test organization are the builder's call. No generic schema walker,
+      new dependency, version negotiation, new provider dialect or route schema is
+      part of this amendment. Implementation scope includes dialect and route tests,
+      shared egress fixtures, proxy byte-preservation tests and the README; no kernel
+      imports or live API/desktop work is needed.
     - **The listener** is a TCP socket on `127.0.0.1:4780` inside the actor's own
       network namespace. The orchestrator makes it before it releases the gate (§3 step
       9), with a single-threaded helper. The helper opens the namespace through the
@@ -660,14 +876,14 @@ while drafting, and the review may overturn them.
          values from the same bytes. Then it checks the body against the operation,
          at the positions `anthropic-messages` defines:
          - `model` is an allowed string, and every top-level field is in `fields`;
-         - every `tools` element has no `type` or an allowed one;
-         - the `type` of every block in `system` and in each message's `content`,
-           and of every block in a `tool_result`'s `content`, is in `block_types`;
-         - the `type` of every block's `source` is in `source_types`;
-         - the check recurses into every block list nested in a checked block or
-           source, such as a `content` source, at any depth. A block type whose
-           nested positions the dialect does not define cannot be listed: such a
-           route is refused.
+         - all present values, messages, client tools, blocks, sources and controls
+           meet *Closed anthropic-messages body*, including its key sets, required
+           fields, primitive types, nullability and content/source parent contexts;
+         - `output_config` in a system message also requires the top-level field's
+           permission; there are no unchecked nested control positions;
+         - each defined recursive child retains these same checks and the operation's
+           `block_types` and `source_types` permissions. An undefined field, tool,
+           block or source type cannot be configured into existence.
 
          A `tool_use` block's `input` and a tool's `input_schema` are the client's
          data and are not checked. It forwards the body's bytes unchanged;
