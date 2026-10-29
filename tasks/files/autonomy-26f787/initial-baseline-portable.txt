@@ -1,0 +1,73 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.8, pytest-9.1.1, pluggy-1.6.0
+rootdir: <WORKTREE>/python
+configfile: pyproject.toml
+testpaths: tests
+plugins: testmon-2.2.0
+collected 806 items
+
+tests/test_channel.py ....................                               [  2%]
+tests/test_cli.py ...................................................    [  8%]
+tests/test_closing.py .................................................. [ 15%]
+........................................................................ [ 23%]
+........................................................................ [ 32%]
+....................................................                     [ 39%]
+tests/test_egress_dialect.py ...............................             [ 43%]
+tests/test_egress_helper.py .....                                        [ 43%]
+tests/test_egress_live.py ............                                   [ 45%]
+tests/test_egress_proxy.py ...................                           [ 47%]
+tests/test_egress_request.py ............................                [ 51%]
+tests/test_egress_route.py ............................................. [ 56%]
+............                                                             [ 58%]
+tests/test_egress_server.py ............F............................... [ 63%]
+.....................................                                    [ 68%]
+tests/test_egress_session.py ...........................                 [ 71%]
+tests/test_egress_upstream.py ........................                   [ 74%]
+tests/test_ledger.py .....................                               [ 77%]
+tests/test_membership.py ........................                        [ 80%]
+tests/test_run.py .....................................                  [ 84%]
+tests/test_sandbox_launch.py ..............................              [ 88%]
+tests/test_sandbox_probe.py ...............                              [ 90%]
+tests/test_sandbox_static.py ..................                          [ 92%]
+tests/test_stdio.py ...................................                  [ 96%]
+tests/test_tiers.py .........................                            [100%]
+
+=================================== FAILURES ===================================
+_________ test_successful_responses_have_valid_http_framing[empty304] __________
+
+serve = <function serve.<locals>.factory at 0x7f842d1d0930>, mode = 'empty304'
+
+    @pytest.mark.parametrize("mode", ["json", "continue", "close", "sse", "redirect", "empty204", "empty304"])
+    def test_successful_responses_have_valid_http_framing(serve, mode):
+        s = serve(mode=mode)
+        s.upstream.events, s.upstream.gap = 2, 0
+        with socket.create_connection(("127.0.0.1", s.port), timeout=5) as sock:
+            sock.sendall(raw_request(body=message()))
+            with http.client.HTTPResponse(sock) as response:
+                response.begin()
+                body = response.read()
+                if mode.startswith("empty"):
+                    assert response.status == int(mode[-3:]) and body == b""
+                    assert response.getheader("transfer-encoding") is None
+                else:
+                    assert response.getheader("transfer-encoding") == "chunked"
+                    assert response.getheader("content-length") is None
+                    if mode in ("json", "continue", "close"):
+                        assert body == b'{"ok":true}'
+                    elif mode == "sse":
+                        assert body.count(b"event: message") == 2
+                    else:
+                        assert response.status == 302 and body == b""
+        s.server.close("close")
+        assert s.records()[0]["response_bytes"] == len(body)
+>       assert s.records()[0]["ended"] == "complete"
+E       AssertionError: assert 'route-closed' == 'complete'
+E         
+E         - complete
+E         + route-closed
+
+tests/test_egress_server.py:109: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_egress_server.py::test_successful_responses_have_valid_http_framing[empty304]
+================== 1 failed, 805 passed in 115.98s (0:01:55) ===================
+error: recipe `test` failed on line 105 with exit code 1
