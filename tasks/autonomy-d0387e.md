@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:12:30Z
+updated: 2026-10-29T02:12:31Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -36,3 +36,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:04:39Z (research/egress-policy): Direct bounded research in .worktrees/egress-policy (research/egress-policy); hydrated with just setup. Baseline just test: 791 passed in 86.64s. SDK 0.129.0 is present in pinned pi 1.1.0. Its inline definitions use tool_addition blocks, already refused by the current block vocabulary; distinguish unchecked synthetic keys from demonstrated provider capability.
 - 2026-10-29T02:05:31Z (research/egress-policy): Created persistent scratch on titan at $WORK_ROOT/autonomy/autonomy-d0387e for synthetic cases, offline pi payload capture, and SDK provenance. Owner autonomy-d0387e; contents mutable, not yet checkpointed.
 - 2026-10-29T02:12:30Z (research/egress-policy): attached: test_policy_probe.py (8848 bytes): 67 current-verdict characterization cases with proposed policy verdicts; run through just test-one
+- 2026-10-29T02:12:31Z (research/egress-policy): attached: route-example.toml (1043 bytes): README example route used by the characterization probe; placeholder credential path, never opened
