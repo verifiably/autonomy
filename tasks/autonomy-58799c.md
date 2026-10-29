@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T09:20:13Z
+updated: 2026-10-29T09:20:40Z
 started: 2026-10-29T09:19:33Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
@@ -47,3 +47,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:20:13Z (fix/closed-messages): resumed
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:20:40Z (fix/closed-messages): Implementation scoped against human-approved decision 13; planning in .worktrees/closed-messages on fix/closed-messages. just setup completed; planned-work full-suite baseline remains due at execution setup before any production edit. Plan will keep route vocabulary closure and complete body-policy enforcement as two dependent deliverables, reusing existing proxy fixtures and offline captures. Recommend inline execution with a fresh whole-branch reviewer because both deliverables share the same small route/dialect interface.
