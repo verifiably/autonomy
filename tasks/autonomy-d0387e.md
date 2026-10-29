@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:18:39Z
+updated: 2026-10-29T02:18:41Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -45,3 +45,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:17:53Z (research/egress-policy): review: impl round 1 — verdict: accept; findings: Minor 1; reviewer: codex/gpt-6-astra
 - 2026-10-29T02:18:38Z (research/egress-policy): attached: policy-review-report.md (4443 bytes): Full read-only review by codex/gpt-6-astra of frozen e8fdb3a; accepted with one Minor
 - 2026-10-29T02:18:39Z (research/egress-policy): attached: review-ledger.md (2200 bytes): Controller dispositions for the review Minor and all four declined-to-judge scope entries; no deferred minors
+- 2026-10-29T02:18:41Z (research/egress-policy): Review disposition: M1 optional citations.enabled corrected in b76482d after checking BetaCitationsConfigParam. Accepted all four review exclusions within the offline research scope; full Why/Cost rulings and revision references are attached in review-ledger.md. No deferred minors. just check passes; attached probe rerun: 67 passed. Full reviewer report attached.
