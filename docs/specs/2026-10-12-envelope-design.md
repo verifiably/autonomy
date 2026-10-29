@@ -35,13 +35,14 @@ new bullet, *On an unexpected failure*, gives that exit, with the rule B2
 arms cover all of it.
 **Amendment of 2026-10-29** (autonomy-a1d778, prerequisite of autonomy-58799c):
 close the `anthropic-messages` control objects. **Approved 2026-10-29 (human
-review round 2), not implemented.** Human approval covers frozen revision
+review round 2); implemented by autonomy-58799c after whole-branch review
+accepted 2026-10-29 with no findings.** Human approval covers frozen revision
 `b1a325b6b10535de846441acc3c8f9f6375a5f45`, after one independent builder check
-with no findings. This amendment narrows decision 13's operator-configurable
+with no findings. The evidence below records the pre-implementation baseline. This amendment narrows decision 13's operator-configurable
 fields and tool types and defines their nested shapes. The subsection *Closed
 anthropic-messages body* below records the alternatives, compatibility cost and
 acceptance matrix. The author's proposed choices there were accepted by this
-review; implementation and its plan remain autonomy-58799c's work.
+review; implementation followed the approved plan in autonomy-58799c.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
