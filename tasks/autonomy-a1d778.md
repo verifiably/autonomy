@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:13:59Z
+updated: 2026-10-29T09:15:16Z
 started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
@@ -50,4 +50,6 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
 - 2026-10-29T09:13:57Z (design/closed-messages-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages-policy","state":"kept","verification":"verified","purpose":"Frozen proposed decision-13 amendment b1a325b on design/closed-messages-policy, pending human design review; hydrated, clean, review report and ledger attached","next_owner":"task:autonomy-a1d778","cleanup_trigger":"After human approval and local integration, harvest timings and inspect ignored files, plan ledger and host pointers before removal"}
 - 2026-10-29T09:13:58Z (design/closed-messages-policy): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy","state":"kept","verification":"verified","purpose":"Controller copies of the full builder report and review ledger; identical committed attachments verified","next_owner":"task:autonomy-a1d778","cleanup_trigger":"After human review, retain updated review evidence on the task and resolve the ledger before worktree cleanup","manifest":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy/manifest.sha256","sha256":"35775b2be522900c2550ae2dfeeba7337d19d1f0b529e155d59fed02674d1e53"}
 - 2026-10-29T09:13:59Z (design/closed-messages-policy): parked (waiting on user, review): User reviews autonomy repository frozen b1a325b6b10535de846441acc3c8f9f6375a5f45:docs/specs/2026-10-12-envelope-design.md in .worktrees/closed-messages-policy. After approval, agent records human review, completes the design task, wakes and scopes autonomy-58799c, and integrates design/closed-messages-policy locally; implementation plan needs separate review.
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:15:16Z (design/closed-messages-policy): resumed
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
