@@ -1,0 +1,32 @@
+current stop     raw  clean EOF bytes=139
+.chunked stop     raw  clean EOF bytes=173
+.reset   stop     raw  ConnectionResetError bytes=139
+.current survivor raw  clean EOF bytes=139
+.chunked survivor raw  clean EOF bytes=173
+.reset   survivor raw  ConnectionResetError bytes=139
+.current badchunk raw  clean EOF bytes=38
+.chunked badchunk raw  clean EOF bytes=66
+.reset   badchunk raw  ConnectionResetError bytes=38
+.current json     raw  clean EOF bytes=103
+.chunked json     raw  clean EOF bytes=141
+.reset   json     raw  clean EOF bytes=103
+.current close    raw  clean EOF bytes=81
+.chunked close    raw  clean EOF bytes=119
+.reset   close    raw  clean EOF bytes=81
+.current stop     http clean EOF bytes=31
+.chunked stop     http IncompleteRead bytes=1
+.reset   stop     http ConnectionResetError bytes=1
+.current survivor http clean EOF bytes=31
+.chunked survivor http IncompleteRead bytes=1
+.reset   survivor http ConnectionResetError bytes=1
+.current badchunk http clean EOF bytes=0
+.chunked badchunk http IncompleteRead bytes=0
+.reset   badchunk http ConnectionResetError bytes=0
+.current json     http clean EOF bytes=11
+.chunked json     http clean EOF bytes=11
+.reset   json     http clean EOF bytes=11
+.current close    http clean EOF bytes=11
+.chunked close    http clean EOF bytes=11
+.reset   close    http clean EOF bytes=11
+.
+30 passed in 0.85s

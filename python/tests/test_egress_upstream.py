@@ -240,7 +240,8 @@ def test_the_response_head_drops_hop_and_credential_headers(tls):
     head = response_head(response).decode()
     assert head.startswith("HTTP/1.1 200 OK\r\n")
     assert "request-id: req_sse" in head and "retry-after: 1" in head
-    assert "set-cookie" not in head and "transfer-encoding" not in head and "keep-alive" not in head
+    assert "set-cookie" not in head and "keep-alive" not in head
+    assert head.count("transfer-encoding: chunked\r\n") == 1
     assert head.endswith("connection: close\r\n\r\n")
 
 
