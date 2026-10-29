@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:12:37Z
+updated: 2026-10-29T02:12:39Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -41,3 +41,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:12:34Z (research/egress-policy): attached: capture-pi.mjs (2588 bytes): Reproduce offline pi transport captures with substituted fetch and assert-based self-checks
 - 2026-10-29T02:12:36Z (research/egress-policy): attached: source-hashes.json (594 bytes): SHA-256 provenance for pinned SDK 0.129.0 and pi-ai serializer inputs
 - 2026-10-29T02:12:37Z (research/egress-policy): attached: probe-results.txt (3797 bytes): Characterization verdicts: 67 passed, current and proposed outcomes separated
+- 2026-10-29T02:12:39Z (research/egress-policy): Result: 67 characterization cases pass; offline pi plain/effort payloads accepted, inline/fallback payloads refused. Inline definitions are tool_addition blocks (already closed), not a demonstrated escape via message keys. Unknown message/block/control keys pass; provider interpretation remains unverified. Recommend finite key/value shapes, preserving opaque client input/schema and system effort; refuse fallbacks at route load, including server-selected default. Proposed restriction of arbitrary fields/server tool types and other SDK options needs a reviewed decision-13 amendment in autonomy-58799c. Updated source brief contains matrix, precise subset and acceptance requirements. just test-fast: 791 passed, coverage warned that sysmon dynamic contexts may be incomplete.
