@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:30:05Z
+updated: 2026-10-29T09:30:06Z
 started: 2026-10-29T09:22:15Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
@@ -35,3 +35,4 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-29T09:24:22Z (fix/response-completion): RED: just test-one tests/test_egress_server.py -k "http_error or valid_http_framing or standard_http_client" -q --tb=short: 11 failed, 4 passed. Six failures explicitly showed DID NOT RAISE IncompleteRead for malformed/truncated upstream bodies and normal/forced-survivor route stops; five showed absent proxy chunking. Minimal fix touches server body writes and response_head; callers inspected with rg. Existing header-filter assertion updated for proxy-owned Transfer-Encoding.
 - 2026-10-29T09:26:16Z (fix/response-completion): GREEN: just test-one tests/test_egress_server.py tests/test_egress_upstream.py -q --tb=short: 105 passed. just test-fast: 806 passed (all tests selected, new testmon DB), 87.23 s; one coverage warning that dynamic contexts are unsupported with sysmon. just check and git diff --check passed. Coverage includes body-bearing success, 204/304, local 403/502, four detectable upstream failures, route stop and held-worker survivor cut, once-only settle and final closing record. Payload counts exclude chunk framing. No production shutdown-path changes.
 - 2026-10-29T09:30:05Z (fix/response-completion): review: impl round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
+- 2026-10-29T09:30:06Z (fix/response-completion): Review dispositions at 66d846f: (1) Accept unframed EOF as outside semantic-completeness guarantee. Why: EOF supplies no evidence of intended additional bytes. Cost if wrong: silently accepting an unframed partial application payload. (2) Accept arbitrary-schedule/platform reset reliability as outside implementation. Why: production uses chunking; bounded prototype evidence is explicitly limited. Cost if wrong: research would overstate reset reliability, without changing shipped framing. (3) Accept close after successful body iteration/final open check. Why: all payload has already been sent; a terminal chunk racing close cannot hide missing payload. Cost if wrong: client completion could disagree with a route-close record. (4) Leave general HEAD handling and stricter trailer validation unchanged. Why: the configured operations are POST and trailer parsing predates this framing fix. Cost if wrong: a future HEAD route or malformed trailer needs separate handling. No deferred Minor finding; these are reviewed scope/boundary dispositions.
