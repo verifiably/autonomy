@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-29T09:20:06Z
+updated: 2026-10-29T09:20:52Z
 started: 2026-10-29T09:16:11Z
 depends: []
 parent: autonomy-3a06d3
@@ -36,3 +36,4 @@ Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<fi
 - 2026-10-29T09:19:33Z (fix/response-completion): Baseline in .worktrees/response-completion: just setup completed; just test ran 791 tests, all passed (85.93 s). Both shutdown-before-close paths verified in server.py; response_head removes upstream framing.
 - 2026-10-29T09:20:05Z (fix/response-completion): attached: test_completion_probe.py (4203 bytes): Pre-fix loopback matrix: current framing, test-only chunked framing, and reset replacing both FIN paths; run against 5720ee9 with tests on PYTHONPATH.
 - 2026-10-29T09:20:06Z (fix/response-completion): attached: completion-probe.txt (1364 bytes): 30 loopback cases: raw TCP and http.client, stop and forced-survivor stop, malformed chunk, Content-Length success, unframed EOF.
+- 2026-10-29T09:20:52Z (fix/response-completion): attached: completion-races.txt (2975 bytes): Five repeats of 12 stop/survivor cases: 60 passed; reset calls serialized and already-closed descriptors checked.
