@@ -3,10 +3,8 @@ id: autonomy-58799c
 title: "Dialect: close fallbacks and the message- and block-level positions the route does not check"
 status: idea
 priority: 2
-reviewed: true
-reviewed_at: 2026-10-29T09:02:33Z
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T09:13:59Z
+updated: 2026-10-29T09:16:17Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
 tags: []
@@ -28,3 +26,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
   provenance: {"harness_session":"codex:01a186e3-3aaf-7182-859e-f668c80750f9","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:13:59Z (design/closed-messages-policy): Taking the next dependency under the user request: autonomy-a1d778 now holds proposed decision-13 amendment b1a325b6b10535de846441acc3c8f9f6375a5f45 at .worktrees/closed-messages-policy/docs/specs/2026-10-12-envelope-design.md. Independent builder check accepted with no findings; human design review remains required. This idea remains unimplemented and depends on that reviewed contract; do not treat the proposal as approved scope.
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:16:17Z (design/closed-messages-policy): Human approved decision-13 amendment at autonomy b1a325b6b10535de846441acc3c8f9f6375a5f45:docs/specs/2026-10-12-envelope-design.md. Explicit control schemas, route-load fallback refusal and compatibility exclusions are now approved design; production code unchanged. Scope implementation against this contract and obtain a separate implementation-plan review.
