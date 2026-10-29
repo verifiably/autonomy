@@ -4,14 +4,18 @@ title: "Dialect: close fallbacks and the message- and block-level positions the 
 status: idea
 priority: 2
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T02:18:41Z
-depends: [autonomy-d0387e]
+updated: 2026-10-29T09:02:32Z
+depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
 tags: []
 agent: claude-code/claude-opus-5-5
 ---
 
 The anthropic-messages dialect closes top-level fields but checks only `model` against the route's `models`. pi 1.1.0 sends `fallbacks: [{model: ...}]` when a model's compat lists allowedFallbackModels; a route that listed `fallbacks` in `fields` would let the upstream answer with models outside `models`. Today the README warns never to list it. Options: treat `fallbacks[].model` as a model position checked against `models`, or refuse `fallbacks` in route parsing. Also check whether keys on message objects (pi's mid-conversation `{role: system, output_config}` messages) are closed. Found during autonomy-e4c0b5's live run (2026-10-17).
+
+## References
+
+- brief (input, required, kind=brief): docs/notes/2026-10-18-egress-proof-gaps-brief.md — nested-policy research, proposed subset and reviewed-contract gate
 
 ## Notes
 
