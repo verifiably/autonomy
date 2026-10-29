@@ -1,13 +1,15 @@
 ---
 id: autonomy-c9508e
 title: "Proxy: make a cut response detectable to any HTTP client"
-status: todo
+status: doing
 priority: 2
 size: s
 complexity: mid
 process: direct
+owner: fix/response-completion
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:22:11Z
+updated: 2026-10-29T09:22:15Z
+started: 2026-10-29T09:22:15Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
@@ -28,3 +30,5 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-29T09:21:47Z (fix/response-completion): scope: scoped; autonomy-9570b0 loopback evidence settles chunking over resets, with upstream EOF and framing-validation limits retained; origin: original filing unavailable (no occurrence/session stamp); prior final review identifies this as an agent follow-up. This session user explicitly requests investigation then fix. Direct process: bounded framing change, existing contract, concrete regression checks.
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:22:11Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Implement and review the response framing fix after the completed loopback investigation","next_owner":"task:autonomy-c9508e","cleanup_trigger":"After the reviewed fix is locally merged, inspect ignored evidence and host pointers, harvest timings, then remove"}
+- 2026-10-29T09:22:15Z (fix/response-completion): started
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
