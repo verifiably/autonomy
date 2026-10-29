@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:17:31Z
+updated: 2026-10-29T09:17:32Z
 started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
@@ -59,3 +59,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
 - 2026-10-29T09:16:16Z (design/closed-messages-policy): attached: review-ledger-approved.md (1995 bytes): Builder and human design review outcomes for b1a325b; approved, no rulings or deferred minors
 - 2026-10-29T09:17:30Z (design/closed-messages-policy): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy","state":"kept","verification":"verified","purpose":"Updated builder and human review ledger plus builder report; current bytes match committed task attachments","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"Immediate local integration and checked removal this turn; all current files already attached","manifest":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy/manifest.sha256","sha256":"053552003d1e2394bbe56aff1f9f7f3b60ee40e2a9486170cb4e05abc413f01f"}
 - 2026-10-29T09:17:30Z (design/closed-messages-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages-policy","state":"kept","verification":"verified","purpose":"Human-approved design branch ready for immediate local integration; clean tracked files and no host pointers in 132 inspected paths","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"Integrate to main and remove after ignored-file dispositions; tt-report already succeeded"}
+- 2026-10-29T09:17:31Z (design/closed-messages-policy): Cleanup dispositions: ignored .superpowers/ contains the builder report, approved review ledger and derived hash manifest; report and current ledger match committed task attachments, earlier ledger also retained, and there are no rulings or deferred minors. Ignored python/.venv/ is regenerable dependency installation from just setup. Both ignored entries may be discarded after integration. tt-report succeeded. just check and git diff --check pass; no product changes or suite run in this design-only task.
