@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:22:15Z
+updated: 2026-10-29T09:24:22Z
 started: 2026-10-29T09:22:15Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
@@ -32,3 +32,4 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-29T09:22:11Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Implement and review the response framing fix after the completed loopback investigation","next_owner":"task:autonomy-c9508e","cleanup_trigger":"After the reviewed fix is locally merged, inspect ignored evidence and host pointers, harvest timings, then remove"}
 - 2026-10-29T09:22:15Z (fix/response-completion): started
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:24:22Z (fix/response-completion): RED: just test-one tests/test_egress_server.py -k "http_error or valid_http_framing or standard_http_client" -q --tb=short: 11 failed, 4 passed. Six failures explicitly showed DID NOT RAISE IncompleteRead for malformed/truncated upstream bodies and normal/forced-survivor route stops; five showed absent proxy chunking. Minimal fix touches server body writes and response_head; callers inspected with rg. Existing header-filter assertion updated for proxy-owned Transfer-Encoding.
