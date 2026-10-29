@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:07:05Z
+updated: 2026-10-29T09:08:07Z
 started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
@@ -16,6 +16,7 @@ tags: []
 source: docs/notes/2026-10-18-egress-proof-gaps-brief.md
 agent: codex
 origin: agent
+spec: docs/specs/2026-10-12-envelope-design.md
 ---
 
 Why: autonomy-d0387e established the unchecked nested control positions and a finite supported-subset recommendation in research e8fdb3a, clarified in b76482d. The validator, route parser, README and decision 13 are unchanged from research baseline 7097495 at scope baseline 141f31a. Decision 13 currently permits operator-listed fields and server tool types; narrowing them requires a reviewed contract amendment. [ref:brief] contains the current/proposed matrix, pinned SDK provenance, precise proposed shapes and acceptance obligations. This is an agent-derived design follow-up, not approval to narrow the contract.
