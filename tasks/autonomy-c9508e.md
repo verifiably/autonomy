@@ -1,17 +1,24 @@
 ---
 id: autonomy-c9508e
 title: "Proxy: make a cut response detectable to any HTTP client"
-status: idea
+status: todo
 priority: 2
+size: s
+complexity: mid
+process: direct
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:20:53Z
+updated: 2026-10-29T09:21:46Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
 agent: claude-code/claude-opus-5-5
 ---
 
-Every proxied response is close-delimited, so a stream cut by an upstream error or run stop ends in a clean EOF that HTTP cannot tell from a complete response. pi detects it (no message_stop), but a harness reading a non-streaming body would take truncated JSON as complete. Idea: when a line ends other than `complete` after the head went out, close the actor socket with SO_LINGER {1,0} (RST). From autonomy-e4c0b5's final review (Minor 1).
+Why: Every current proxied response is close-delimited, so upstream framing failures and route stops look complete to HTTP clients. The original review proposed linger-zero resets; autonomy-9570b0 instead established proxy-owned chunking as the smaller reliable mechanism (30 loopback cases and 60 stop/survivor repeats). Reset needs both FIN paths replaced and synchronized closure. The brief records the evidence and limits.
+
+Done: Send HTTP/1.1 chunked framing for every proxied response that permits a body; reframe nonempty decoded upstream pieces and emit the zero chunk only after successful body iteration while the route is open. No chunking or body for 204/304. A framing-validating HTTP client that consumes the response to its end must raise on a route cut or detectable upstream framing error. Preserve streaming with bounded buffers, the bounded close and survivor cut, readable length-delimited local 403/502 answers, payload-byte accounting, settlement exactly once per forwarded request, and the closing record last. Exercise real loopback raw and stdlib HTTP clients, normal length/chunk/close-delimited completion, malformed and truncated upstream bodies, stop during streaming and the survivor path. Unframed upstream EOF cannot prove semantic completeness; clients that do not validate framing are outside the guarantee. No route/schema/config expansion or new dependency.
+
+Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::response_head; python/tests/egress_fixtures.py, test_egress_server.py, test_egress_upstream.py; README model-route behavior. See docs/notes/2026-10-18-egress-proof-gaps-brief.md and autonomy-9570b0 attachments. Envelope decision 13 already permits framing owned by the proxy; direct execution settles this bounded bug fix without new design documents.
 
 ## Notes
 
