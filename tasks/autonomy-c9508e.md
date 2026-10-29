@@ -7,7 +7,7 @@ size: s
 complexity: mid
 process: direct
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:21:47Z
+updated: 2026-10-29T09:22:11Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
@@ -27,3 +27,4 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-29T09:20:53Z (fix/response-completion): autonomy-9570b0: 30 real-loopback cases plus 60 stop/survivor repeats pass. Recommend proxy-owned chunked framing, terminal zero chunk only on successful body completion; reset requires both FIN paths replaced plus serialized descriptor closure. Unframed upstream EOF cannot establish semantic completeness. Brief updated; attachments on autonomy-9570b0.
 - 2026-10-29T09:21:47Z (fix/response-completion): scope: scoped; autonomy-9570b0 loopback evidence settles chunking over resets, with upstream EOF and framing-validation limits retained; origin: original filing unavailable (no occurrence/session stamp); prior final review identifies this as an agent follow-up. This session user explicitly requests investigation then fix. Direct process: bounded framing change, existing contract, concrete regression checks.
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:22:11Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Implement and review the response framing fix after the completed loopback investigation","next_owner":"task:autonomy-c9508e","cleanup_trigger":"After the reviewed fix is locally merged, inspect ignored evidence and host pointers, harvest timings, then remove"}
