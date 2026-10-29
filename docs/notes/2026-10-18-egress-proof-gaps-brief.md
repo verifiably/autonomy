@@ -166,7 +166,7 @@ implemented policy or an approved amendment.
   fetch also throws. It was run with an environment constructed from `PATH` and an
   empty scratch `HOME`; no real credentials, API calls or desktop use. These are
   not provider acceptance tests or evidence that the selected model supports each
-  compatibility switch. `pi-payloads.json` preserves body bytes as parsed JSON and
+  compatibility switch. `pi-payloads.json` preserves parsed request bodies and
   the emitted beta header. No header containing the fake credential is recorded.
 - The previous live run's outcome is recorded on autonomy-e4c0b5 and the
   fallback/system-message observation on autonomy-58799c. Those records are not a
@@ -251,7 +251,8 @@ the entirety of the SDK or a claim that every SDK field is safe.
    file `{type,file_id}`. Continue to enforce `source_types` and recursive block
    checks; constrain each block/source pairing and scalar leaves using the pinned
    declarations. URL/file sources remain deliberate operator opt-ins, not newly
-   enabled defaults. Document citations accept only `{enabled: boolean}`.
+   enabled defaults. Document citations accept only `{enabled?: boolean}` (an
+   empty object is allowed by `BetaCitationsConfigParam`).
    Cache controls accept only `{type:"ephemeral",ttl?:"5m"|"1h"}` with pinned
    nullability at each parent. Text citations, image transformations, toolset and
    caller metadata are refused pending a defined supported shape.
