@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:12:33Z
+updated: 2026-10-29T02:12:34Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -38,3 +38,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:12:30Z (research/egress-policy): attached: test_policy_probe.py (8848 bytes): 67 current-verdict characterization cases with proposed policy verdicts; run through just test-one
 - 2026-10-29T02:12:31Z (research/egress-policy): attached: route-example.toml (1043 bytes): README example route used by the characterization probe; placeholder credential path, never opened
 - 2026-10-29T02:12:33Z (research/egress-policy): attached: pi-payloads.json (6007 bytes): Four offline pi 1.1.0 SDK transport captures from synthetic inputs; no provider call
+- 2026-10-29T02:12:34Z (research/egress-policy): attached: capture-pi.mjs (2588 bytes): Reproduce offline pi transport captures with substituted fetch and assert-based self-checks
