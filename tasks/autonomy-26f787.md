@@ -7,7 +7,7 @@ size: xs
 complexity: low
 process: direct
 created: 2026-10-29T09:55:37Z
-updated: 2026-10-29T09:55:37Z
+updated: 2026-10-29T09:55:52Z
 depends: []
 tags: []
 source: autonomy-c9508e
@@ -21,3 +21,4 @@ The merged baseline for the closed-messages policy (no code edits) failed test_s
 
 - 2026-10-29T09:55:37Z (add): created
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID","origin":"agent"}
+- 2026-10-29T09:55:52Z (fix/closed-messages): concerns: autonomy-c9508e defect — successful empty-body framing tests can close the route before their worker records completion, making the baseline intermittently fail.
