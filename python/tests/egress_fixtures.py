@@ -140,6 +140,11 @@ class Seen:
 
 
 _BAD_HEADS = {
+    "shortlength": b"HTTP/1.1 200 OK\r\ncontent-length: 10\r\n\r\nhello",
+    "shortchunk": b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\na\r\nhello",
+    "shorttrailer": b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\nx-trailer: v\r\n",
+    "empty204": b"HTTP/1.1 204 No Content\r\n\r\n",
+    "empty304": b"HTTP/1.1 304 Not Modified\r\ncontent-length: 100\r\n\r\n",
     "bare_lf": b"HTTP/1.1 200 OK\r\nx-a\nset-cookie: s=1\r\ncontent-length: 0\r\n\r\n",
     "bare_cr": b"HTTP/1.1 200 OK\rset-cookie: s=1\r\ncontent-length: 0\r\n\r\n",
     "nul_name": b"HTTP/1.1 200 OK\r\nx a\x00b: v\r\ncontent-length: 0\r\n\r\n",

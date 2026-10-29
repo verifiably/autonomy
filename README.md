@@ -54,6 +54,12 @@ key. For pi, that is a provider `baseUrl` in its models.json:
 {"providers": {"anthropic": {"baseUrl": "http://127.0.0.1:4780", "apiKey": "placeholder"}}}
 ```
 
+The proxy streams body-bearing responses with its own HTTP/1.1 chunked framing.
+Only a completed upstream body gets the final zero chunk, so an HTTP client that
+validates framing and reads to the end detects a route stop or upstream framing
+failure as an incomplete response. A clean EOF from an unframed upstream body
+cannot establish semantic completeness. Local 403/502 errors remain length delimited.
+
 That configuration only directs pi. The proxy enforces the route whatever the actor
 does to it (decision 13). The route is a TOML file at
 `$XDG_CONFIG_HOME/verifiably-autonomy/routes/NAME.toml`:

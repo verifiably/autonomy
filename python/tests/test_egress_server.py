@@ -1,4 +1,5 @@
 import errno
+import http.client
 import json
 import os
 import socket
@@ -13,6 +14,116 @@ from egress_fixtures import (  # noqa: F401  (tls, serve and served are fixtures
 )
 from autonomy.egress.server import Hooks
 from autonomy.egress.upstream import Gate
+
+
+@pytest.mark.parametrize("mode", ["badchunk", "shortlength", "shortchunk", "shorttrailer"])
+def test_detectable_upstream_truncation_is_an_http_error(serve, mode):
+    s = serve(mode=mode)
+    with socket.create_connection(("127.0.0.1", s.port), timeout=5) as sock:
+        sock.sendall(raw_request(body=message()))
+        with http.client.HTTPResponse(sock) as response:
+            response.begin()
+            assert response.status == 200
+            with pytest.raises(http.client.IncompleteRead):
+                response.read()
+    s.server.close("close")
+    request, closing = s.records()
+    assert request["ended"] == "upstream-error"
+    assert closing["closed"] == "close"
+    raw = exchange(serve(mode=mode).port, raw_request(body=message()))
+    assert b"transfer-encoding: chunked\r\n" in raw
+    assert not raw.endswith(b"0\r\n\r\n")
+
+
+@pytest.mark.parametrize("survivor", [False, True])
+def test_a_route_cut_is_an_http_error(serve, monkeypatch, survivor):
+    settled = []
+
+    class Spy:
+        def admit(self, *args):
+            return None
+
+        def settle(self, seq, request_id, usage):
+            settled.append((seq, request_id))
+
+    s = serve(mode="sse", allowance=Spy())
+    s.upstream.events, s.upstream.gap = 100, 0.05
+    release = threading.Event()
+    sent = threading.Event()
+    if survivor:
+        send = s.server._to_actor
+
+        def hold(conn, data):
+            send(conn, data)
+            if b"event: message" in data:
+                sent.set()
+                assert release.wait(5)
+
+        monkeypatch.setattr(s.server, "_to_actor", hold)
+        monkeypatch.setattr(server_module, "JOIN_TIMEOUT", 0)
+    try:
+        with socket.create_connection(("127.0.0.1", s.port), timeout=5) as sock:
+            sock.sendall(raw_request(body=message()))
+            with http.client.HTTPResponse(sock) as response:
+                response.begin()
+                assert response.read(1) == b"e"
+                if survivor:
+                    assert sent.wait(5)
+                started = time.monotonic()
+                s.server.close("close")
+                assert time.monotonic() - started < 3
+                with pytest.raises(http.client.IncompleteRead):
+                    response.read()
+    finally:
+        release.set()
+        s.server._join(list(s.server._threads), 5)
+    request, closing = s.records()
+    assert request["ended"] == "route-closed" and closing["closed"] == "close"
+    assert settled == [(1, "req_sse")]
+    assert not any(t.is_alive() for t in s.server._threads)
+
+
+@pytest.mark.parametrize("mode", ["json", "continue", "close", "sse", "redirect", "empty204", "empty304"])
+def test_successful_responses_have_valid_http_framing(serve, mode):
+    s = serve(mode=mode)
+    s.upstream.events, s.upstream.gap = 2, 0
+    with socket.create_connection(("127.0.0.1", s.port), timeout=5) as sock:
+        sock.sendall(raw_request(body=message()))
+        with http.client.HTTPResponse(sock) as response:
+            response.begin()
+            body = response.read()
+            if mode.startswith("empty"):
+                assert response.status == int(mode[-3:]) and body == b""
+                assert response.getheader("transfer-encoding") is None
+            else:
+                assert response.getheader("transfer-encoding") == "chunked"
+                assert response.getheader("content-length") is None
+                if mode in ("json", "continue", "close"):
+                    assert body == b'{"ok":true}'
+                elif mode == "sse":
+                    assert body.count(b"event: message") == 2
+                else:
+                    assert response.status == 302 and body == b""
+    s.server.close("close")
+    assert s.records()[0]["response_bytes"] == len(body)
+    assert s.records()[0]["ended"] == "complete"
+    raw = exchange(serve(mode=mode).port, raw_request(body=message()))
+    if mode.startswith("empty"):
+        assert raw.endswith(b"\r\n\r\n") and status_and_body(raw)[1] == b""
+    else:
+        assert raw.endswith(b"0\r\n\r\n")
+
+
+@pytest.mark.parametrize(("mode", "model", "status"), [("json", "other", 403), ("garbage", MODEL, 502)])
+def test_local_errors_remain_readable_with_a_standard_http_client(serve, mode, model, status):
+    s = serve(mode=mode)
+    with socket.create_connection(("127.0.0.1", s.port), timeout=5) as sock:
+        sock.sendall(raw_request(body=message(model=model)))
+        with http.client.HTTPResponse(sock) as response:
+            response.begin()
+            assert response.status == status
+            assert response.getheader("transfer-encoding") is None
+            assert json.loads(response.read())["type"] == "error"
 
 
 def test_an_allowed_request_streams_as_it_arrives(serve):  # E21

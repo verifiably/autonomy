@@ -1,0 +1,70 @@
+current stop     raw  clean EOF bytes=139
+.chunked stop     raw  clean EOF bytes=173
+.reset   stop     raw  ConnectionResetError bytes=139
+.current survivor raw  clean EOF bytes=139
+.chunked survivor raw  clean EOF bytes=173
+.reset   survivor raw  ConnectionResetError bytes=139
+.current stop     http clean EOF bytes=31
+.chunked stop     http IncompleteRead bytes=1
+.reset   stop     http ConnectionResetError bytes=1
+.current survivor http clean EOF bytes=31
+.chunked survivor http IncompleteRead bytes=1
+.reset   survivor http ConnectionResetError bytes=1
+.
+12 passed, 18 deselected in 0.67s
+current stop     raw  clean EOF bytes=139
+.chunked stop     raw  clean EOF bytes=173
+.reset   stop     raw  ConnectionResetError bytes=139
+.current survivor raw  clean EOF bytes=139
+.chunked survivor raw  clean EOF bytes=173
+.reset   survivor raw  ConnectionResetError bytes=139
+.current stop     http clean EOF bytes=31
+.chunked stop     http IncompleteRead bytes=1
+.reset   stop     http ConnectionResetError bytes=1
+.current survivor http clean EOF bytes=31
+.chunked survivor http IncompleteRead bytes=1
+.reset   survivor http ConnectionResetError bytes=1
+.
+12 passed, 18 deselected in 0.68s
+current stop     raw  clean EOF bytes=139
+.chunked stop     raw  clean EOF bytes=173
+.reset   stop     raw  ConnectionResetError bytes=139
+.current survivor raw  clean EOF bytes=139
+.chunked survivor raw  clean EOF bytes=173
+.reset   survivor raw  ConnectionResetError bytes=139
+.current stop     http clean EOF bytes=31
+.chunked stop     http IncompleteRead bytes=1
+.reset   stop     http ConnectionResetError bytes=1
+.current survivor http clean EOF bytes=31
+.chunked survivor http IncompleteRead bytes=1
+.reset   survivor http ConnectionResetError bytes=1
+.
+12 passed, 18 deselected in 0.67s
+current stop     raw  clean EOF bytes=139
+.chunked stop     raw  clean EOF bytes=173
+.reset   stop     raw  ConnectionResetError bytes=139
+.current survivor raw  clean EOF bytes=139
+.chunked survivor raw  clean EOF bytes=173
+.reset   survivor raw  ConnectionResetError bytes=139
+.current stop     http clean EOF bytes=31
+.chunked stop     http IncompleteRead bytes=1
+.reset   stop     http ConnectionResetError bytes=1
+.current survivor http clean EOF bytes=31
+.chunked survivor http IncompleteRead bytes=1
+.reset   survivor http ConnectionResetError bytes=1
+.
+12 passed, 18 deselected in 0.67s
+current stop     raw  clean EOF bytes=139
+.chunked stop     raw  clean EOF bytes=173
+.reset   stop     raw  ConnectionResetError bytes=139
+.current survivor raw  clean EOF bytes=139
+.chunked survivor raw  clean EOF bytes=173
+.reset   survivor raw  ConnectionResetError bytes=139
+.current stop     http clean EOF bytes=31
+.chunked stop     http IncompleteRead bytes=1
+.reset   stop     http ConnectionResetError bytes=1
+.current survivor http clean EOF bytes=31
+.chunked survivor http IncompleteRead bytes=1
+.reset   survivor http ConnectionResetError bytes=1
+.
+12 passed, 18 deselected in 0.67s

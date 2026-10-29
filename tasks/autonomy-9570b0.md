@@ -1,15 +1,17 @@
 ---
 id: autonomy-9570b0
 title: "Establish how a cut proxy response can reliably signal an HTTP client error: framing or abortive close"
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: fix/response-completion
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-29T09:16:11Z
+updated: 2026-10-29T09:32:21Z
 started: 2026-10-29T09:16:11Z
+completed: 2026-10-29T09:22:14Z
+closed: 2026-10-29T09:22:14Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
@@ -31,3 +33,18 @@ Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<fi
 
 - 2026-10-29T09:16:11Z (main): started
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:16:49Z (fix/response-completion): resumed
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:19:33Z (fix/response-completion): Baseline in .worktrees/response-completion: just setup completed; just test ran 791 tests, all passed (85.93 s). Both shutdown-before-close paths verified in server.py; response_head removes upstream framing.
+- 2026-10-29T09:20:05Z (fix/response-completion): attached: test_completion_probe.py (4203 bytes): Pre-fix loopback matrix: current framing, test-only chunked framing, and reset replacing both FIN paths; run against 5720ee9 with tests on PYTHONPATH.
+- 2026-10-29T09:20:06Z (fix/response-completion): attached: completion-probe.txt (1364 bytes): 30 loopback cases: raw TCP and http.client, stop and forced-survivor stop, malformed chunk, Content-Length success, unframed EOF.
+- 2026-10-29T09:20:52Z (fix/response-completion): attached: completion-races.txt (2975 bytes): Five repeats of 12 stop/survivor cases: 60 passed; reset calls serialized and already-closed descriptors checked.
+- 2026-10-29T09:22:12Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Investigation artifacts attached and byte-compared; worktree transferred to the follow-on fix","next_owner":"task:autonomy-c9508e","cleanup_trigger":"After the reviewed fix is locally merged, inspect ignored evidence and host pointers, harvest timings, then remove"}
+- 2026-10-29T09:22:13Z (fix/response-completion): Result: attached probe reproduced via PYTHONPATH=tests just test-one ../tasks/files/autonomy-9570b0/test_completion_probe.py -q (30 passed); five stop/survivor repeats add 60 passed. Chunking yields IncompleteRead and preserves streamed bytes; reset yields ConnectionResetError only after replacing both FIN paths and serializing close to avoid EBADF. No finite loopback run proves reset reliability across arbitrary schedules. Local pre-response errors retain their existing separate length framing. Recommend chunking with zero chunk only after successful iteration; 204/304 stay bodyless; unframed upstream EOF has no semantic-completeness proof. Follow-on scoped as direct; no raw/scratch evidence remains outside attached files.
+- 2026-10-29T09:22:14Z (fix/response-completion): done
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:22:14Z (fix/response-completion): Established chunked framing as the smallest reliable completion signal; 30 matrix cases plus 60 stop/survivor repeats passed, evidence attached and brief updated; autonomy-c9508e woken and scoped.
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:25:53Z (fix/response-completion): Evidence qualification: the probe case named survivor uses JOIN_TIMEOUT=0 and races the worker; it does not assert that the survivor path wins every run. It exposed a real EBADF from concurrent resets before serialization. The brief now makes this limit explicit; autonomy-c9508e adds a held-worker test that deterministically exercises survivor cleanup.
+- 2026-10-29T09:30:39Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Follow-on fix reviewed; integration and checked cleanup now owned by the closing session","next_owner":"session:codex:01a186f1-2641-7801-acc1-95d7c06af15e","cleanup_trigger":"After local merge and merged-tree checks, inspect ignored files and host pointers, harvest timings, unlock and remove"}
+- 2026-10-29T09:32:21Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"released","verification":"verified","purpose":"Investigation and fix integrated locally at ecd5858; evidence remains attached on main; shared task worktree and merged branch removed after checks","next_owner":"none","cleanup_trigger":"none"}

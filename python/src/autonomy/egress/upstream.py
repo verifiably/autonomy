@@ -400,7 +400,7 @@ def read_response(gate: Gate, sock: socket.socket, *, watch: socket.socket | Non
 def response_head(response: Response) -> bytes:
     """The head the actor gets: the upstream's end-to-end headers, less the
     always-dropped set and any header its `Connection` names, and the proxy's own
-    framing (the body ends at close)."""
+    chunked framing. Bodyless statuses have no transfer coding."""
     hop = frozenset(
         token.strip(" \t").lower()
         for name, value in response.headers if name == "connection"
@@ -408,5 +408,7 @@ def response_head(response: Response) -> bytes:
     )
     lines = [f"HTTP/1.1 {response.status} {response.reason}".rstrip()]
     lines += [f"{name}: {value}" for name, value in response.headers if not always_dropped(name) and name not in hop]
+    if response.status not in (204, 304):
+        lines.append("transfer-encoding: chunked")
     lines.append("connection: close")
     return ("\r\n".join(lines) + "\r\n\r\n").encode("latin-1")
