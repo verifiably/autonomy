@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: fix/response-completion
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-29T09:16:11Z
+updated: 2026-10-29T09:16:49Z
 started: 2026-10-29T09:16:11Z
 depends: []
 parent: autonomy-3a06d3
@@ -30,4 +30,6 @@ Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<fi
 ## Notes
 
 - 2026-10-29T09:16:11Z (main): started
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:16:49Z (fix/response-completion): resumed
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
