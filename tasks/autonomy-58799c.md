@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T10:16:51Z
+updated: 2026-10-29T10:18:52Z
 started: 2026-10-29T09:19:33Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
@@ -83,3 +83,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
 - 2026-10-29T10:15:26Z (fix/closed-messages): review: impl round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6-astra
 - 2026-10-29T10:16:50Z (fix/closed-messages): attached: whole-branch-review-report.md (6142 bytes): Full fresh whole-branch review by codex/gpt-6-astra of frozen 4658687..1aa198b; accepted with no findings, same-review formatting resend
 - 2026-10-29T10:16:51Z (fix/closed-messages): attached: execution-ledger.md (5095 bytes): Execution ledger: baseline failure and rerun, RED/GREEN counts, no deviations, and all five final scope rulings with Why/Cost and revisions
+- 2026-10-29T10:18:52Z (fix/closed-messages): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages/.superpowers/sdd/closed-messages","state":"kept","verification":"verified","purpose":"Plan-review reports and accepted rulings preserved as matching committed task attachments; immediate integration cleanup this turn","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"After local merge, discard these attached duplicates and derived manifest during checked worktree removal","manifest":".worktrees/closed-messages/.superpowers/sdd/closed-messages/manifest.sha256","sha256":"bd86fd3acaf09356fea837263efe70d6fb53e7efc0628d5f7d6b271d35057057"}
