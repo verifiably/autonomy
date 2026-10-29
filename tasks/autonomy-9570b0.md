@@ -1,15 +1,17 @@
 ---
 id: autonomy-9570b0
 title: "Establish how a cut proxy response can reliably signal an HTTP client error: framing or abortive close"
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-29T09:22:13Z
+updated: 2026-10-29T09:22:14Z
 started: 2026-10-29T09:16:11Z
+completed: 2026-10-29T09:22:14Z
+closed: 2026-10-29T09:22:14Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
@@ -39,3 +41,7 @@ Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<fi
 - 2026-10-29T09:20:52Z (fix/response-completion): attached: completion-races.txt (2975 bytes): Five repeats of 12 stop/survivor cases: 60 passed; reset calls serialized and already-closed descriptors checked.
 - 2026-10-29T09:22:12Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Investigation artifacts attached and byte-compared; worktree transferred to the follow-on fix","next_owner":"task:autonomy-c9508e","cleanup_trigger":"After the reviewed fix is locally merged, inspect ignored evidence and host pointers, harvest timings, then remove"}
 - 2026-10-29T09:22:13Z (fix/response-completion): Result: attached probe reproduced via PYTHONPATH=tests just test-one ../tasks/files/autonomy-9570b0/test_completion_probe.py -q (30 passed); five stop/survivor repeats add 60 passed. Chunking yields IncompleteRead and preserves streamed bytes; reset yields ConnectionResetError only after replacing both FIN paths and serializing close to avoid EBADF. No finite loopback run proves reset reliability across arbitrary schedules. Local pre-response errors retain their existing separate length framing. Recommend chunking with zero chunk only after successful iteration; 204/304 stay bodyless; unframed upstream EOF has no semantic-completeness proof. Follow-on scoped as direct; no raw/scratch evidence remains outside attached files.
+- 2026-10-29T09:22:14Z (fix/response-completion): done
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:22:14Z (fix/response-completion): Established chunked framing as the smallest reliable completion signal; 30 matrix cases plus 60 stop/survivor repeats passed, evidence attached and brief updated; autonomy-c9508e woken and scoped.
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
