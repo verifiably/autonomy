@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-29T09:25:53Z
+updated: 2026-10-29T09:30:39Z
 started: 2026-10-29T09:16:11Z
 completed: 2026-10-29T09:22:14Z
 closed: 2026-10-29T09:22:14Z
@@ -46,3 +46,4 @@ Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<fi
 - 2026-10-29T09:22:14Z (fix/response-completion): Established chunked framing as the smallest reliable completion signal; 30 matrix cases plus 60 stop/survivor repeats passed, evidence attached and brief updated; autonomy-c9508e woken and scoped.
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:25:53Z (fix/response-completion): Evidence qualification: the probe case named survivor uses JOIN_TIMEOUT=0 and races the worker; it does not assert that the survivor path wins every run. It exposed a real EBADF from concurrent resets before serialization. The brief now makes this limit explicit; autonomy-c9508e adds a held-worker test that deterministically exercises survivor cleanup.
+- 2026-10-29T09:30:39Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Follow-on fix reviewed; integration and checked cleanup now owned by the closing session","next_owner":"session:codex:01a186f1-2641-7801-acc1-95d7c06af15e","cleanup_trigger":"After local merge and merged-tree checks, inspect ignored files and host pointers, harvest timings, unlock and remove"}
