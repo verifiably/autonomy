@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:13:18Z
+updated: 2026-10-29T09:13:19Z
 started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
@@ -46,3 +46,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:13:17Z (design/closed-messages-policy): review: spec round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
 - 2026-10-29T09:13:18Z (design/closed-messages-policy): attached: builder-check-report.md (706 bytes): Full read-only builder check of frozen b1a325b by codex/gpt-6.1-sol; no important unanswered questions
+- 2026-10-29T09:13:19Z (design/closed-messages-policy): attached: review-ledger.md (1579 bytes): Spec review ledger, verification limits and pending human gate; no rulings or deferred minors
