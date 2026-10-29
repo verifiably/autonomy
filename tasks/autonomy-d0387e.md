@@ -1,13 +1,15 @@
 ---
 id: autonomy-d0387e
 title: "Establish the minimal closed policy for tool, source, model and feature positions below the body's top level"
-status: todo
+status: doing
 priority: 2
 size: s
 complexity: mid
 process: direct
+owner: main
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-19T00:37:34Z
+updated: 2026-10-29T02:02:43Z
+started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
@@ -24,3 +26,8 @@ Bound: trace the existing validation paths, read the bundled SDK request types, 
 Expected result: record the demonstrated accepted/refused shapes, coverage boundary and smallest recommended policy on this task and in the brief. Distinguish observed code behavior and SDK types from unverified provider behavior. Provide concrete acceptance cases so the waiting idea can be scoped without repeating the investigation.
 
 Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<finding>" before this result's branch merges.
+
+## Notes
+
+- 2026-10-29T02:02:43Z (main): started
+  provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
