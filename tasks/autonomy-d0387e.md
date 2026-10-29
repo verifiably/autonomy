@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:12:36Z
+updated: 2026-10-29T02:12:37Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -40,3 +40,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:12:33Z (research/egress-policy): attached: pi-payloads.json (6007 bytes): Four offline pi 1.1.0 SDK transport captures from synthetic inputs; no provider call
 - 2026-10-29T02:12:34Z (research/egress-policy): attached: capture-pi.mjs (2588 bytes): Reproduce offline pi transport captures with substituted fetch and assert-based self-checks
 - 2026-10-29T02:12:36Z (research/egress-policy): attached: source-hashes.json (594 bytes): SHA-256 provenance for pinned SDK 0.129.0 and pi-ai serializer inputs
+- 2026-10-29T02:12:37Z (research/egress-policy): attached: probe-results.txt (3797 bytes): Characterization verdicts: 67 passed, current and proposed outcomes separated
