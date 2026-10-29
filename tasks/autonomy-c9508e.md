@@ -1,15 +1,17 @@
 ---
 id: autonomy-c9508e
 title: "Proxy: make a cut response detectable to any HTTP client"
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:30:38Z
+updated: 2026-10-29T09:30:39Z
 started: 2026-10-29T09:22:15Z
+completed: 2026-10-29T09:30:39Z
+closed: 2026-10-29T09:30:39Z
 depends: [autonomy-9570b0]
 parent: autonomy-3a06d3
 tags: [egress]
@@ -38,3 +40,7 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-29T09:30:06Z (fix/response-completion): Review dispositions at 66d846f: (1) Accept unframed EOF as outside semantic-completeness guarantee. Why: EOF supplies no evidence of intended additional bytes. Cost if wrong: silently accepting an unframed partial application payload. (2) Accept arbitrary-schedule/platform reset reliability as outside implementation. Why: production uses chunking; bounded prototype evidence is explicitly limited. Cost if wrong: research would overstate reset reliability, without changing shipped framing. (3) Accept close after successful body iteration/final open check. Why: all payload has already been sent; a terminal chunk racing close cannot hide missing payload. Cost if wrong: client completion could disagree with a route-close record. (4) Leave general HEAD handling and stricter trailer validation unchanged. Why: the configured operations are POST and trailer parsing predates this framing fix. Cost if wrong: a future HEAD route or malformed trailer needs separate handling. No deferred Minor finding; these are reviewed scope/boundary dispositions.
 - 2026-10-29T09:30:37Z (fix/response-completion): attached: completion-review-report.md (3477 bytes): Full read-only whole-branch review by codex/gpt-6.1-sol at 66d846f; accepted with no findings; boundary dispositions recorded in task notes.
 - 2026-10-29T09:30:38Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Reviewed fix ready for immediate authorized local merge and checked worktree removal in this turn; no off-tree evidence remains","next_owner":"session:codex:01a186f1-2641-7801-acc1-95d7c06af15e","cleanup_trigger":"After local merge and merged-tree checks, inspect ignored files and host pointers, harvest timings, unlock and remove"}
+- 2026-10-29T09:30:39Z (fix/response-completion): done
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:30:39Z (fix/response-completion): Chunked responses now expose detectable upstream truncation and route cuts to framing-validating HTTP clients; bodyless/local errors preserved. RED 11 expected failures, GREEN 105 focused tests and 806 all-selected fast-suite tests; whole-branch review accepted without findings at 66d846f. Full report attached; next action this turn is authorized local merge and cleanup.
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
