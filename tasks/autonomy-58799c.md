@@ -1,13 +1,15 @@
 ---
 id: autonomy-58799c
 title: "Dialect: close fallbacks and the message- and block-level positions the route does not check"
-status: todo
+status: doing
 priority: 2
 size: m
 complexity: mid
 process: planned
+owner: main
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T09:19:32Z
+updated: 2026-10-29T09:19:33Z
+started: 2026-10-29T09:19:33Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
 tags: []
@@ -40,4 +42,6 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:16:17Z (design/closed-messages-policy): Human approved decision-13 amendment at autonomy b1a325b6b10535de846441acc3c8f9f6375a5f45:docs/specs/2026-10-12-envelope-design.md. Explicit control schemas, route-load fallback refusal and compatibility exclusions are now approved design; production code unchanged. Scope implementation against this contract and obtain a separate implementation-plan review.
 - 2026-10-29T09:19:32Z (main): scope: scoped; human-approved b1a325b finite-subset contract resolves prior design dependency; implementation narrowed to route/dialect enforcement, tests/fixtures and README, with a separate implementation-plan gate. Status todo, priority 2 unchanged, size m, complexity mid, process planned. Current production code still matches the research baseline; approved intent is broader than that implemented behavior. Origin remains unknown: original filing has no creation/session stamp; no origin_session; approval in the present session settles this scope without inventing historical intent. Existing brief and evidence reused unchanged; no repeated research or new goal.
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:19:33Z (main): started
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
