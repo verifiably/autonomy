@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-17T19:00:17Z
-updated: 2026-10-29T09:32:09Z
+updated: 2026-10-29T09:32:21Z
 started: 2026-10-29T09:22:15Z
 completed: 2026-10-29T09:30:39Z
 closed: 2026-10-29T09:30:39Z
@@ -45,3 +45,4 @@ Where: python/src/autonomy/egress/server.py::_handle; egress/upstream.py::respon
 - 2026-10-29T09:30:39Z (fix/response-completion): Chunked responses now expose detectable upstream truncation and route cuts to framing-validating HTTP clients; bodyless/local errors preserved. RED 11 expected failures, GREEN 105 focused tests and 806 all-selected fast-suite tests; whole-branch review accepted without findings at 66d846f. Full report attached; next action this turn is authorized local merge and cleanup.
   provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:32:09Z (main): Merged locally into main at ecd5858. Merged Python tree identical to reviewed 66d846f; just check passed and merged focused server/upstream tests: 105 passed (24.42 s). Removal dispositions for .worktrees/response-completion: discard .pytest_cache/ and python/.pytest_cache/ (regenerable pytest caches); discard python/.testmondata, python/.testmondata-shm, python/.testmondata-wal (regenerable coverage selection database); discard python/.venv/ (installed dependencies, just setup regenerates); discard python/src/autonomy/__pycache__/, python/src/autonomy/egress/__pycache__/, python/tests/__pycache__/ (bytecode). Four attached evidence/review files are listed by tasks show and byte-identical on main; no scratch/raw copies remain. Worktree clean, branch merged, no submodules; tt-report ran. No host pointer was introduced; launcher/user-systemd pointer scan found none.
+- 2026-10-29T09:32:21Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"released","verification":"verified","purpose":"Locally merged at ecd5858, merged-tree checks passed, timings harvested, ignored files dispositioned and attachments verified; worktree and merged branch removed","next_owner":"none","cleanup_trigger":"none"}
