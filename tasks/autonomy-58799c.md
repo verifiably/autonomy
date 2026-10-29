@@ -1,15 +1,17 @@
 ---
 id: autonomy-58799c
 title: "Dialect: close fallbacks and the message- and block-level positions the route does not check"
-status: doing
+status: done
 priority: 2
 size: m
 complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T10:18:55Z
+updated: 2026-10-29T10:18:56Z
 started: 2026-10-29T09:19:33Z
+completed: 2026-10-29T10:18:55Z
+closed: 2026-10-29T10:18:55Z
 depends: [autonomy-d0387e, autonomy-a1d778]
 parent: autonomy-3a06d3
 tags: []
@@ -87,3 +89,7 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
 - 2026-10-29T10:18:53Z (fix/closed-messages): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages/.superpowers/sdd/2026-10-29-closed-messages-policy","state":"kept","verification":"verified","purpose":"Execution progress and complete reviewer report preserved as matching task attachments; exact initial baseline failure separately retained by open autonomy-26f787","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"After immediate local merge, discard attached duplicates, regenerable test output/briefs/review diff and derived manifest during checked removal","manifest":".worktrees/closed-messages/.superpowers/sdd/2026-10-29-closed-messages-policy/manifest.sha256","sha256":"cb755bd4e78fa6c517d67b4772220df85954cb74641940f9766a0db163800103"}
 - 2026-10-29T10:18:54Z (fix/closed-messages): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages","state":"kept","verification":"verified","purpose":"Reviewed implementation and post-review spec status ready for immediate local integration; tracked tree clean and no host pointer in 134 inspected paths","next_owner":"session:codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","cleanup_trigger":"Merge into main, verify merged checks, then remove after the recorded ignored-file dispositions; tt-report already succeeded"}
 - 2026-10-29T10:18:54Z (fix/closed-messages): Cleanup dispositions verified: .superpowers/ holds two plan workspaces; all current full review reports and ledgers match committed task attachments, including all Ruling lines and none deferred. Initial baseline failure raw bytes are verified under open autonomy-26f787 at $WORK_ROOT/autonomy/autonomy-26f787/baseline.log with portable derivative attached; the workspace copy is expendable. Other RED/GREEN/fast output, review diff, extracted briefs, plan-path markers and manifests are regenerable from committed revisions, commands and recorded outcomes. python/.pytest_cache/, python/.testmondata{,-shm,-wal}, python/.venv/ and all listed __pycache__/ directories are regenerable caches/dependencies. No host pointer in 134 paths; tt-report succeeded; host-load reports nothing left running. Five final reviewer scope rulings accepted with Why/Cost in attached execution-ledger.md, no implementation deviations and no deferred minors.
+- 2026-10-29T10:18:55Z (fix/closed-messages): done
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T10:18:55Z (fix/closed-messages): Implemented approved decision-13 finite subset: route-load fallback/undefined-capability refusal and closed nested controls, preserving opaque client data, pi plain/effort/deferred tools and raw bytes. Commits c1d7a11 and 78f59ff; spec status recorded after independent acceptance in 125059a. Review codex/gpt-6-astra accepted with Critical/Important/Minor 0. Baseline rerun 806, focused final 725 and fast 657 passed; known coverage-context warning and two unlinked-step checker warnings disclosed. Initial existing empty304 baseline failure retained and tracked separately in autonomy-26f787. Full review and all scope rulings attached; immediate local integration and cleanup follow, no push.
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
