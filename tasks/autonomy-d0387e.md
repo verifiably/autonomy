@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:02:59Z
+updated: 2026-10-29T02:04:39Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -33,3 +33,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
   provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T02:02:59Z (research/egress-policy): resumed
   provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T02:04:39Z (research/egress-policy): Direct bounded research in .worktrees/egress-policy (research/egress-policy); hydrated with just setup. Baseline just test: 791 passed in 86.64s. SDK 0.129.0 is present in pinned pi 1.1.0. Its inline definitions use tool_addition blocks, already refused by the current block vocabulary; distinguish unchecked synthetic keys from demonstrated provider capability.
