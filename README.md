@@ -96,8 +96,26 @@ What the route leaves out, the proxy refuses with a `403` that names the code, f
 example `body-refused` for an MCP server or a URL image source. `just live-egress
 NAME` runs pi through the proxy to the real API once and prints what the proxy
 recorded, including any beta token pi sends that the route does not list. The example
-is what pi 1.1.0 needed on 2026-10-17. Never list `fallbacks` in `fields`: it names
-other models, which the proxy does not check against `models`.
+is what pi 1.1.0 needed on 2026-10-17. The `anthropic-messages` dialect now
+admits only the fourteen fields shown above and client tools. Listing `fallbacks`,
+`mcp_servers`, `container`, an unknown field or a server tool type makes the route
+`route-invalid`, before the actor runs. A client tool may omit `type`; an explicit
+`"custom"` type needs `tool_types = ["custom"]` on that operation.
+
+The dialect checks message roles, every admitted control object's keys, required
+fields, primitive types and nullability, content/source pairings, and recursive
+route permissions. System-message effort also needs `output_config` in `fields`.
+Client tool `input_schema` and `tool_use.input` stay opaque JSON, and valid request
+bytes cross unchanged. A listed beta token never grants an undefined body shape.
+
+The supported subset preserves pi's plain/effort requests and deferred placeholder.
+It excludes inline tool changes, `clear_at`, output format/task budget, text
+citations, image transformations, caller/toolset metadata and tool examples, as
+well as server tools, MCP and containers. Unsupported requests are refused rather
+than rewritten. URL/file sources remain explicit operator opt-ins. See
+[decision 13](docs/specs/2026-10-12-envelope-design.md) for exact shapes and content
+contexts. These checks do not validate provider numeric ranges or prove that a
+provider accepts a particular compatibility option.
 
 ## Documentation
 

@@ -1,0 +1,257 @@
+[
+  {
+    "id": "plain",
+    "body": {
+      "model": "claude-haiku-5-5",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Synthetic user text",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        }
+      ],
+      "max_tokens": 2048,
+      "stream": true,
+      "system": [
+        {
+          "type": "text",
+          "text": "Synthetic system text",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "tools": [
+        {
+          "name": "local_tool",
+          "description": "Synthetic local tool",
+          "eager_input_streaming": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "thinking": {
+        "type": "enabled",
+        "budget_tokens": 1024,
+        "display": "summarized"
+      }
+    },
+    "beta": "interleaved-thinking-2025-05-14"
+  },
+  {
+    "id": "effort",
+    "body": {
+      "model": "claude-haiku-5-5",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Synthetic user text",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        },
+        {
+          "role": "system",
+          "content": [],
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      ],
+      "max_tokens": 2048,
+      "stream": true,
+      "system": [
+        {
+          "type": "text",
+          "text": "Synthetic system text",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "tools": [
+        {
+          "name": "local_tool",
+          "description": "Synthetic local tool",
+          "eager_input_streaming": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "thinking": {
+        "type": "adaptive",
+        "display": "summarized",
+        "block_binding": {
+          "prefix_mismatch_behavior": "drop_block"
+        }
+      },
+      "output_config": {
+        "effort": "high"
+      }
+    },
+    "beta": "interleaved-thinking-2025-05-14,mid-conversation-output-config-2026-07-01,thinking-binding-controls-2026-08-01"
+  },
+  {
+    "id": "inline",
+    "body": {
+      "model": "claude-haiku-5-5",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Synthetic user text"
+        },
+        {
+          "role": "system",
+          "content": [
+            {
+              "type": "text",
+              "text": "Add tool"
+            },
+            {
+              "type": "tool_addition",
+              "tool": {
+                "type": "tool_definition",
+                "definition": {
+                  "name": "later_tool",
+                  "description": "Synthetic local tool",
+                  "eager_input_streaming": true,
+                  "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                  }
+                }
+              },
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        }
+      ],
+      "max_tokens": 2048,
+      "stream": true,
+      "system": [
+        {
+          "type": "text",
+          "text": "Synthetic system text",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "tools": [
+        {
+          "name": "local_tool",
+          "description": "Synthetic local tool",
+          "eager_input_streaming": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        },
+        {
+          "name": "__pi_deferred_placeholder__",
+          "description": "Reserved placeholder. Never available. Never call this.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          },
+          "defer_loading": true
+        }
+      ],
+      "thinking": {
+        "type": "enabled",
+        "budget_tokens": 1024,
+        "display": "summarized"
+      }
+    },
+    "beta": "interleaved-thinking-2025-05-14,inline-tools-2026-09-15"
+  },
+  {
+    "id": "fallback",
+    "body": {
+      "model": "claude-haiku-5-5",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Synthetic user text",
+              "cache_control": {
+                "type": "ephemeral"
+              }
+            }
+          ]
+        }
+      ],
+      "max_tokens": 2048,
+      "stream": true,
+      "system": [
+        {
+          "type": "text",
+          "text": "Synthetic system text",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "tools": [
+        {
+          "name": "local_tool",
+          "description": "Synthetic local tool",
+          "eager_input_streaming": true,
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "thinking": {
+        "type": "enabled",
+        "budget_tokens": 1024,
+        "display": "summarized"
+      },
+      "fallbacks": [
+        {
+          "model": "outside-route"
+        }
+      ]
+    },
+    "beta": "interleaved-thinking-2025-05-14,server-side-fallback-2026-07-01"
+  }
+]

@@ -663,7 +663,7 @@ def test_a_first_line_only_beta_check_would_forward_a_second(serve, monkeypatch)
 def test_a_lenient_parser_would_forward_a_duplicate_model(serve, monkeypatch):
     monkeypatch.setattr(server_module, "parse_body", lambda data: json.loads(data))
     s = serve()
-    exchange(s.port, raw_request(body=b'{"model": "claude-opus-5-5", "model": "%s", "messages": []}' % MODEL.encode()))
+    exchange(s.port, raw_request(body=b'{"model": "claude-opus-5-5", "model": "%s", "max_tokens":16, "messages": []}' % MODEL.encode()))
     assert len(s.upstream.seen) == 1  # it checked the last model; a first-key parser upstream reads opus
 
 
@@ -774,3 +774,36 @@ def test_a_proxy_that_cannot_start_its_accept_thread_says_so_and_closes_the_list
     s.server._thread = Failing
     assert s.server.serve(listener) is False
     assert listener.fileno() == -1
+
+
+@pytest.mark.parametrize("extra", [
+    {"messages": [{"role": "user", "content": "hi", "model": "outside-route"}]},
+    {"thinking": {"type": "adaptive", "tools": []}},
+    {"tools": [{"name": "local", "input_schema": {}, "allowed_callers": ["direct"]}]},
+])
+def test_nested_policy_refusals_never_connect(served, extra):
+    status, answer = status_and_body(exchange(served.port, raw_request(body=message(**extra))))
+    assert status == 403
+    assert json.loads(answer)["error"]["code"] == "body-refused"
+    assert served.upstream.connections == 0 and served.upstream.seen == []
+    assert served.records()[0]["refused"] == "body-refused"
+
+
+@pytest.mark.parametrize("raw", [
+    b'{ "model" : "claude-haiku-5-5", "max_tokens":16, "messages":[{"role":"user","content":"caf\\u00e9"}] }\n',
+    b'{"model":"claude-haiku-5-5", "max_tokens":16,"messages":[], '
+    b'"tools":[{"name":"local","input_schema":{"$ref":"https://synthetic.invalid/schema", "model":"outside"}}]}',
+])
+def test_policy_checks_preserve_raw_bytes(served, raw):
+    assert status_and_body(exchange(served.port, raw_request(body=raw)))[0] == 200
+    assert served.upstream.seen[0].body == raw
+
+
+@pytest.mark.parametrize("field", ["temperature", "top_p"])
+def test_large_numeric_tokens_reach_upstream(served, field):
+    raw = json.dumps(message(**{field: int("9" * 400)})).encode()
+    assert status_and_body(exchange(served.port, raw_request(body=raw)))[0] == 200
+    assert served.upstream.seen[0].body == raw
+    record = served.records()[0]
+    assert record["status"] == 200 and record["ended"] == "complete"
+    assert record["forwarded"] is True and record["refused"] is None
