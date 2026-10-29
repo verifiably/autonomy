@@ -1,13 +1,15 @@
 ---
 id: autonomy-9570b0
 title: "Establish how a cut proxy response can reliably signal an HTTP client error: framing or abortive close"
-status: todo
+status: doing
 priority: 2
 size: s
 complexity: mid
 process: direct
+owner: main
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-19T00:37:48Z
+updated: 2026-10-29T09:16:11Z
+started: 2026-10-29T09:16:11Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
@@ -24,3 +26,8 @@ Bound: one small real-loopback matrix covering route stop mid-body (first), an u
 Expected result: record client results and reproducible commands/test cases on this task and in the brief, then recommend the smallest reliable mechanism (the brief leans to framing) and explicit limits. Keep the bounded close, streaming, settle callback and final-record behavior as acceptance constraints for later implementation.
 
 Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<finding>" before this result's branch merges.
+
+## Notes
+
+- 2026-10-29T09:16:11Z (main): started
+  provenance: {"harness_session":"codex:01a186f1-2641-7801-acc1-95d7c06af15e","harness_session_source":"CODEX_THREAD_ID"}
