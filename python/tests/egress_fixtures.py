@@ -21,7 +21,7 @@ import pytest
 
 PI_FIELDS = [
     "model", "messages", "system", "max_tokens", "stream", "tools", "tool_choice", "thinking",
-    "temperature", "metadata", "stop_sequences", "top_p", "top_k",
+    "temperature", "metadata", "stop_sequences", "top_p", "top_k", "output_config",
 ]
 PI_BLOCKS = ["text", "image", "tool_use", "tool_result", "thinking", "redacted_thinking"]
 PI_BETAS = ["fine-grained-tool-streaming-2025-05-14", "interleaved-thinking-2025-05-14"]

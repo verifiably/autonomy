@@ -202,3 +202,45 @@ def test_a_toolchain_bind_holding_the_credential_fails_the_static_check(config, 
     with pytest.raises(SandboxUnproven) as caught:
         check_binds(SandboxSpec(scratch=scratch, ro_binds=(credential.parent,)), egress_denied(config, loaded))
     assert caught.value.code == "bind-overlaps-denied"
+
+
+@pytest.mark.parametrize("field", ["fallbacks", "mcp_servers", "container", "future_feature"])
+def test_undefined_fields_are_refused(field, credential):
+    doc = pi_route(credential=credential)
+    doc["operations"][0]["fields"].append(field)
+    with pytest.raises(RouteRefused) as caught:
+        parse(doc)
+    assert caught.value.code == "route-invalid"
+
+
+@pytest.mark.parametrize("kind", ["web_fetch_20250910", "future_tool"])
+def test_undefined_tool_types_are_refused(kind, credential):
+    doc = pi_route(credential=credential)
+    doc["operations"][0]["tool_types"] = [kind]
+    with pytest.raises(RouteRefused) as caught:
+        parse(doc)
+    assert caught.value.code == "route-invalid"
+
+
+@pytest.mark.parametrize("key,value", [("fields", "fallbacks"), ("tool_types", "web_fetch_20250910")])
+def test_undefined_capability_in_unused_operation_is_refused(key, value, credential):
+    doc = pi_route(credential=credential)
+    unused = copy.deepcopy(doc["operations"][0])
+    unused["path"] = "/unused"
+    unused[key].append(value)
+    doc["operations"].append(unused)
+    with pytest.raises(RouteRefused) as caught:
+        parse(doc)
+    assert caught.value.code == "route-invalid"
+
+
+@pytest.mark.parametrize("tool_types", [None, [], ["custom"]])
+def test_defined_route_capabilities_can_be_narrowed(tool_types, credential):
+    doc = pi_route(credential=credential)
+    if tool_types is None:
+        doc["operations"][0].pop("tool_types")
+    else:
+        doc["operations"][0]["tool_types"] = tool_types
+    assert parse(doc).operations[0].tool_types == frozenset(tool_types or [])
+    doc["operations"][0]["fields"] = ["model"]
+    assert parse(doc).operations[0].fields == {"model"}

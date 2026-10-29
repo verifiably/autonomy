@@ -25,6 +25,11 @@ FEATURE_HEADERS: Mapping[str, frozenset[str]] = MappingProxyType(
 )
 """Headers that switch provider features or select the body's shape: a route that
 forwards one must list its tokens."""
+KNOWN_FIELDS = frozenset({
+    "model", "messages", "system", "max_tokens", "stream", "tools", "tool_choice", "thinking",
+    "temperature", "metadata", "stop_sequences", "top_p", "top_k", "output_config",
+})
+KNOWN_TOOL_TYPES = frozenset({"custom"})
 KNOWN_BLOCK_TYPES = frozenset({"text", "image", "document", "tool_use", "tool_result", "thinking", "redacted_thinking"})
 """Block types whose nested positions `anthropic-messages` defines: only these may be listed."""
 KNOWN_SOURCE_TYPES = frozenset({"base64", "text", "content", "url", "file"})
@@ -169,6 +174,11 @@ def _operation(value: object, where: str) -> Operation:
     fields = _strings(table["fields"], f"{where}.fields", nonempty=True)
     if "model" not in fields:
         raise _invalid(f"{where}.fields must include model")
+    if set(fields) - KNOWN_FIELDS:
+        raise _invalid(f"{where}.fields: undefined {sorted(set(fields) - KNOWN_FIELDS)}")
+    tools = _strings(table.get("tool_types", []), f"{where}.tool_types", nonempty=False)
+    if set(tools) - KNOWN_TOOL_TYPES:
+        raise _invalid(f"{where}.tool_types: undefined {sorted(set(tools) - KNOWN_TOOL_TYPES)}")
     blocks = _strings(table["block_types"], f"{where}.block_types", nonempty=True)
     undefined = set(blocks) - KNOWN_BLOCK_TYPES
     if undefined:
@@ -182,7 +192,7 @@ def _operation(value: object, where: str) -> Operation:
         queries=frozenset(_strings(table.get("queries", [""]), f"{where}.queries", nonempty=True)),
         models=frozenset(_strings(table["models"], f"{where}.models", nonempty=True)),
         fields=frozenset(fields),
-        tool_types=frozenset(_strings(table.get("tool_types", []), f"{where}.tool_types", nonempty=False)),
+        tool_types=frozenset(tools),
         block_types=frozenset(blocks),
         source_types=frozenset(sources),
     )
