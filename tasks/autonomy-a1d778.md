@@ -1,13 +1,15 @@
 ---
 id: autonomy-a1d778
 title: Design the closed anthropic-messages policy from the egress brief
-status: todo
+status: doing
 priority: 2
 size: m
 complexity: high
 process: planned
+owner: main
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:02:18Z
+updated: 2026-10-29T09:05:57Z
+started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
 tags: []
@@ -35,3 +37,5 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
 
 - 2026-10-29T09:02:18Z (add): created
   provenance: {"harness_session":"codex:01a186e3-3aaf-7182-859e-f668c80750f9","harness_session_source":"CODEX_THREAD_ID","origin":"agent"}
+- 2026-10-29T09:05:57Z (main): started
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
