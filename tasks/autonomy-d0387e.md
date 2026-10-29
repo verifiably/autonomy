@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:18:38Z
+updated: 2026-10-29T02:18:39Z
 started: 2026-10-29T02:02:43Z
 depends: []
 parent: autonomy-3a06d3
@@ -44,3 +44,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:12:39Z (research/egress-policy): Result: 67 characterization cases pass; offline pi plain/effort payloads accepted, inline/fallback payloads refused. Inline definitions are tool_addition blocks (already closed), not a demonstrated escape via message keys. Unknown message/block/control keys pass; provider interpretation remains unverified. Recommend finite key/value shapes, preserving opaque client input/schema and system effort; refuse fallbacks at route load, including server-selected default. Proposed restriction of arbitrary fields/server tool types and other SDK options needs a reviewed decision-13 amendment in autonomy-58799c. Updated source brief contains matrix, precise subset and acceptance requirements. just test-fast: 791 passed, coverage warned that sysmon dynamic contexts may be incomplete.
 - 2026-10-29T02:17:53Z (research/egress-policy): review: impl round 1 — verdict: accept; findings: Minor 1; reviewer: codex/gpt-6-astra
 - 2026-10-29T02:18:38Z (research/egress-policy): attached: policy-review-report.md (4443 bytes): Full read-only review by codex/gpt-6-astra of frozen e8fdb3a; accepted with one Minor
+- 2026-10-29T02:18:39Z (research/egress-policy): attached: review-ledger.md (2200 bytes): Controller dispositions for the review Minor and all four declined-to-judge scope entries; no deferred minors
