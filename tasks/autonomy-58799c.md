@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T10:20:34Z
+updated: 2026-10-29T10:20:35Z
 started: 2026-10-29T09:19:33Z
 completed: 2026-10-29T10:18:55Z
 closed: 2026-10-29T10:18:55Z
@@ -95,3 +95,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T10:20:33Z (main): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages/.superpowers/sdd/closed-messages","state":"released","verification":"verified","purpose":"Plan reports and complete accepted ledger preserved as matching committed task attachments in main; duplicate workspace and derived manifest removed with checked worktree cleanup","next_owner":"none","cleanup_trigger":"none"}
 - 2026-10-29T10:20:33Z (main): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages/.superpowers/sdd/2026-10-29-closed-messages-policy","state":"released","verification":"verified","purpose":"Complete fresh reviewer report and execution ledger with all rulings preserved as matching main-checkout task attachments; initial baseline raw copy verified under open autonomy-26f787; regenerable logs, briefs, review package and derived manifest removed with checked cleanup","next_owner":"none","cleanup_trigger":"none"}
+- 2026-10-29T10:20:34Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages","state":"released","verification":"verified","purpose":"Reviewed fix/closed-messages branch fast-forwarded into main at b2b85a4; merged checks passed, timings harvested, 134 host pointers inspected and ignored files dispositioned; worktree removed and merged branch deleted","next_owner":"none","cleanup_trigger":"none"}
