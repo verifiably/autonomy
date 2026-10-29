@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:06:41Z
+updated: 2026-10-29T09:07:05Z
 started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
@@ -40,4 +40,6 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
 - 2026-10-29T09:05:57Z (main): started
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:06:41Z (design/closed-messages-policy): resumed
+  provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:07:05Z (design/closed-messages-policy): Intent provenance: filing event matched to codex:01a186e3-3aaf-7182-859e-f668c80750f9, rollout lines 111/114 (add call and created result at 2026-10-29T09:02:18Z). Human ask was "$scope autonomy-58799c"; finite-schema recommendation and design follow-up were agent-added. Original idea filing event unavailable: no creation/session stamp; no origin_session. Using the recorded brief and decision 13 without treating that recommendation as human approval. Planned design-only work in .worktrees/closed-messages-policy, branch design/closed-messages-policy; just setup completed. Full-suite baseline deferred to implementation setup under the planned-work rule. No trial enrolled.
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
