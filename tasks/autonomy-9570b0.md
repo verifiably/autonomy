@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/response-completion
 created: 2026-10-19T00:11:46Z
-updated: 2026-10-29T09:22:12Z
+updated: 2026-10-29T09:22:13Z
 started: 2026-10-29T09:16:11Z
 depends: []
 parent: autonomy-3a06d3
@@ -38,3 +38,4 @@ Ideas it wakes: On completion, run tasks note autonomy-c9508e --no-reviewed "<fi
 - 2026-10-29T09:20:06Z (fix/response-completion): attached: completion-probe.txt (1364 bytes): 30 loopback cases: raw TCP and http.client, stop and forced-survivor stop, malformed chunk, Content-Length success, unframed EOF.
 - 2026-10-29T09:20:52Z (fix/response-completion): attached: completion-races.txt (2975 bytes): Five repeats of 12 stop/survivor cases: 60 passed; reset calls serialized and already-closed descriptors checked.
 - 2026-10-29T09:22:12Z (fix/response-completion): retained: {"host":"titan","kind":"worktree","path":".worktrees/response-completion","state":"kept","verification":"verified","purpose":"Investigation artifacts attached and byte-compared; worktree transferred to the follow-on fix","next_owner":"task:autonomy-c9508e","cleanup_trigger":"After the reviewed fix is locally merged, inspect ignored evidence and host pointers, harvest timings, then remove"}
+- 2026-10-29T09:22:13Z (fix/response-completion): Result: attached probe reproduced via PYTHONPATH=tests just test-one ../tasks/files/autonomy-9570b0/test_completion_probe.py -q (30 passed); five stop/survivor repeats add 60 passed. Chunking yields IncompleteRead and preserves streamed bytes; reset yields ConnectionResetError only after replacing both FIN paths and serializing close to avoid EBADF. No finite loopback run proves reset reliability across arbitrary schedules. Local pre-response errors retain their existing separate length framing. Recommend chunking with zero chunk only after successful iteration; 204/304 stay bodyless; unframed upstream EOF has no semantic-completeness proof. Follow-on scoped as direct; no raw/scratch evidence remains outside attached files.
