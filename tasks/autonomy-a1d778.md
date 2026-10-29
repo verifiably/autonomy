@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:13:19Z
+updated: 2026-10-29T09:13:57Z
 started: 2026-10-29T09:05:57Z
 depends: [autonomy-d0387e]
 parent: autonomy-3a06d3
@@ -47,3 +47,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
 - 2026-10-29T09:13:17Z (design/closed-messages-policy): review: spec round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
 - 2026-10-29T09:13:18Z (design/closed-messages-policy): attached: builder-check-report.md (706 bytes): Full read-only builder check of frozen b1a325b by codex/gpt-6.1-sol; no important unanswered questions
 - 2026-10-29T09:13:19Z (design/closed-messages-policy): attached: review-ledger.md (1579 bytes): Spec review ledger, verification limits and pending human gate; no rulings or deferred minors
+- 2026-10-29T09:13:57Z (design/closed-messages-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/closed-messages-policy","state":"kept","verification":"verified","purpose":"Frozen proposed decision-13 amendment b1a325b on design/closed-messages-policy, pending human design review; hydrated, clean, review report and ledger attached","next_owner":"task:autonomy-a1d778","cleanup_trigger":"After human approval and local integration, harvest timings and inspect ignored files, plan ledger and host pointers before removal"}
