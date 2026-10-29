@@ -355,8 +355,12 @@ class ProxyServer:
                 answered = True
                 self._to_actor(conn, response_head(response))
                 for piece in response.body:
-                    self._to_actor(conn, piece)
+                    self._to_actor(conn, b"%x\r\n%s\r\n" % (len(piece), piece))
                     record["response_bytes"] = int(record["response_bytes"]) + len(piece)
+                if not self.gate.is_open:
+                    raise RouteClosed(attempted=True)
+                if response.status not in (204, 304):
+                    self._to_actor(conn, b"0\r\n\r\n")
             finally:
                 with self._lock:
                     self._in_flight -= 1

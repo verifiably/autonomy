@@ -88,12 +88,12 @@ desktop for this research.
 
 The pre-fix baseline `5720ee9` passed `just test`: **791 tests**. The attached
 `test_completion_probe.py` compares the actual proxy over loopback, with test-only
-chunking or reset patches. It covers both worker cleanup and a forced survivor
-cleanup (`JOIN_TIMEOUT=0`), malformed upstream chunking after the head, normal
+chunking or reset patches. It covers normal worker cleanup and zero-join-timeout
+stop (`JOIN_TIMEOUT=0`), malformed upstream chunking after the head, normal
 Content-Length completion, and unframed upstream EOF. Each case has a raw TCP
 reader and Python's `http.client.HTTPResponse`: **30 cases passed**.
 
-| Mechanism | Stop / survivor stop / bad upstream chunk | Normal completion / unframed EOF |
+| Mechanism | Stop / zero-join-timeout stop / bad upstream chunk | Normal completion / unframed EOF |
 | --- | --- | --- |
 | Current close delimiting | Raw reader and HTTP client see clean EOF | Clean EOF |
 | Proxy-owned chunking | Raw reader sees EOF without a zero chunk; HTTP client raises `IncompleteRead` | Zero chunk; HTTP client returns the unchanged body |
@@ -102,9 +102,10 @@ reader and Python's `http.client.HTTPResponse`: **30 cases passed**.
 The reset prototype replaces **both** actor-side `SHUT_RDWR` paths with linger-zero
 close, preserves successful FINs, and serializes reset calls with an already-closed
 descriptor check. Without that serialization, the worker and survivor close raced
-and the worker raised `EBADF`. Five additional runs of the stop/survivor subset
-exercise the race but do not prove reliability across operating systems or arbitrary
-schedules. See attached `completion-races.txt` for results. Already received bytes
+and the worker raised `EBADF`. Five additional runs of the stop/zero-timeout subset
+passed **60 cases**. These exercise the race without asserting which closer wins,
+and do not prove reliability across operating systems or arbitrary schedules.
+See attached `completion-races.txt` for results. Already received bytes
 can be lost to a reset; the experiment consumes the first streamed event before stop.
 
 **Recommendation:** use proxy-owned HTTP/1.1 chunked framing for responses that
