@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: fix/closed-messages
 created: 2026-10-17T18:24:01Z
-updated: 2026-10-29T10:18:56Z
+updated: 2026-10-29T10:20:33Z
 started: 2026-10-29T09:19:33Z
 completed: 2026-10-29T10:18:55Z
 closed: 2026-10-29T10:18:55Z
@@ -93,3 +93,4 @@ The anthropic-messages dialect closes top-level fields but checks only `model` a
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T10:18:55Z (fix/closed-messages): Implemented approved decision-13 finite subset: route-load fallback/undefined-capability refusal and closed nested controls, preserving opaque client data, pi plain/effort/deferred tools and raw bytes. Commits c1d7a11 and 78f59ff; spec status recorded after independent acceptance in 125059a. Review codex/gpt-6-astra accepted with Critical/Important/Minor 0. Baseline rerun 806, focused final 725 and fast 657 passed; known coverage-context warning and two unlinked-step checker warnings disclosed. Initial existing empty304 baseline failure retained and tracked separately in autonomy-26f787. Full review and all scope rulings attached; immediate local integration and cleanup follow, no push.
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T10:20:33Z (main): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages/.superpowers/sdd/closed-messages","state":"released","verification":"verified","purpose":"Plan reports and complete accepted ledger preserved as matching committed task attachments in main; duplicate workspace and derived manifest removed with checked worktree cleanup","next_owner":"none","cleanup_trigger":"none"}
