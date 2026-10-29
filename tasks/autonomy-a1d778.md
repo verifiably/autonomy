@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: design/closed-messages-policy
 created: 2026-10-29T09:02:18Z
-updated: 2026-10-29T09:17:33Z
+updated: 2026-10-29T09:18:30Z
 started: 2026-10-29T09:05:57Z
 completed: 2026-10-29T09:17:32Z
 closed: 2026-10-29T09:17:32Z
@@ -66,3 +66,4 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<re
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-29T09:17:32Z (design/closed-messages-policy): Human approved frozen b1a325b decision-13 amendment; recorded approved status in a5d3c2b without changing the behavioral contract. Builder review accepted without findings; full report and both review ledgers attached. Five pinned source hashes verified; just check and diff checks pass. Woke autonomy-58799c for scoping and separately reviewed implementation planning. Integrating locally and cleaning the design worktree this turn.
   provenance: {"harness_session":"codex:01a186e7-b040-7ec0-b7e3-b46b220e04a6","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T09:18:30Z (main): retained: {"host":"titan","kind":"scratch","path":".worktrees/closed-messages-policy/.superpowers/sdd/closed-messages-policy","state":"released","verification":"verified","purpose":"Full builder report and approved ledger preserved as committed task attachments; derived manifest discarded during checked worktree removal after local merge","next_owner":"none","cleanup_trigger":"none"}
