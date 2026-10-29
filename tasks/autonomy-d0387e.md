@@ -1,15 +1,17 @@
 ---
 id: autonomy-d0387e
 title: "Establish the minimal closed policy for tool, source, model and feature positions below the body's top level"
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: research/egress-policy
 created: 2026-10-19T00:11:43Z
-updated: 2026-10-29T02:19:24Z
+updated: 2026-10-29T02:19:25Z
 started: 2026-10-29T02:02:43Z
+completed: 2026-10-29T02:19:25Z
+closed: 2026-10-29T02:19:25Z
 depends: []
 parent: autonomy-3a06d3
 tags: []
@@ -48,3 +50,7 @@ Ideas it wakes: On completion, run tasks note autonomy-58799c --no-reviewed "<fi
 - 2026-10-29T02:18:41Z (research/egress-policy): Review disposition: M1 optional citations.enabled corrected in b76482d after checking BetaCitationsConfigParam. Accepted all four review exclusions within the offline research scope; full Why/Cost rulings and revision references are attached in review-ledger.md. No deferred minors. just check passes; attached probe rerun: 67 passed. Full reviewer report attached.
 - 2026-10-29T02:19:23Z (research/egress-policy): retained: {"host":"titan","kind":"scratch","path":"$WORK_ROOT/autonomy/autonomy-d0387e","state":"released","verification":"verified","purpose":"All eight source, capture, probe and review files preserved as listed task attachments with matching SHA-256; duplicate scratch and empty HOME removed","next_owner":"none","cleanup_trigger":"none"}
 - 2026-10-29T02:19:24Z (research/egress-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/egress-policy","state":"kept","verification":"verified","purpose":"Immediate local integration of the reviewed research branch, then checked removal in this session","next_owner":"session:codex:01a18551-e297-7d03-ac46-c87da73b2eed","cleanup_trigger":"After local merge to main, harvest test timings, verify no host pointers and discard only generated caches/dependencies before removal"}
+- 2026-10-29T02:19:25Z (research/egress-policy): done
+  provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-29T02:19:25Z (research/egress-policy): Established nested-policy evidence and finite supported-subset recommendation in the source brief; 67 characterization cases and four offline pi SDK captures attached, five source hashes verified. Baseline and test-fast each 791 passed; just check passed. Independent review accepted with one minor corrected in b76482d; all rulings retained, none deferred. Woke autonomy-58799c for scoped amendment and implementation; no production enforcement changed.
+  provenance: {"harness_session":"codex:01a18551-e297-7d03-ac46-c87da73b2eed","harness_session_source":"CODEX_THREAD_ID"}
