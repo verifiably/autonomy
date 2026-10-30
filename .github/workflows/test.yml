@@ -24,9 +24,8 @@ jobs:
       UV_PYTHON: /usr/bin/python3
       UV_PYTHON_DOWNLOADS: never
       UV_FROZEN: '1'
-      # Skip reasons, passing tests' captured output (the egress timing prints) and the
-      # 30 slowest tests (autonomy-1ba43a diagnosis).
-      PYTEST_ADDOPTS: -rsP --durations=30
+      # Skip reasons and the 30 slowest tests, so a slow hosted run is readable.
+      PYTEST_ADDOPTS: -rs --durations=30
     steps:
       - name: Isolate Git configuration and tool state
         run: |
@@ -62,13 +61,6 @@ jobs:
           print(sys.version)
           '
           echo "kernel.apparmor_restrict_unprivileged_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
-      - name: Show the resolver configuration
-        # Read-only, no lookup (autonomy-1ba43a): what the sandbox's bound /etc resolves with.
-        run: |
-          ls -la /etc/resolv.conf
-          echo "resolv.conf -> $(readlink -f /etc/resolv.conf)"
-          cat /etc/resolv.conf
-          grep '^hosts:' /etc/nsswitch.conf
       - name: Build the pinned tasks CLI
         run: |
           git clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"
