@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T15:11:41Z
-updated: 2026-10-30T18:15:21Z
+updated: 2026-10-30T22:58:25Z
 started: 2026-10-30T17:38:06Z
 depends: []
 parent: autonomy-23aeff
@@ -29,4 +29,6 @@ step: "Task 5: Activate policy-off"
 - 2026-10-30T18:08:22Z (main): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T18:15:21Z (main): parked (waiting on user, decision): User decides on main's failed run 41104200861 (e21 lease timeout, autonomy-1ba43a): keep policy off and approve a diagnostic hosted run, or roll back. Then the agent acts on that decision.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T22:58:25Z (main): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
