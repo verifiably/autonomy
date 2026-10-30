@@ -1,18 +1,21 @@
 ---
 id: autonomy-1ba43a
 title: "Egress e21 test outlives its 30 s proxy lease on GitHub's ubuntu runner (closes by lease, not close)"
-status: doing
+status: done
 priority: 1
 size: s
 complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T22:58:07Z
+updated: 2026-10-30T22:58:08Z
 started: 2026-10-30T18:20:33Z
+completed: 2026-10-30T22:58:07Z
+closed: 2026-10-30T22:58:07Z
 depends: []
 tags: [egress]
 source: autonomy-23aeff
+model: claude-opus-5-5
 agent: claude-code/claude-opus-5-5
 origin: agent
 ---
@@ -76,4 +79,8 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T22:53:44Z (main): User approved one push of main at 3b281bde3d8709e385ad855adb803a5f4ae624be; pushed 3c5f272..3b281bd; main run 41141028249; expected 1398 tests. Any retry needs separate approval.
 - 2026-10-30T22:58:07Z (main): resumed
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T22:58:07Z (main): done
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T22:58:07Z (main): Fixed: e21 renews its proxy lease (every 10 s) while its actor runs; renewal starts inside the actor's cleanup and stops before close; full sweep and all assertions unchanged. Regression tests: short-lease control (lease), renewal (close), unstartable renewer reaps the actor. Merged to main 8b2fc20, pushed 3b281bd; main run 41141028249 success 1398/1398 (e21 11.32 s, first cold sweep, closed by close). Deferred minors in autonomy-859a55.
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
