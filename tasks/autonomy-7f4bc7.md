@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: fix/autonomy-7f4bc7-sandbox-layout
 created: 2026-10-30T16:36:31Z
-updated: 2026-10-30T16:48:26Z
+updated: 2026-10-30T16:48:27Z
 started: 2026-10-30T16:37:17Z
 depends: []
 tags: [sandbox]
@@ -27,3 +27,4 @@ Observed 2026-10-30 in hosted run 41090873620 (verifiably/autonomy, ubuntu-24.04
 - 2026-10-30T16:37:17Z (fix/autonomy-7f4bc7-sandbox-layout): started
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T16:48:26Z (fix/autonomy-7f4bc7-sandbox-layout): review: impl round 1 — verdict: revise; findings: Minor 7; reviewer: claude-code/claude-opus-5-5
+- 2026-10-30T16:48:27Z (fix/autonomy-7f4bc7-sandbox-layout): Ruling: review Minor 1 (layout error in EgressSession.start escapes as SandboxUnproven, leaks info_read and ours) re-graded Important per the reviewer's fix-before-merge call — design step 9 makes any proxy-start failure egress-unproven, and an untyped escape misreports the run — cost if wrong: one small extra fix. Minors 2-7 stay minor (deferred).
