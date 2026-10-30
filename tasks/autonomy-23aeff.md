@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T14:19:57Z
+updated: 2026-10-30T14:20:31Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -55,3 +55,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T14:19:25Z (design/autonomy-23aeff-test-policy): Design frozen at ec27ca5c3a90f66c2178ca7b5a48f35fe1e7e1b3:docs/specs/2026-10-30-test-execution-policy-design.md; read-only builder review dispatched before user design review. GitHub API verified PUBLIC and zero workflows; standard public hosted compute needs no private-minute allowance. Current tt is v8 (task filing snapshot v7 is outdated). Proposed Ubuntu24 system Python includes required os.setns; namespace exception remains conditional and explicitly gated with publication. No implementation, policy file, push, hosted run, or host security change. just check passed with two pre-existing unlinked-step warnings; isolated tasks check exited 0 with 23 explicit foreign-graph/unlinked warnings. No suite run in documentation-only phase.
 - 2026-10-30T14:19:54Z (design/autonomy-23aeff-test-policy): review: spec round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
 - 2026-10-30T14:19:57Z (design/autonomy-23aeff-test-policy): attached: design-builder-report.md (876 bytes): Full read-only builder review by codex/gpt-6.1-sol of frozen ec27ca5; accepted with zero Critical, Important or Minor findings.
+- 2026-10-30T14:20:31Z (design/autonomy-23aeff-test-policy): Builder review is attached and listed by tasks show; SHA-256 17ff83849d2fbe390f4eb696f12d484961fa900edf2416bb7f943105ad8d3c66 matched the workspace copy before its removal. Review accepted with no findings; no rulings or deferred minors. No standalone scratch/evidence copy remains. Design content stays frozen at ec27ca5c3a90f66c2178ca7b5a48f35fe1e7e1b3.
