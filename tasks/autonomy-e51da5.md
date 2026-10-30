@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-30T23:53:56Z
+updated: 2026-10-30T23:54:29Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -25,3 +25,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
 - 2026-10-30T23:53:56Z (main): started
   provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-30T23:54:29Z (main): Direct task-record repair in main (worktree exception). Scope: preserve both raw suite logs, replace their active attachments with explicitly labelled portable derivatives, verify exact replacement and hygiene without attachment eligibility support. No code, workflow or tool pin changes; no pytest obligation for records-only work. Reproduced that ops-check attempts attachment eligibility on the current logs.
