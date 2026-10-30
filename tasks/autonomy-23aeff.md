@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T17:12:41Z
+updated: 2026-10-30T17:37:38Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -97,3 +97,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T17:12:39Z (design/autonomy-23aeff-test-policy): attached: activation-packet-b.md (3342 bytes): Packet B: coverage acceptance (run 41095831866, 1394/1394 local = hosted) and the policy-off branch push
 - 2026-10-30T17:12:41Z (design/autonomy-23aeff-test-policy): parked (waiting on user, approval): User decides packet B (attached): accept hosted coverage of run 41095831866 and approve pilot push 4/5 of the policy-off commit; then the agent runs Task 4 Step 5 and Task 5.
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T17:37:38Z (design/autonomy-23aeff-test-policy): User accepted packet B 2026-10-30 ('Accepted.'): hosted coverage of run 41095831866 accepted as equivalent; read as also approving pilot push 4/5 of the reviewed policy-off commit.
