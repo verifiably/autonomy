@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-30T23:54:29Z
+updated: 2026-10-30T23:54:53Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -26,3 +26,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-30T23:53:56Z (main): started
   provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-30T23:54:29Z (main): Direct task-record repair in main (worktree exception). Scope: preserve both raw suite logs, replace their active attachments with explicitly labelled portable derivatives, verify exact replacement and hygiene without attachment eligibility support. No code, workflow or tool pin changes; no pytest obligation for records-only work. Reproduced that ops-check attempts attachment eligibility on the current logs.
+- 2026-10-30T23:54:53Z (main): Created persistent scratch on titan: /mnt/ssd3/work/autonomy/autonomy-23aeff/portable-log-repair-e51da5; purpose: preserve original suite logs and prepare portable derivatives; owner autonomy-e51da5; contents mutable, not yet checkpointed.
