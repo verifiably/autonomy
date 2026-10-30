@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T20:25:55Z
+updated: 2026-10-30T20:25:56Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -70,3 +70,5 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
 - 2026-10-30T20:20:19Z (main): User integration decision 2026-10-30: integrate the renewal fix and its three regression tests; keep --durations=30 and e21's per-step timing capture and failure output; drop -P, the resolver-configuration step and test_the_actor_times_every_step (about 13 s remotely, and it warms the filesystem before e21). Review, merge into local main, bring the exact main SHA; no hosted run or push authorized.
 - 2026-10-30T20:24:17Z (main): review: impl round 4 — verdict: accept; findings: Minor 1; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T20:25:55Z (main): Integrated into local main as merge 8b2fc20 (branch head 315dc1d; integration commit 056a2c9). Net change vs origin/main 3c5f272 outside tasks/: .github/workflows/test.yml (PYTEST_ADDOPTS -rs --durations=30) and python/tests/test_egress_session.py (+89/-4: renewal in run_actor, e21 renew_every=10, sleep step, the three regression tests, e21 per-step timing capture printed for failures). Dropped: -P, resolver step, test_the_actor_times_every_step. On main: test_egress_session.py + test_front_door.py 54 passed, just check 0. Deferred minor (round 4): a crashed actor before its timings line surfaces as a bare StopIteration in run_actor. Main not pushed; awaits user approval of the exact SHA.
+- 2026-10-30T20:25:56Z (main): parked (waiting on user, approval): User approves pushing local main at the SHA in the final report (later changes only under tasks/); then the agent rechecks head, visibility and SSH, pushes main, and inspects main's hosted run.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
