@@ -13,7 +13,8 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Three times the measured pilot job (3 min 02 s), rounded up; minimum 10.
+    timeout-minutes: 10
     env:
       # Nested broad recipes run instead of refusing a would-be policy skip.
       TT_FORCE: '1'
