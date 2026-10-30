@@ -1,19 +1,19 @@
 ---
 id: autonomy-2ee924
-title: Prepare the pilot activation packet
+title: Review the local wiring and prepare the pilot packet
 status: todo
 priority: 2
 size: xs
 complexity: low
 process: direct
 created: 2026-10-30T15:11:39Z
-updated: 2026-10-30T15:11:39Z
+updated: 2026-10-30T15:26:22Z
 depends: []
 parent: autonomy-23aeff
 tags: []
 agent: claude-code/claude-opus-5-5
 plan: docs/plans/2026-10-30-test-execution-policy.md
-step: "Task 3: Prepare the pilot activation packet"
+step: "Task 3: Review the local wiring and prepare the pilot packet"
 ---
 
 ## Notes
