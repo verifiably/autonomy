@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T15:48:17Z
+updated: 2026-10-30T15:57:31Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -72,3 +72,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T15:48:15Z (design/autonomy-23aeff-test-policy): review: plan round 3 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
 - 2026-10-30T15:48:16Z (design/autonomy-23aeff-test-policy): review: plan round 4 — verdict: accept; findings: none; reviewer: human
 - 2026-10-30T15:48:17Z (design/autonomy-23aeff-test-policy): Plan a2c20a0 accepted; execution: native (inline) with fresh reviewers at Task 3 Step 0 and Task 5 Step 5. Approval clarification (user): packet A's five-push limit is a cap; each pilot retry still needs approval for its exact revision.
+- 2026-10-30T15:57:31Z (design/autonomy-23aeff-test-policy): Scratch directory created: host titan, /mnt/ssd3/work/autonomy/autonomy-23aeff; purpose: activation evidence for Tasks 3-5 (local suite log, rehearsal build, packets, hosted logs); owner: task:autonomy-23aeff; contents still mutable.
