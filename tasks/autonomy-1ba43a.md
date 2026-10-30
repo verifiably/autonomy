@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T20:20:19Z
+updated: 2026-10-30T20:20:20Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -67,3 +67,4 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T20:20:19Z (main): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T20:20:19Z (main): User integration decision 2026-10-30: integrate the renewal fix and its three regression tests; keep --durations=30 and e21's per-step timing capture and failure output; drop -P, the resolver-configuration step and test_the_actor_times_every_step (about 13 s remotely, and it warms the filesystem before e21). Review, merge into local main, bring the exact main SHA; no hosted run or push authorized.
