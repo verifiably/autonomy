@@ -1,18 +1,21 @@
 ---
 id: autonomy-23aeff
 title: Adopt shared broad-test policy and remote verification
-status: doing
+status: done
 priority: 2
 size: m
 complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T23:01:45Z
+updated: 2026-10-30T23:01:46Z
 started: 2026-10-30T14:13:58Z
+completed: 2026-10-30T23:01:46Z
+closed: 2026-10-30T23:01:46Z
 depends: [ops-68729d]
 tags: []
 source: "tt-policy:autonomy"
+model: claude-opus-5-5
 agent: codex
 origin: agent
 spec: docs/specs/2026-10-30-test-execution-policy-design.md
@@ -137,4 +140,8 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T23:01:00Z (main): retained: {"host":"titan","kind":"scratch","path":"$WORK_ROOT/autonomy/autonomy-23aeff","state":"released","verification":"verified","purpose":"Removed 2026-10-30 after its evidence was attached to autonomy-23aeff (hashes verified) and the rest was discarded as regenerable or recorded in notes","next_owner":"none","cleanup_trigger":"none"}
 - 2026-10-30T23:01:26Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/autonomy-23aeff","state":"released","verification":"verified","purpose":"Removed 2026-10-30 after integration into main (head 315dc1d merged; main pushed at 3b281bd): tree clean, tt-report run, no host pointers, no submodules; ignored files were caches, the venv and testmon data (regenerable) and the plan ledger (attached as plan-ledger-progress.md); local branch deleted, remote branch design/autonomy-23aeff-test-policy left on origin","next_owner":"none","cleanup_trigger":"none"}
 - 2026-10-30T23:01:45Z (main): resumed
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T23:01:46Z (main): done
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T23:01:46Z (main): Adopted: policy disabled at 2026-10-30T17:59:04Z revision b6fdc728a1ac80f947751d5bda0c7507a457b154; main green at 3b281bd (run 41141028249, 1398/1398); evidence attached (packets A-C, hosted logs, ledger).
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
