@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T15:28:46Z
+updated: 2026-10-30T15:48:14Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -66,4 +66,6 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T15:24:53Z (design/autonomy-23aeff-test-policy): review: plan round 1 — verdict: revise; findings: Important 3, Minor 11; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T15:28:36Z (design/autonomy-23aeff-test-policy): review: plan round 2 — verdict: accept; findings: Minor 4; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T15:28:46Z (design/autonomy-23aeff-test-policy): parked (waiting on user, review): User reviews frozen plan a2c20a083a248b6690e5add1eccecec6f6900c4b:docs/plans/2026-10-30-test-execution-policy.md in .worktrees/autonomy-23aeff and picks inline or subagent-driven execution; the agent then resumes this worktree, runs the full baseline (just test) and starts Task 1 (autonomy-216f8d). Policy stays enabled; pilot push, coverage acceptance and main push each have their own packet approval.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T15:48:14Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
