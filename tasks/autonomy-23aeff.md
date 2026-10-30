@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T15:04:00Z
+updated: 2026-10-30T15:11:37Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -16,6 +16,7 @@ source: "tt-policy:autonomy"
 agent: codex
 origin: agent
 spec: docs/specs/2026-10-30-test-execution-policy-design.md
+plan: docs/plans/2026-10-30-test-execution-policy.md
 ---
 
 Adopt the approved shared test execution policy for this personal project after the ops pilot. Owner: the next autonomy implementer; Keith approves external activation. State: pending preparation, not offloaded. Shared authority: ops-8bfa85 (read its approved spec and plan with tasks doc); pilot prerequisite ops-68729d.
