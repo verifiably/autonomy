@@ -1,0 +1,82 @@
+# The full suite on every branch push: the remote coverage the pre-push hook's
+# ci_suite_refs declares. Hygiene and the forced suite run through the front door.
+name: Test suite
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # Nested broad recipes run instead of refusing a would-be policy skip.
+      TT_FORCE: '1'
+      GIT_CONFIG_NOSYSTEM: '1'
+      # The sandbox needs the system interpreter's pidfd and setns support; uv's managed
+      # builds lack them, so never download one.
+      UV_PYTHON: /usr/bin/python3
+      UV_PYTHON_DOWNLOADS: never
+      UV_FROZEN: '1'
+      PYTEST_ADDOPTS: -rs
+    steps:
+      - name: Isolate Git configuration and tool state
+        run: |
+          mkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"
+          {
+            echo "GIT_CONFIG_GLOBAL=$RUNNER_TEMP/gitconfig"
+            echo "XDG_CONFIG_HOME=$RUNNER_TEMP/xdg/config"
+            echo "XDG_DATA_HOME=$RUNNER_TEMP/xdg/data"
+            echo "XDG_STATE_HOME=$RUNNER_TEMP/xdg/state"
+          } >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: '1.59.0'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6'
+          enable-cache: false
+      - name: Install sandbox and shell capabilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y bubblewrap openssl bash dash zsh
+      - name: Check the system interpreter
+        run: |
+          /usr/bin/python3 -I -c '
+          import os, signal, sys
+          assert sys.version_info >= (3, 12), sys.version
+          needed = ("os.setns", "os.pidfd_open", "signal.pidfd_send_signal")
+          missing = [n for n in needed if not hasattr({"os": os, "signal": signal}[n.split(".")[0]], n.split(".")[1])]
+          assert not missing, missing
+          print(sys.version)
+          '
+          echo "kernel.apparmor_restrict_unprivileged_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
+      - name: Build the pinned tasks CLI
+        run: |
+          git clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"
+          git -C "$RUNNER_TEMP/tasks" checkout --detach 43b6eee5ae6c95ba83ac77e6108915ec9557f2b5
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --locked --release --manifest-path "$RUNNER_TEMP/tasks/Cargo.toml"
+          echo "$RUNNER_TEMP/tasks/target/release" >> "$GITHUB_PATH"
+      - name: Setup
+        run: just setup
+      - name: Allow unprivileged user namespaces on this VM
+        # Approved exception (autonomy-23aeff): Ubuntu 24.04's AppArmor default denies
+        # capabilities inside the sandbox's user namespaces (bwrap: Failed RTM_NEWADDR).
+        # Runtime only, on the disposable runner; never persisted, never on a host.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Namespace and TLS egress proof
+        run: just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
+      - name: Hygiene
+        run: just check-hygiene
+      - name: Full suite
+        run: just test-full
