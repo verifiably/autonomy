@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T16:10:11Z
+updated: 2026-10-30T16:10:12Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -75,3 +75,5 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T15:57:31Z (design/autonomy-23aeff-test-policy): Scratch directory created: host titan, /mnt/ssd3/work/autonomy/autonomy-23aeff; purpose: activation evidence for Tasks 3-5 (local suite log, rehearsal build, packets, hosted logs); owner: task:autonomy-23aeff; contents still mutable.
 - 2026-10-30T16:09:18Z (design/autonomy-23aeff-test-policy): review: impl round 1 — verdict: accept; findings: Minor 4; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T16:10:11Z (design/autonomy-23aeff-test-policy): attached: activation-packet-a.md (5313 bytes): Pilot push packet A (code f71c605): branch push, limits, local counts, AppArmor exception
+- 2026-10-30T16:10:12Z (design/autonomy-23aeff-test-policy): parked (waiting on user, approval): User approves packet A (attached): the pilot push of design/autonomy-23aeff-test-policy (code f71c605) and, separately, the conditional AppArmor runtime sysctl. Then the agent verifies the head differs from f71c605 only in tasks/, checks ssh -T greets khughitt, pushes, and runs Task 4 Step 2.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
