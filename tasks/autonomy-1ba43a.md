@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T19:53:20Z
+updated: 2026-10-30T19:53:21Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -57,3 +57,5 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
 - 2026-10-30T19:49:16Z (main): Ruling (user): the cleanup part of Minor 3 is re-graded Important — renewer.start() runs after the actor launches but outside its cleanup try, so a failed thread start skips actor.close() and can leave the sandbox alive. Fix: start renewal inside the cleanup protection, join only a started thread, RED->GREEN test forcing thread startup to fail and checking the actor is reaped. The immediate-first-renew suggestion and Minors 1, 2, 4 stay deferred. b49e7ae is not approved for pushing.
 - 2026-10-30T19:53:19Z (main): review: impl round 3 — verdict: accept; findings: Minor 1; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T19:53:20Z (main): Cleanup fix frozen at be0dea367839b674446310ae16021b0c75fce63d (parent b49e7ae): renewer created and started inside the try whose finally ends in actor.close(); renewer assigned only after start() returns, so only a started thread is joined. New test_a_renewer_that_cannot_start_still_reaps_the_actor (Thread.start forced to raise, 30 s sleep actor): RED on b49e7ae (False, 19) == (True, -1), GREEN after; test_egress_session.py + test_front_door.py 55 passed; just check 0. Re-review accepted. Deferred minors now: immediate first renew; stale 30 s comments in e21; the pair not asserting the sleep ran; E21_RENEW_EVERY tied to the 30 s default by comment; an async-exception window between thread.start() and renewer assignment. Awaits user approval for one push of be0dea3.
+- 2026-10-30T19:53:21Z (main): parked (waiting on user, approval): User approves one push of be0dea367839b674446310ae16021b0c75fce63d to the pilot branch; then the agent rechecks head, visibility and SSH, pushes, and inspects the hosted run.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
