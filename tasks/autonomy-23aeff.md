@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T23:01:46Z
+updated: 2026-10-30T23:42:55Z
 started: 2026-10-30T14:13:58Z
 completed: 2026-10-30T23:01:46Z
 closed: 2026-10-30T23:01:46Z
@@ -145,3 +145,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T23:01:46Z (main): Adopted: policy disabled at 2026-10-30T17:59:04Z revision b6fdc728a1ac80f947751d5bda0c7507a457b154; main green at 3b281bd (run 41141028249, 1398/1398); evidence attached (packets A-C, hosted logs, ledger).
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T23:42:55Z (main): Remote branch design/autonomy-23aeff-test-policy (head be0dea3, contained in origin/main) deleted from origin at the user's request 2026-10-30; origin now has only main.
