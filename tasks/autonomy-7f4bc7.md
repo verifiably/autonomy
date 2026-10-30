@@ -7,7 +7,7 @@ size: s
 complexity: mid
 process: direct
 created: 2026-10-30T16:36:31Z
-updated: 2026-10-30T16:36:31Z
+updated: 2026-10-30T16:36:44Z
 depends: []
 tags: [sandbox]
 source: autonomy-23aeff
@@ -21,3 +21,4 @@ Observed 2026-10-30 in hosted run 41090873620 (verifiably/autonomy, ubuntu-24.04
 
 - 2026-10-30T16:36:31Z (add): created
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
+- 2026-10-30T16:36:44Z (main): concerns: autonomy-422173 defect — SYSTEM_SYMLINKS hard-codes Arch's /lib64 -> usr/lib, so sandboxed binaries cannot exec on Debian/Ubuntu layouts
