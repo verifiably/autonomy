@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T14:19:25Z
+updated: 2026-10-30T14:19:54Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -53,3 +53,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
   provenance: {"harness_session":"codex:01a18c8a-2c3b-7a23-ad9a-ee1621b14ebb","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-30T14:15:09Z (design/autonomy-23aeff-test-policy): Intent traced to the filing session codex:01a1874f-c2d8-7320-ae81-7114e37e343f human turns at 2026-10-29T11:25:29Z and 11:36:20Z: reduce local broad verification contention, retain focused implementation tests, use wrapper-owned policy and push CI; binary policy is the approved shared design. Shared spec 1ce9abe and plan ddcfdab approved; ops pilot complete, ops tt v8 and obs schema17/parser2 readers landed. Project process remains planned; this phase prepares the project design only. Isolated .worktrees/autonomy-23aeff on design/autonomy-23aeff-test-policy hydrated with just setup; broad baseline deferred to implementation Setup. No runtime, workflow publication or policy change.
 - 2026-10-30T14:19:25Z (design/autonomy-23aeff-test-policy): Design frozen at ec27ca5c3a90f66c2178ca7b5a48f35fe1e7e1b3:docs/specs/2026-10-30-test-execution-policy-design.md; read-only builder review dispatched before user design review. GitHub API verified PUBLIC and zero workflows; standard public hosted compute needs no private-minute allowance. Current tt is v8 (task filing snapshot v7 is outdated). Proposed Ubuntu24 system Python includes required os.setns; namespace exception remains conditional and explicitly gated with publication. No implementation, policy file, push, hosted run, or host security change. just check passed with two pre-existing unlinked-step warnings; isolated tasks check exited 0 with 23 explicit foreign-graph/unlinked warnings. No suite run in documentation-only phase.
+- 2026-10-30T14:19:54Z (design/autonomy-23aeff-test-policy): review: spec round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
