@@ -10,7 +10,7 @@
 
 **Spec:** [Test execution policy design](../specs/2026-10-30-test-execution-policy-design.md), frozen revision `ec27ca5c3a90f66c2178ca7b5a48f35fe1e7e1b3`, approved by the user on 2026-10-30 (task note `review: spec round 2`). Shared authority: ops-8bfa85 and the ops [execution contract](https://github.com/khughitt/ops/blob/main/docs/test-execution-policy.md) (private; read the registered ops checkout's `docs/test-execution-policy.md` and `docs/runbooks/test-policy-rollout.md`).
 
-**State:** Revised after plan review round 1 (Important 3, Minor 11, all addressed); awaiting review of this revision. No implementation code changed. Local policy is enabled (no `.tt.toml`).
+**State:** Revised after plan review round 1 (Important 3, Minor 11, all addressed); round 2 accepted with 4 minors, applied in this revision without a further review round; awaiting the user's plan review. No implementation code changed. Local policy is enabled (no `.tt.toml`).
 
 ## Global Constraints
 
@@ -24,7 +24,7 @@
 - "never change the developer host or persist a sysctl"; the AppArmor runtime adjustment is a separately approved exception, not part of this plan's default workflow.
 - "Do not need or fetch private ops, beliefs or science checkouts, credentials or a personal task registry." Checkout uses `persist-credentials: false`.
 - "Target zero excluded modules and no additional skips; any difference requires explicit coverage acceptance before activation."
-- Every push, workflow publication, sysctl exception and main push is an external action requiring the user's approval at that moment, for the exact revision named in its packet. Every `gh` command is prefixed `GH_TOKEN=$(gh auth token --user khughitt)`, never `gh auth switch`. `git push` goes over SSH: before each push, `ssh -T git@github.com` must greet `khughitt`.
+- Every push, workflow publication, sysctl exception and main push is an external action requiring the user's approval at that moment, for the exact revision named in its packet. Every `gh` command is prefixed `GH_TOKEN=$(gh auth token --user khughitt)`, never `gh auth switch`. `git push` goes over SSH: before each push, run `ssh -T git@github.com` on its own and check that its stderr greets `Hi khughitt!` (it exits 1 even on success, so never chain the push to it with `&&`).
 - Task records: through Task 4 Step 4 every `tasks` write runs in the worktree. From Task 4 Step 5 on, every `tasks` write (notes, attachments, child start/done) runs in the main checkout, and the branch runs `git merge main` before each later commit and before its final merge, so the record files never diverge and the policy notes sit where tt-latency reads them.
 - Fixtures build subprocess environments key by key (PATH, temporary HOME, USER, fake Git identity, `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`, `TT_LOG`) and never inherit `TT_FORCE`, `GITHUB_ACTIONS` or `GIT_*` from the runner.
 - Tests run with policy enabled: Setup runs the full baseline (`just test`) before Task 1; each task uses `just test-one <path>` while working and `just test-fast` before committing.
@@ -286,7 +286,7 @@ Expected: exit 0 (the suite's status, through `pipefail`), nonzero `collected N 
 
 - [ ] **Step 2b: Rehearse hosted hygiene**
 
-Build tasks `43b6eee5ae6c95ba83ac77e6108915ec9557f2b5` with `cargo +1.99.1 build --locked --release` into the scratch directory, then run `just check-hygiene` from the worktree with that binary first on `PATH` and `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `HOME` pointed at empty scratch directories.
+Clone khughitt/tasks into the scratch directory, check out `43b6eee5ae6c95ba83ac77e6108915ec9557f2b5`, and build it with `RUSTUP_HOME`, `CARGO_HOME` and `CARGO_TARGET_DIR` all under the scratch directory (`rustup toolchain install 1.99.1 --profile minimal`, then `cargo +1.99.1 build --locked --release`), so the host's shared toolchain is untouched. Only then run `just check-hygiene` from the worktree with that binary first on `PATH` and `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `HOME` pointed at empty scratch directories.
 Expected: exit 0, with only the foreign-dependency and plan-link warnings already known. Anything that fails here would fail the hosted job: fix it before packet A.
 
 - [ ] **Step 3: Write packet A**
@@ -319,7 +319,7 @@ Expected: conclusion `success`, nonzero collected count. Failure, cancellation o
 
 - [ ] **Step 3: Compare and set the timeout**
 
-Tabulate local versus hosted: collected, executed, passed, failed, skipped, excluded modules (target 0) and modules with skipped tests, with each hosted-only skip and its reason. Set `timeout-minutes` to three times the measured job duration rounded up to whole minutes, minimum 10; commit as `ci: bound the suite job from the pilot run` and push it (counts against packet A's limit). Repeat Step 2 for that push: the run packet B cites is the one for the branch head that Step 5 merges.
+Tabulate local versus hosted: collected, executed, passed, failed, skipped, excluded modules (target 0) and modules with skipped tests, with each hosted-only skip and its reason. Set `timeout-minutes` to three times the measured job duration rounded up to whole minutes, minimum 10; commit as `ci: bound the suite job from the pilot run` and push it (counts against packet A's limit). Repeat Step 2 for that push: the run packet B cites is the one for the last pushed head. Later commits before Step 5's merge may only be task records; packet B shows `git diff --stat <run head> <head to merge>` touching only `tasks/`.
 
 - [ ] **Step 4: Present packet B and stop**
 
@@ -327,7 +327,7 @@ Packet B: the branch head's full SHA, its successful run URL and the table from 
 
 - [ ] **Step 5: Integrate the hook split locally and record the floor**
 
-After acceptance: in the main checkout, `git merge --no-ff design/autonomy-23aeff-test-policy` (main has no commits since the branch point `9b5007c`; recheck with `git log 9b5007c..main`, and resolve any record conflict by keeping both note sets in time order, then `tasks check`). `just check` passes on main; then, from the main checkout, note `policy: enabled at <merge commit time, RFC3339 UTC> revision <full merge sha>` on autonomy-23aeff exactly in that form. From here on, task writes follow the Global Constraints' record rule.
+After acceptance: in the main checkout, `git merge --no-ff design/autonomy-23aeff-test-policy` (first `tasks start autonomy-23aeff` in the main checkout so the claim moves with the writes; main has no commits since the branch point `9b5007c`; recheck with `git log 9b5007c..main`, and resolve any record conflict by keeping both note sets in time order, then `tasks check`). `just check` passes on main; then, from the main checkout, note `policy: enabled at <merge commit time, RFC3339 UTC> revision <full merge sha>` on autonomy-23aeff exactly in that form. From here on, task writes follow the Global Constraints' record rule.
 
 ### Task 5: Activate policy-off
 
@@ -375,7 +375,7 @@ Expected: the hook runs hygiene, records `test-fast` as skipped, and the push su
 
 - [ ] **Step 6: Integrate, record and push main**
 
-`git merge main` into the branch once more, then merge the branch into main (`git merge --no-ff`) and, from the main checkout, note `policy: disabled at <merge time, RFC3339 UTC> revision <full merge sha>` on autonomy-23aeff. Present packet C (attached with `tasks attach`): the exact main SHA to push, `git log --oneline origin/main..main`, and the successful run for the policy-off branch head. Stop for approval; then `ssh -T git@github.com` and `git push origin main`, and confirm main's hosted run for that SHA succeeds. A failing main run stops here with policy left as landed and the failure reported; rollback is the user's call.
+`git merge main` into the branch once more, then merge the branch into main (`git merge --no-ff`) and, from the main checkout, note `policy: disabled at <merge time, RFC3339 UTC> revision <full merge sha>` on autonomy-23aeff. Present packet C (attached with `tasks attach`): the exact main SHA to push, `git log --oneline origin/main..main`, the successful run for the policy-off branch head, and `git diff --stat <that run's head> <main SHA>` touching only `tasks/`. Stop for approval; then `ssh -T git@github.com` and `git push origin main`, and confirm main's hosted run for that SHA succeeds. A failing main run stops here with policy left as landed and the failure reported; rollback is the user's call.
 
 ### Task 6: Dispose latency obligations and report adoption
 
