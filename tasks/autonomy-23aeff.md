@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T22:59:52Z
+updated: 2026-10-30T22:59:53Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -126,3 +126,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T22:59:50Z (main): attached: hosted-run-41101402802.log (73705 bytes): Policy-off head 26c8a0e: 1395/1395
 - 2026-10-30T22:59:51Z (main): attached: hosted-run-41104200861.log (80291 bytes): Main 3c5f272: e21 closed by lease (autonomy-1ba43a)
 - 2026-10-30T22:59:52Z (main): attached: hosted-run-41107688532.log (82013 bytes): Diagnostic d4a6bae: durations; e21 passed
+- 2026-10-30T22:59:53Z (main): attached: hosted-run-41112785423-logs.zip (39445 bytes): Diagnostic a8338d7 log archive: sweep 12.39 s first in job; resolver configuration
