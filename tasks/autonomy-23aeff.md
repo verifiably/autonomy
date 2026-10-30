@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T23:45:25Z
+updated: 2026-10-30T23:54:55Z
 started: 2026-10-30T14:13:58Z
 completed: 2026-10-30T23:01:46Z
 closed: 2026-10-30T23:01:46Z
@@ -147,3 +147,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T23:42:55Z (main): Remote branch design/autonomy-23aeff-test-policy (head be0dea3, contained in origin/main) deleted from origin at the user's request 2026-10-30; origin now has only main.
 - 2026-10-30T23:45:25Z (main): Disclosure 2026-10-30: origin/main advanced 3b281bd..a35145d (task-record commits only) during the remote branch deletion; the mechanism is not established and no main push was intended. That push's run 41145953343 failed at Hygiene on attachment eligibility; filed autonomy-e51da5.
+- 2026-10-30T23:54:55Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-f71c605.log", "state": "kept", "verification": "verified", "purpose": "Exact raw suite evidence underlying the portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-e51da5", "cleanup_trigger": "After a published tasks CLI with attachments support is pinned and normal hosted hygiene accepts the raw attachment, reassess preservation", "sha256": "8a081b5ad21d9b4208553cc15ef3c7050daf06fac30919d964a046a7e33bb228"}
