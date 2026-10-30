@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T23:01:00Z
+updated: 2026-10-30T23:01:26Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -135,3 +135,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T23:00:39Z (main): attached: policy-off-verify-rows.jsonl (899 bytes): TT_LOG rows from Task 5 Step 4: test skipped (policy-disabled, exit null) and forced run (exit 0, 1395 tests)
 - 2026-10-30T23:00:59Z (main): Scratch disposition before removal: attached (sha256 verified against the scratch copies): packets A/B/C, hosted-run logs 41089297381, 41090873620, 41095831866, 41101402802, 41104200861, 41107688532, log archives 41112785423, 41120536343, 41141028249, local suites f71c605 and 9523dc4, policy-off TT_LOG rows, plan ledger. Discarded as regenerable or already recorded in notes and attachments: the rustup 1.99.1 toolchain, cargo home, tasks-src and tasks-target (pinned build, about 860 MB), the rehearsal env and its hygiene log, cargo/rustup logs, push and run-watch output, plain-text extracts and module lists derived from the attached logs, the truncated gh view of 41112785423 (archive attached), .head files and origin-main..main.txt (SHAs in notes, range from git).
 - 2026-10-30T23:01:00Z (main): retained: {"host":"titan","kind":"scratch","path":"$WORK_ROOT/autonomy/autonomy-23aeff","state":"released","verification":"verified","purpose":"Removed 2026-10-30 after its evidence was attached to autonomy-23aeff (hashes verified) and the rest was discarded as regenerable or recorded in notes","next_owner":"none","cleanup_trigger":"none"}
+- 2026-10-30T23:01:26Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/autonomy-23aeff","state":"released","verification":"verified","purpose":"Removed 2026-10-30 after integration into main (head 315dc1d merged; main pushed at 3b281bd): tree clean, tt-report run, no host pointers, no submodules; ignored files were caches, the venv and testmon data (regenerable) and the plan ledger (attached as plan-ledger-progress.md); local branch deleted, remote branch design/autonomy-23aeff-test-policy left on origin","next_owner":"none","cleanup_trigger":"none"}
