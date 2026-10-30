@@ -6,9 +6,9 @@ priority: 2
 size: m
 complexity: mid
 process: planned
-owner: main
+owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T14:13:58Z
+updated: 2026-10-30T14:15:08Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -47,4 +47,6 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-29T13:45:42Z (add): created
   provenance: {"harness_session":"codex:01a1874f-c2d8-7320-ae81-7114e37e343f","harness_session_source":"CODEX_THREAD_ID","origin":"agent"}
 - 2026-10-30T14:13:58Z (main): started
+  provenance: {"harness_session":"codex:01a18c8a-2c3b-7a23-ad9a-ee1621b14ebb","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-30T14:15:08Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"codex:01a18c8a-2c3b-7a23-ad9a-ee1621b14ebb","harness_session_source":"CODEX_THREAD_ID"}
