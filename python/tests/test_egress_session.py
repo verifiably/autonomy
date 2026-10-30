@@ -228,10 +228,11 @@ def run_actor(world: World, session: EgressSession, task: list[dict], *, make=No
                        stdin=null.fileno(), stdout=stdout.fileno(), stderr=stdout.fileno(), before_release=hook)
         stop = threading.Event()
         renewer = None
-        if renew_every is not None:
-            renewer = threading.Thread(target=_renew_until, args=(session, renew_every, stop), daemon=True)
-            renewer.start()
-        try:
+        try:  # the actor is running: everything from here on ends in actor.close()
+            if renew_every is not None:
+                thread = threading.Thread(target=_renew_until, args=(session, renew_every, stop), daemon=True)
+                thread.start()
+                renewer = thread  # joined below only once it has started
             actor.wait(timeout=120)
         finally:
             stop.set()
@@ -341,6 +342,29 @@ def test_renewal_keeps_a_slow_actors_route_until_its_explicit_close(world):
     run_actor(world, session, [SLOW_STEP], renew_every=0.25)
     closed = session.close()
     assert (closed.cause, closed.timed_out, closed.findings()) == ("close", False, ())
+
+
+def test_a_renewer_that_cannot_start_still_reaps_the_actor(world, monkeypatch):
+    launched, real_launch = [], launch
+
+    def recording_launch(*args, **kwargs):
+        launched.append(real_launch(*args, **kwargs))
+        return launched[-1]
+
+    def no_thread(self):
+        raise RuntimeError("can't start new thread")
+
+    monkeypatch.setitem(globals(), "launch", recording_launch)
+    session = world.start()
+    monkeypatch.setattr(threading.Thread, "start", no_thread)
+    with pytest.raises(RuntimeError, match="can't start new thread"):
+        run_actor(world, session, [{"kind": "sleep", "name": "slow", "seconds": 30}], renew_every=0.25)
+    monkeypatch.undo()
+    (actor,) = launched
+    reaped = (actor.process.poll() is not None, actor.pidfd)
+    actor.close()  # a leaked actor must not outlive a failing assertion
+    assert reaped == (True, -1)
+    assert session.close().cause == "close"
 
 
 def test_the_actor_times_every_step(world):
