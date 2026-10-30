@@ -8,13 +8,9 @@ from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 
 SYSTEM_RO: tuple[Path, ...] = (Path("/usr"), Path("/etc"))
-# The merged-/usr symlinks, created inside the sandbox rather than bound.
-SYSTEM_SYMLINKS: tuple[tuple[str, str], ...] = (
-    ("usr/bin", "/bin"),
-    ("usr/lib", "/lib"),
-    ("usr/lib", "/lib64"),
-    ("usr/bin", "/sbin"),
-)
+# The merged-/usr symlinks, recreated inside the sandbox rather than bound. Their
+# targets are the host's (static.system_symlinks): they differ by distribution.
+SYSTEM_LINKS: tuple[str, ...] = ("/bin", "/lib", "/lib64", "/sbin")
 IN_SANDBOX_SOCKET = PurePosixPath("/run/va/endpoint.sock")
 IN_SANDBOX_TOKEN = PurePosixPath("/run/va/token")
 

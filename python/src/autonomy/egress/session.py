@@ -25,7 +25,7 @@ from autonomy.egress.proxy import BOOT, IN_SANDBOX_CA, IN_SANDBOX_CREDENTIAL, re
 from autonomy.egress.route import LoadedRoute, Route
 from autonomy.membership import Finding
 from autonomy.sandbox.bwrap import read_info
-from autonomy.sandbox.spec import SYSTEM_SYMLINKS
+from autonomy.sandbox.static import system_symlinks
 from autonomy.sandbox.static import SandboxUnproven, check_sources
 
 PROXY_START_TIMEOUT = 10.0
@@ -76,7 +76,7 @@ def proxy_argv(binds: ProxyBinds, *, control_fd: int, records_fd: int, info_fd: 
             "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/run/va"]
     for source, destination in binds.ro:
         args += ["--ro-bind", str(source), destination]
-    for target, link in SYSTEM_SYMLINKS:
+    for target, link in system_symlinks():
         args += ["--symlink", target, link]
     args += ["--setenv", "PATH", "/usr/bin", "--info-fd", str(info_fd), "--",
              "/usr/bin/python3", "-I", "-c", BOOT, str(_package().parent), str(control_fd), str(records_fd)]

@@ -241,6 +241,14 @@ def test_the_proxys_argv(world):
     assert argv[argv.index("--info-fd") + 1] == "7"
 
 
+def test_the_proxys_links_are_the_hosts(world, monkeypatch):
+    import autonomy.egress.session as session
+    links = (("usr/bin", "/bin"), ("usr/lib64", "/lib64"))
+    monkeypatch.setattr(session, "system_symlinks", lambda: links)
+    argv = proxy_argv(proxy_binds(world.loaded().route), control_fd=5, records_fd=6, info_fd=7)
+    assert [tuple(argv[i + 1:i + 3]) for i, arg in enumerate(argv) if arg == "--symlink"] == list(links)
+
+
 def test_a_resolver_outside_etc_is_bound(world, tmp_path):
     stub = tmp_path / "stub-resolv.conf"
     stub.write_text("nameserver 127.0.0.53\n")
