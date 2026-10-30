@@ -13,9 +13,9 @@ Member of the verifiably family (https://github.com/verifiably/docs/blob/main/ov
 `just check` composes `just check-hygiene`: ops-check, `ops-docs check` and `tasks check`.
 The pre-commit hook runs the same hygiene. The suite is pytest under `python/`: `just setup`
 once per worktree (frozen `uv sync`), then `just test-one <path | path::test | -k expr>`
-while working and `just test-fast` (pytest-testmon) before committing. Tests marked
-`bwrap` need bubblewrap and unprivileged user namespaces. On a fresh clone,
-`git config core.hooksPath .githooks`.
+on the affected tests while working and again before committing; the hooks run the
+hygiene. Tests marked `bwrap` need bubblewrap and unprivileged user namespaces. On a
+fresh clone, `git config core.hooksPath .githooks`.
 
 Test execution policy is `.tt.toml` at this checkout's Git top level (each worktree
 reads its own), never task records or a sibling checkout; tt alone reads it. `test` and
@@ -23,6 +23,7 @@ reads its own), never task records or a sibling checkout; tt alone reads it. `te
 Local broad suites are off (`automatic_broad = false`): `just test` and `just test-fast`
 record a skip, the hosted workflow below runs the full suite on every branch push, and
 `just test-full` runs it here when you need it. Rollback sets `automatic_broad = true`,
+restores `just test-fast` (pytest-testmon) before each commit in the paragraph above,
 updates `test_the_repository_policy_disables_only_the_broad_suites` to match, and records
 `policy: enabled at <RFC3339-UTC> revision <full-sha>` on the adoption task at the
 landed rollback.
