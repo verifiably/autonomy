@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: design/autonomy-23aeff-test-policy
+owner: main
 created: 2026-10-30T15:11:40Z
-updated: 2026-10-30T17:12:40Z
+updated: 2026-10-30T17:38:01Z
 started: 2026-10-30T16:22:34Z
 depends: []
 parent: autonomy-23aeff
@@ -35,4 +35,6 @@ step: "Task 4: Prove hosted coverage on the policy-enabled branch"
 - 2026-10-30T17:06:35Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T17:12:40Z (design/autonomy-23aeff-test-policy): parked (waiting on user, approval): User accepts coverage and approves the policy-off branch push in packet B; then the agent merges the branch into main locally, records the enabled floor, and starts Task 5.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T17:38:01Z (main): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
