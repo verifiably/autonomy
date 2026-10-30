@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T23:55:05Z
+updated: 2026-10-30T23:55:06Z
 started: 2026-10-30T14:13:58Z
 completed: 2026-10-30T23:01:46Z
 closed: 2026-10-30T23:01:46Z
@@ -152,3 +152,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T23:54:57Z (main): Portable derivative mapping for local-suite-f71c605-portable.log and local-suite-9523dc4-portable.log: <PYTEST_ROOT> = /mnt/ssd3/work/autonomy/.worktrees/autonomy-23aeff/python. Exact originals retained under $WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/ with per-file SHA-256 records above; current owner autonomy-e51da5. Only this rootdir value changes; test results remain historical evidence, not a fresh run.
 - 2026-10-30T23:55:04Z (main): detached: local-suite-f71c605.log: Replace host-bearing active attachment with a portable derivative; exact original and SHA-256 retained under the raw evidence record owned by autonomy-e51da5.
 - 2026-10-30T23:55:05Z (main): detached: local-suite-9523dc4.log: Replace host-bearing active attachment with a portable derivative; exact original and SHA-256 retained under the raw evidence record owned by autonomy-e51da5.
+- 2026-10-30T23:55:06Z (main): attached: local-suite-f71c605-portable.log (3055 bytes): Portable derivative of historical f71c605 suite log; rootdir replaced by <PYTEST_ROOT>. Exact raw bytes and mapping: retained evidence records on this task, owner autonomy-e51da5.
