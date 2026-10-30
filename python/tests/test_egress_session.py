@@ -308,6 +308,7 @@ def test_the_proxy_gets_stdin_from_dev_null(world, monkeypatch):  # E20, the pro
 # -- E21 -----------------------------------------------------------------------------
 
 def test_the_actor_times_every_step(world):
+    proxy_started = time.monotonic()
     session = world.start()
     run_actor(world, session, [
         {"kind": "resolve", "name": "dns", "host": "api.anthropic.com"},
@@ -315,6 +316,8 @@ def test_the_actor_times_every_step(world):
         {"kind": "sweep", "name": "sweep", "needle": world.canary.encode().hex()},
     ])
     session.close()
+    print("actor timings:", json.dumps({"proxy_start_to_close": time.monotonic() - proxy_started,
+                                        **world.actor_timings}))
     steps = world.actor_timings["steps"]
     assert list(steps) == ["dns", "doc-v4", "sweep"]
     assert all(type(seconds) is float and seconds >= 0 for seconds in steps.values())
