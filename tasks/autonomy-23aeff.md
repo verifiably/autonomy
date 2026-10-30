@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T17:37:48Z
+updated: 2026-10-30T17:37:49Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -100,3 +100,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T17:37:38Z (design/autonomy-23aeff-test-policy): User accepted packet B 2026-10-30 ('Accepted.'): hosted coverage of run 41095831866 accepted as equivalent; read as also approving pilot push 4/5 of the reviewed policy-off commit.
 - 2026-10-30T17:37:48Z (main): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T17:37:49Z (main): policy: enabled at 2026-10-30T17:37:39Z revision 333556916b25706c852e2c893f21ceca68f0aeba
