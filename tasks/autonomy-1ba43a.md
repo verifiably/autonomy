@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T18:23:15Z
+updated: 2026-10-30T18:23:16Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -26,3 +26,5 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
 - 2026-10-30T18:20:33Z (main): started
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T18:23:15Z (main): Diagnostic prepared on the pilot branch, frozen at d4a6baeb4cdc6686b45059bb9f7d9eb1175a80a6 (code = main 3c5f272 plus this change): PYTEST_ADDOPTS -rs --durations=30; the e21 actor times every step with time.monotonic and its own span; run_actor adds launch-to-exit; e21 prints prove, proxy_start_to_close and those timings to stdout before its assertions (pytest shows it on failure). Lease and every assertion unchanged (0 removed test lines). New test_the_actor_times_every_step RED (World has no actor_timings) then GREEN; test_egress_session.py + test_front_door.py 52 passed; just check 0. Locally e21 proxy_start_to_close 1.57 s. Awaits user approval for pilot push 5/5.
+- 2026-10-30T18:23:16Z (main): parked (waiting on user, approval): User approves pilot push 5/5 of d4a6baeb4cdc6686b45059bb9f7d9eb1175a80a6; then the agent pushes the pilot branch, reads --durations and the e21 timings from the hosted log (rerunning only with approval if e21 passes), and diagnoses the slow step.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
