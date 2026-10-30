@@ -10,11 +10,21 @@ Member of the verifiably family (https://github.com/verifiably/docs/blob/main/ov
 
 ## Gates
 
-`just check` runs ops-check, `ops-docs check` and `tasks check`; the pre-commit hook
-runs it. The suite is pytest under `python/`: `just setup` once per worktree (uv sync), then
-`just test-one <path | path::test | -k expr>` while working and `just test-fast`
-(pytest-testmon) before committing. Tests marked `bwrap` need bubblewrap and
-unprivileged user namespaces. On a fresh clone, `git config core.hooksPath .githooks`.
+`just check` composes `just check-hygiene`: ops-check, `ops-docs check` and `tasks check`.
+The pre-commit hook runs the same hygiene. The suite is pytest under `python/`: `just setup`
+once per worktree (frozen `uv sync`), then `just test-one <path | path::test | -k expr>`
+while working and `just test-fast` (pytest-testmon) before committing. Tests marked
+`bwrap` need bubblewrap and unprivileged user namespaces. On a fresh clone,
+`git config core.hooksPath .githooks`.
+
+Test execution policy is `.tt.toml` at this checkout's Git top level (each worktree
+reads its own), never task records or a sibling checkout; tt alone reads it. `test` and
+`test-fast` are the broad targets it can skip; `test-one` and `check-hygiene` always run.
+`just test-full` (or `TT_FORCE=1 just test`) runs the full suite deliberately and returns
+its status. testmon reselects only on Python changes, so a justfile or hook edit runs
+`just test-one tests/test_front_door.py`. The hooks time mandatory hygiene alone and call
+the suites as separate requests: hook durations from this change on are incomparable
+with earlier whole-hook durations.
 
 ## Layout
 

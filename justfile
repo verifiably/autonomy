@@ -1,10 +1,13 @@
 # Front door for tests. Copy to the project root and fill in the three commands below.
 # Inner loop: `just test-one <runner args>` on the test at hand, `just test-fast`
-# (affected-only) before committing. Full suite: `just test`.
+# (affected-only) before committing. Full suite: `just test`; `just test-full` runs it
+# whatever the policy says.
 # Gates: `just check` at pre-commit, `just gate` at pre-push and in CI.
-# The git hooks call `hook-pre-commit` and `hook-pre-push` instead, which run the very
-# same commands under their own target names. Hook cost is the number this design exists
-# to measure, and it is invisible if the hooks record as `check` and `test`.
+# The git hooks call `hook-pre-commit` and `hook-pre-push` instead, which time the
+# mandatory hygiene once under their own target names and then call the broad recipes
+# (`test`, `test-fast`) untimed, so each suite records under its own target.
+# Broad execution: `.tt.toml` at this checkout's Git top level decides whether `test`
+# and `test-fast` run or record a skip; tt reads it, and nothing else does.
 # Adoption: copy templates/githooks/ to .githooks/ and run
 # `git config core.hooksPath .githooks`; append templates/gitignore to .gitignore so the
 # fallback log directory `.tt/` is never committed; vendor ops bin/tt as tools/tt and ops
@@ -29,14 +32,14 @@ tt := "python3 tools/tt"
 # and testmon gives the fast loop its affected-only selection.
 fast_cmd := "cd python && uv run pytest --testmon"
 test_cmd := "cd python && uv run pytest"
-check_cmd := "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"
+check_hygiene_cmd := "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"
 
 # Staged paths that cannot change the code checks' verdict: a commit staging only these
-# runs docs_check_cmd instead of check_cmd. fnmatch globs, `*` crossing `/`. Narrow it
+# runs docs_check_cmd instead of check_hygiene_cmd. fnmatch globs, `*` crossing `/`. Narrow it
 # when docs/ holds executable examples, fixtures, or anything a test reads; set it to
 # "" to always run the full check.
 docs_paths := "*.md docs/* tasks/*"
-docs_check_cmd := check_cmd
+docs_check_cmd := check_hygiene_cmd
 
 # Remote refs whose push makes CI run the full suite (test_cmd or its equivalent), as
 # space-separated fnmatch globs: "refs/heads/main", or "refs/heads/*" when CI runs it on
@@ -50,9 +53,6 @@ ci_suite_refs := ""
 # The remote whose pushes CI runs for: a push to any other remote (a mirror, a fork)
 # takes the full gate.
 ci_remote := "origin"
-
-# testmon's own selection (form 2): fast_cmd serves.
-push_fast_cmd := fast_cmd
 
 # The runner with no selection of its own: `test-one` appends the caller's arguments,
 # each one intact, and nothing else; do not end it with `2>&1` (the recipe does). Which
@@ -86,7 +86,7 @@ one_cmd := "cd python && uv run pytest"
 # catches both kinds only every two hours. Use explicit, audited paths; never
 # ignore source parents. Linux needs attr installed. Attribute failures must
 # fail setup, not be swallowed.
-setup_cmd := "just work-link python/.venv && cd python && uv sync"
+setup_cmd := "just work-link python/.venv && cd python && uv sync --frozen"
 
 # Affected-only: the inner loop.
 test-fast:
@@ -100,18 +100,28 @@ test-fast:
 test-one +args:
     {{tt}} test-one -- sh -c '{{one_cmd}} "$@" 2>&1' test-one "$@"
 
-# The full suite.
+# The full suite. A broad target: `.tt.toml` can make it record a skip instead.
 test:
     {{tt}} test -- sh -c '{{test_cmd}}'
+
+# The full suite whatever the policy says. Untimed: only the inner `test` records, with
+# its own exit status.
+test-full:
+    TT_FORCE=1 just test
 
 # E21's live arm: pi through the model proxy to the real API. It costs one short prompt
 # and never runs in the suite. Needs a model route whose credential is a real key.
 live-egress route model="claude-haiku-5-5":
     {{tt}} live-egress -- sh -c 'cd python && uv run python scripts/egress_live.py "$0" "$1"' {{route}} {{model}}
 
-# Seconds, not minutes: format, lint, typecheck, tasks check.
+# The mandatory checks: shared hygiene, guide regions, tasks check. Seconds, never
+# skipped by policy.
+check-hygiene:
+    {{tt}} check-hygiene -- sh -c '{{check_hygiene_cmd}}'
+
+# Untimed composition; this project has no broad code-check workload to add.
 check:
-    {{tt}} check -- sh -c '{{check_cmd}}'
+    just check-hygiene
 
 gate: check test
 
@@ -134,18 +144,22 @@ work-link *names:
 setup:
     {{tt}} setup -- sh -c '{{setup_cmd}}'
 
-# What the pre-commit hook runs: `check`'s command under its own hook target.
+# What the pre-commit hook runs: the hygiene command under its own hook target.
 hook-pre-commit:
-    {{tt}} hook-pre-commit -- sh -c '{{check_cmd}}'
+    {{tt}} hook-pre-commit -- sh -c '{{check_hygiene_cmd}}'
 
 # What the pre-commit hook runs when every staged path is in docs_paths.
 hook-pre-commit-docs:
     {{tt}} hook-pre-commit-docs -- sh -c '{{docs_check_cmd}}'
 
-# What the pre-push hook runs: the same commands as `gate`, under one hook target.
+# What the pre-push hook runs: hygiene timed under the hook target, then the full suite
+# as its own broad request.
 hook-pre-push:
-    {{tt}} hook-pre-push -- sh -c '{{check_cmd}} && {{test_cmd}}'
+    {{tt}} hook-pre-push -- sh -c '{{check_hygiene_cmd}}'
+    just test
 
-# What the pre-push hook runs when CI runs the full suite for every pushed ref.
+# What the pre-push hook runs when CI runs the full suite for every pushed ref:
+# hygiene, then testmon's selection as its own broad request.
 hook-pre-push-fast:
-    {{tt}} hook-pre-push-fast -- sh -c '{{check_cmd}} && {{push_fast_cmd}}'
+    {{tt}} hook-pre-push-fast -- sh -c '{{check_hygiene_cmd}}'
+    just test-fast
