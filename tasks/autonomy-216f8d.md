@@ -1,18 +1,21 @@
 ---
 id: autonomy-216f8d
 title: Split the front door and adopt the shared push hook
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-30T15:11:37Z
-updated: 2026-10-30T15:50:22Z
+updated: 2026-10-30T15:54:05Z
 started: 2026-10-30T15:50:22Z
+completed: 2026-10-30T15:54:05Z
+closed: 2026-10-30T15:54:05Z
 depends: []
 parent: autonomy-23aeff
 tags: []
+model: claude-opus-5-5
 agent: claude-code/claude-opus-5-5
 plan: docs/plans/2026-10-30-test-execution-policy.md
 step: "Task 1: Split the front door and adopt the shared push hook"
@@ -23,4 +26,8 @@ step: "Task 1: Split the front door and adopt the shared push hook"
 - 2026-10-30T15:11:37Z (add): created
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T15:50:22Z (design/autonomy-23aeff-test-policy): started
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T15:54:05Z (design/autonomy-23aeff-test-policy): done
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T15:54:05Z (design/autonomy-23aeff-test-policy): Landed in 2bb3ad2; just test-one tests/test_front_door.py 14 passed; ops adoption regression 4 run, 1 skipped (LFS)
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
