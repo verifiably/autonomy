@@ -1,0 +1,23 @@
+---
+id: autonomy-7f4bc7
+title: Sandbox system symlinks assume Arch's /lib64 layout; every binary fails to exec on Debian/Ubuntu hosts
+status: todo
+priority: 1
+size: s
+complexity: mid
+process: direct
+created: 2026-10-30T16:36:31Z
+updated: 2026-10-30T16:36:31Z
+depends: []
+tags: [sandbox]
+source: autonomy-23aeff
+agent: claude-code/claude-opus-5-5
+origin: agent
+---
+
+Observed 2026-10-30 in hosted run 41090873620 (verifiably/autonomy, ubuntu-24.04, AppArmor userns restriction lifted): bwrap now creates its namespaces, but every sandboxed exec fails 'execvp /usr/bin/true: No such file or directory' (preflight, probe, launch, egress listener). Root cause: python/src/autonomy/sandbox/spec.py SYSTEM_SYMLINKS fixes /lib64 -> usr/lib (Arch's merged-usr layout). On Ubuntu 24.04 /lib64 -> usr/lib64 and /usr/lib/ld-linux-x86-64.so.2 does not exist (confirmed in a local ubuntu:24.04 container: the loader is /usr/lib64/ld-linux-x86-64.so.2 -> ../lib/x86_64-linux-gnu/...), so the ELF interpreter /lib64/ld-linux-x86-64.so.2 is missing inside the sandbox. The envelope design (docs/specs/2026-10-12-envelope-design.md, read-only system binds) names the /bin, /lib, /lib64 and /sbin symlinks but not their targets. Fix in the sandbox: derive each link from the host (or refuse with a typed preflight error on a layout it cannot mirror), keep the static bind check covering whatever is bound, and add a regression test for a non-Arch layout. Blocks autonomy-23aeff's hosted pilot: the suite cannot pass on GitHub's Ubuntu runner until this lands; the adoption itself makes no production change.
+
+## Notes
+
+- 2026-10-30T16:36:31Z (add): created
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
