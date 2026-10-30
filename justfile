@@ -41,14 +41,11 @@ check_hygiene_cmd := "python3 tools/ops-check && python3 tools/ops-docs check &&
 docs_paths := "*.md docs/* tasks/*"
 docs_check_cmd := check_hygiene_cmd
 
-# Remote refs whose push makes CI run the full suite (test_cmd or its equivalent), as
-# space-separated fnmatch globs: "refs/heads/main", or "refs/heads/*" when CI runs it on
-# every branch push. fnmatch's * crosses /, so "refs/heads/*" matches what Actions
-# writes as branches: ['**'] (or no branch filter); Actions' ['*'] skips feature/x.
-# Leave "" when CI runs no full suite on push: a workflow that runs a subset, or only on
-# a schedule or on pull requests, covers no ref. A push takes the shortened gate only
-# when CI covers every ref in it.
-ci_suite_refs := ""
+# Remote refs whose push makes CI run the full suite, as space-separated fnmatch globs.
+# .github/workflows/test.yml runs it on every branch push (branches: ['**']; fnmatch's *
+# crosses /, so nested branch names match). Tags are not covered and take the full gate.
+# A declaration is scheduling intent, not proof that the pushed head passed.
+ci_suite_refs := "refs/heads/*"
 
 # The remote whose pushes CI runs for: a push to any other remote (a mirror, a fork)
 # takes the full gate.

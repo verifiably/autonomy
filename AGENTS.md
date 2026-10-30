@@ -26,6 +26,15 @@ its status. testmon reselects only on Python changes, so a justfile or hook edit
 the suites as separate requests: hook durations from this change on are incomparable
 with earlier whole-hook durations.
 
+Remote coverage: `.github/workflows/test.yml` runs setup, a namespace and TLS egress proof,
+`check-hygiene` and the forced full suite on every branch push (and manual dispatch) to
+origin; tags and pull-request events run nothing. `ci_suite_refs` declares that schedule
+so a covered push takes the shorter hook; the declaration is intent, not proof that the
+pushed head passed. The hosted hygiene has known gaps: `tasks check` cannot validate
+dependencies on other projects' tasks, and ops-check cannot compare vendored tools with
+an ops checkout it lacks, so both stay mandatory locally. The paid live-egress recipe runs in
+neither place.
+
 ## Layout
 
 - `docs/specs/`, `docs/plans/` — this layer's designs and plans; the envelope's is

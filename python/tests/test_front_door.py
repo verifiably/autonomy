@@ -209,3 +209,63 @@ def test_uncovered_push_warns_without_running_the_suite(front_door):
     assert result.returncode == 0, result.stderr
     assert "remote full-suite coverage" in result.stderr
     assert front_door.markers() == [["hygiene"]]
+
+
+WORKFLOW = REPO / ".github/workflows/test.yml"
+
+
+def workflow() -> str:
+    return WORKFLOW.read_text()
+
+
+def test_the_workflow_covers_all_branches_forces_once_and_cancels_stale_heads():
+    wf = workflow()
+    assert re.search(r"(?m)^    branches: \['\*\*'\]$", wf) and "  workflow_dispatch:" in wf
+    assert "pull_request" not in wf and "runs-on: ubuntu-24.04" in wf
+    assert "group: ${{ github.workflow }}-${{ github.ref }}" in wf and "cancel-in-progress: true" in wf
+    assert re.search(r"(?m)^permissions:\n  contents: read$", wf)
+    assert "TT_FORCE: '1'" in wf and wf.count("run: just test-full") == 1
+    assert re.search(r"timeout-minutes: \d+", wf) and "persist-credentials: false" in wf
+    actions = re.findall(r"uses: (\S+)", wf)
+    assert actions and all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", a) for a in actions)
+    assert "setup-python" not in wf
+
+
+def test_the_workflow_uses_the_system_interpreter_frozen():
+    wf = workflow()
+    assert "UV_PYTHON: /usr/bin/python3" in wf and "UV_PYTHON_DOWNLOADS: never" in wf
+    assert "UV_FROZEN: '1'" in wf
+    assert "enable-cache: false" in wf
+
+
+def test_the_capability_proof_precedes_the_suite():
+    wf = workflow()
+    order = ["apt-get install", "os.setns", "run: just setup", "run: just test-one",
+             "run: just check-hygiene", "run: just test-full"]
+    positions = [wf.index(marker) for marker in order]
+    assert positions == sorted(positions)
+    [install] = [line for line in wf.splitlines() if "apt-get install" in line]
+    for package in ("bubblewrap", "openssl", "bash", "dash", "zsh"):
+        assert package in install.split()
+
+
+def test_the_hook_declares_every_branch_covered(front_door):
+    def evaluate(name):
+        return subprocess.run(["just", "--justfile", str(REPO / "justfile"), "--evaluate", name],
+                              cwd=REPO, env=front_door.env, text=True, capture_output=True,
+                              check=True).stdout
+    assert evaluate("ci_suite_refs") == "refs/heads/*" and evaluate("ci_remote") == "origin"
+
+
+def test_a_nested_branch_takes_the_covered_route(front_door):
+    front_door.policy(True, ["test", "test-fast"])
+    result = front_door.push("origin", refs("refs/heads/feature/x"))
+    assert result.returncode == 0, result.stderr
+    assert front_door.markers() == [["hygiene"], ["fast"]]
+
+
+def test_a_tag_push_takes_the_full_gate(front_door):
+    front_door.policy(True, ["test", "test-fast"])
+    result = front_door.push("origin", refs("refs/tags/v1"))
+    assert result.returncode == 0, result.stderr
+    assert front_door.markers() == [["hygiene"], ["suite"]]
