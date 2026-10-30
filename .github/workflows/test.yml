@@ -24,7 +24,8 @@ jobs:
       UV_PYTHON: /usr/bin/python3
       UV_PYTHON_DOWNLOADS: never
       UV_FROZEN: '1'
-      PYTEST_ADDOPTS: -rs
+      # Skip reasons and the 30 slowest tests, so a slow hosted run is readable.
+      PYTEST_ADDOPTS: -rs --durations=30
     steps:
       - name: Isolate Git configuration and tool state
         run: |
