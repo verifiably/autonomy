@@ -1,13 +1,15 @@
 ---
 id: autonomy-e51da5
 title: "Main's hosted hygiene fails: two attachments carry host paths and the pinned tasks CLI cannot judge attachment eligibility"
-status: todo
+status: doing
 priority: 1
 size: xs
 complexity: low
 process: direct
+owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-30T23:45:24Z
+updated: 2026-10-30T23:53:56Z
+started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
 source: autonomy-23aeff
@@ -21,3 +23,5 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 
 - 2026-10-30T23:45:24Z (add): created
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
+- 2026-10-30T23:53:56Z (main): started
+  provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
