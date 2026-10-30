@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T19:49:15Z
+updated: 2026-10-30T19:49:16Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -54,3 +54,4 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
 - 2026-10-30T19:49:14Z (main): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T19:49:15Z (main): review: impl round 2 — verdict: revise; findings: Important 1, Minor 3; reviewer: codex/gpt-6.1-sol
+- 2026-10-30T19:49:16Z (main): Ruling (user): the cleanup part of Minor 3 is re-graded Important — renewer.start() runs after the actor launches but outside its cleanup try, so a failed thread start skips actor.close() and can leave the sandbox alive. Fix: start renewal inside the cleanup protection, join only a started thread, RED->GREEN test forcing thread startup to fail and checking the actor is reaped. The immediate-first-renew suggestion and Minors 1, 2, 4 stay deferred. b49e7ae is not approved for pushing.
