@@ -1,0 +1,758 @@
+test	Set up job	﻿2026-10-30T17:06:07.8523514Z Current runner version: '2.338.0'
+test	Set up job	2026-10-30T17:06:07.8544023Z ##[group]Runner Image Provisioner
+test	Set up job	2026-10-30T17:06:07.8544571Z Hosted Compute Agent
+test	Set up job	2026-10-30T17:06:07.8545060Z Version: 20261021.618
+test	Set up job	2026-10-30T17:06:07.8545442Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+test	Set up job	2026-10-30T17:06:07.8545903Z Build Date: 2026-10-21T00:45:21Z
+test	Set up job	2026-10-30T17:06:07.8546532Z Worker ID: {7401f026-3142-45d5-b3a6-5d499e467c43}
+test	Set up job	2026-10-30T17:06:07.8546957Z Region: centralus
+test	Set up job	2026-10-30T17:06:07.8547402Z Cloud: Azure
+test	Set up job	2026-10-30T17:06:07.8547746Z ##[endgroup]
+test	Set up job	2026-10-30T17:06:07.8548562Z ##[group]Operating System
+test	Set up job	2026-10-30T17:06:07.8548947Z Ubuntu
+test	Set up job	2026-10-30T17:06:07.8549274Z 24.04.5
+test	Set up job	2026-10-30T17:06:07.8549658Z LTS
+test	Set up job	2026-10-30T17:06:07.8549981Z ##[endgroup]
+test	Set up job	2026-10-30T17:06:07.8550308Z ##[group]Runner Image
+test	Set up job	2026-10-30T17:06:07.8550726Z Image: ubuntu-24.04
+test	Set up job	2026-10-30T17:06:07.8551077Z Version: 20261025.353.1
+test	Set up job	2026-10-30T17:06:07.8551795Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+test	Set up job	2026-10-30T17:06:07.8552796Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+test	Set up job	2026-10-30T17:06:07.8553417Z ##[endgroup]
+test	Set up job	2026-10-30T17:06:07.8554089Z ##[group]GITHUB_TOKEN Permissions
+test	Set up job	2026-10-30T17:06:07.8555345Z Contents: read
+test	Set up job	2026-10-30T17:06:07.8555704Z Metadata: read
+test	Set up job	2026-10-30T17:06:07.8556100Z ##[endgroup]
+test	Set up job	2026-10-30T17:06:07.8557993Z Secret source: Actions
+test	Set up job	2026-10-30T17:06:07.8558619Z Cache mode: write
+test	Set up job	2026-10-30T17:06:07.8559100Z Prepare workflow directory
+test	Set up job	2026-10-30T17:06:07.8800014Z Prepare all required actions
+test	Set up job	2026-10-30T17:06:07.8831183Z Getting action download info
+test	Set up job	2026-10-30T17:06:08.2111542Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+test	Set up job	2026-10-30T17:06:08.3303018Z Download action repository 'extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3' (SHA:53165ef7e734c5c07cb06b3c8e7b647c5aa16db3)
+test	Set up job	2026-10-30T17:06:08.5299341Z Download action repository 'astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2' (SHA:68559e99cc807c1eb7e9238fd43a15bba460eec2)
+test	Set up job	2026-10-30T17:06:09.1175477Z Getting action download info
+test	Set up job	2026-10-30T17:06:09.2513415Z Download action repository 'extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d' (SHA:0551596312d4008a6dfbc4d3c38fa20eaef46d2d)
+test	Set up job	2026-10-30T17:06:09.5616639Z Complete job name: test
+test	Isolate Git configuration and tool state	﻿2026-10-30T17:06:09.6120177Z ##[group]Run mkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6120943Z ^[[36;1mmkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6121392Z ^[[36;1m{^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6121679Z ^[[36;1m  echo "GIT_CONFIG_GLOBAL=$RUNNER_TEMP/gitconfig"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6122079Z ^[[36;1m  echo "XDG_CONFIG_HOME=$RUNNER_TEMP/xdg/config"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6122458Z ^[[36;1m  echo "XDG_DATA_HOME=$RUNNER_TEMP/xdg/data"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6122833Z ^[[36;1m  echo "XDG_STATE_HOME=$RUNNER_TEMP/xdg/state"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6123194Z ^[[36;1m} >> "$GITHUB_ENV"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6142398Z shell: /usr/bin/bash -e {0}
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6142837Z env:
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6143057Z   TT_FORCE: 1
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6143306Z   GIT_CONFIG_NOSYSTEM: 1
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6143594Z   UV_PYTHON: /usr/bin/python3
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6143890Z   UV_PYTHON_DOWNLOADS: never
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6144156Z   UV_FROZEN: 1
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6144443Z   PYTEST_ADDOPTS: -rs
+test	Isolate Git configuration and tool state	2026-10-30T17:06:09.6144695Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	﻿2026-10-30T17:06:09.6398250Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6398697Z with:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6398942Z   persist-credentials: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6399231Z   repository: verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6401355Z   token: ***
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6401599Z   ssh-strict: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6401844Z   ssh-user: git
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6402076Z   clean: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6402323Z   sparse-checkout-cone-mode: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6402829Z   fetch-depth: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6403094Z   fetch-tags: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6403341Z   show-progress: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6403587Z   lfs: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6403819Z   submodules: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6404068Z   set-safe-directory: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6404447Z   allow-unsafe-pr-checkout: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6404724Z env:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6404940Z   TT_FORCE: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6405172Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6405438Z   UV_PYTHON: /usr/bin/python3
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6405752Z   UV_PYTHON_DOWNLOADS: never
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6406021Z   UV_FROZEN: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6406452Z   PYTEST_ADDOPTS: -rs
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6406745Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6407123Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6407484Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6407841Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.6408179Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8628302Z Syncing repository: verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8629618Z ##[group]Getting Git version info
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8630129Z Working directory is '/home/runner/work/autonomy/autonomy'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8630689Z [command]/usr/bin/git version
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8697044Z git version 2.56.0
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8709543Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8718202Z Temporarily overriding HOME='/home/runner/work/_temp/0441c49e-6512-4acc-a6b6-15e3adc0198c' before making global git config changes
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8719582Z Adding repository directory to the temporary git global config as a safe directory
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8722745Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/autonomy/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8767266Z Deleting the contents of '/home/runner/work/autonomy/autonomy'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8769561Z ##[group]Determining repository object format
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8770665Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8771312Z ##[group]Initializing the repository
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8773361Z [command]/usr/bin/git init /home/runner/work/autonomy/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8871754Z hint: Using 'master' as the name for the initial branch. This default branch name
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8907012Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8927252Z hint: to use in all of your new repositories, which will suppress this warning,
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8928148Z hint: call:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8928602Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8929238Z hint: 	git config --global init.defaultBranch <name>
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8929883Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8930517Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8931436Z hint: 'development'. The just-created branch can be renamed via this command:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8932163Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8932603Z hint: 	git branch -m <name>
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8933095Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8933748Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8934860Z Initialized empty Git repository in /home/runner/work/autonomy/autonomy/.git/
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8937007Z [command]/usr/bin/git remote add origin https://github.com/verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8953717Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8955790Z ##[group]Disabling automatic garbage collection
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.8956775Z [command]/usr/bin/git config --local gc.auto 0
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9048188Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9049702Z ##[group]Setting up auth
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9050420Z Removing SSH command configuration
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9051210Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9091427Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9456678Z Removing HTTP extra header
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9461733Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9501669Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9699476Z Removing includeIf entries pointing to credentials config files
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9704314Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9752617Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9943776Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:09.9985039Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/autonomy/autonomy/.git.path /home/runner/work/_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.0022088Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/autonomy/autonomy/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.0059065Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.0095927Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.0132333Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.0132995Z ##[group]Fetching the repository
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.0138158Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +9523dc4ae73140efdfb2e25fabdd4f1a27a7c863:refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4634142Z From https://github.com/verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4635234Z  * [new ref]         9523dc4ae73140efdfb2e25fabdd4f1a27a7c863 -> origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4645064Z [command]/usr/bin/git branch --list --remote origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4682983Z   origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4692236Z [command]/usr/bin/git rev-parse refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4729838Z 9523dc4ae73140efdfb2e25fabdd4f1a27a7c863
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4733811Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4734458Z ##[group]Determining the checkout info
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4735201Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4739924Z [command]/usr/bin/git sparse-checkout disable
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4803234Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4847336Z ##[group]Checking out the ref
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.4851393Z [command]/usr/bin/git checkout --progress --force -B design/autonomy-23aeff-test-policy refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5042491Z Switched to a new branch 'design/autonomy-23aeff-test-policy'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5046973Z branch 'design/autonomy-23aeff-test-policy' set up to track 'origin/design/autonomy-23aeff-test-policy'.
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5052749Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5104235Z [command]/usr/bin/git log -1 --format=%H
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5139648Z 9523dc4ae73140efdfb2e25fabdd4f1a27a7c863
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5148137Z ##[group]Removing auth
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5150958Z Removing SSH command configuration
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5151949Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5191287Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5394135Z Removing HTTP extra header
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5395420Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5434345Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5633618Z Removing includeIf entries pointing to credentials config files
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5635620Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5681221Z includeif.gitdir:/home/runner/work/autonomy/autonomy/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5682915Z includeif.gitdir:/home/runner/work/autonomy/autonomy/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5684442Z includeif.gitdir:/github/workspace/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5686031Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5697160Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/autonomy/autonomy/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5731009Z /home/runner/work/_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5741230Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/autonomy/autonomy/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-af3c4866\-b7d6\-49ff\-86fe\-69e2b215a67e\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5784762Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/autonomy/autonomy/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5817558Z /home/runner/work/_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5825420Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/autonomy/autonomy/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-af3c4866\-b7d6\-49ff\-86fe\-69e2b215a67e\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5865849Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5900986Z /github/runner_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5908158Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-af3c4866\-b7d6\-49ff\-86fe\-69e2b215a67e\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5951156Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5983894Z /github/runner_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.5991713Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-af3c4866\-b7d6\-49ff\-86fe\-69e2b215a67e\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.6040464Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.6242871Z Removing credentials config '/home/runner/work/_temp/git-credentials-af3c4866-b7d6-49ff-86fe-69e2b215a67e.config'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:06:10.6251174Z ##[endgroup]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	﻿2026-10-30T17:06:10.6449908Z ##[group]Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6450993Z with:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6451528Z   just-version: 1.59.0
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6457491Z   github-token: ***
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6458072Z env:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6458574Z   TT_FORCE: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6459132Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6459771Z   UV_PYTHON: /usr/bin/python3
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6460460Z   UV_PYTHON_DOWNLOADS: never
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6461105Z   UV_FROZEN: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6461681Z   PYTEST_ADDOPTS: -rs
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6462389Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6463326Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6464239Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6465294Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6466100Z ##[endgroup]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6512402Z ##[start-action display=Run extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d;id=__extractions_setup-just.__extractions_setup-crate]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6582442Z ##[group]Run extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6583493Z with:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6584009Z   repo: casey/just
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6584573Z   version: 1.59.0
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6590243Z   github-token: ***
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6590804Z env:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6591296Z   TT_FORCE: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6591836Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6592468Z   UV_PYTHON: /usr/bin/python3
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6593138Z   UV_PYTHON_DOWNLOADS: never
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6593791Z   UV_FROZEN: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6594352Z   PYTEST_ADDOPTS: -rs
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6595050Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6595992Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6596970Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6597843Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:10.6598654Z ##[endgroup]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:11.7240793Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/f9ea50e0-ffcf-4e1a-8769-6affd88f4261 -f /home/runner/work/_temp/96ed3989-d2db-4ce2-a346-a7849f599fda
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:11.7746448Z Successfully setup just v1.59.0
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T17:06:11.7859368Z ##[end-action id=__extractions_setup-just.__extractions_setup-crate;outcome=success;conclusion=success;duration_ms=1134]
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	﻿2026-10-30T17:06:11.7984527Z ##[group]Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7985094Z with:
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7985486Z   version: 0.13.6
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7985908Z   enable-cache: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7986475Z   activate-environment: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7986937Z   no-project: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7987409Z   working-directory: /home/runner/work/autonomy/autonomy
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7989797Z   github-token: ***
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7990457Z   cache-dependency-glob: **/*requirements*.txt
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*requirements*.in
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*constraints*.txt
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*constraints*.in
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/pyproject.toml
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/uv.lock
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*.py.lock
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7991156Z   restore-cache: true
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7991573Z   save-cache: auto
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7991995Z   prune-cache: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7992441Z   cache-python: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7992877Z   ignore-nothing-to-cache: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7993329Z   ignore-empty-workdir: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7993784Z   download-from-astral-mirror: true
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7994277Z   add-problem-matchers: true
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7994713Z   quiet: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7995126Z   resolution-strategy: highest
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7995557Z env:
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7995939Z   TT_FORCE: 1
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7996506Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7996959Z   UV_PYTHON: /usr/bin/python3
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7997403Z   UV_PYTHON_DOWNLOADS: never
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7997831Z   UV_FROZEN: 1
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7998234Z   PYTEST_ADDOPTS: -rs
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7998730Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7999293Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.7999812Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.8000325Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.8000832Z ##[endgroup]
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:11.9252314Z Fetching manifest data from https://releases.astral.sh/github/versions/main/v1/uv.ndjson ...
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.0995897Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.13.6/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.5237948Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/6d419fc1-1497-4729-86e3-2ebe5a1bdec9 -f /home/runner/work/_temp/486b3dd0-d1b5-4480-9eda-8865f55a4261
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.8723951Z Added /home/runner/work/_temp/xdg/data/../bin to the path
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.8726030Z Added /opt/hostedtoolcache/uv/0.13.6/x86_64 to the path
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.8727019Z Set UV_PYTHON_INSTALL_DIR to /home/runner/work/_temp/uv-python-dir
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.8727384Z Added /home/runner/work/_temp/uv-python-dir to the path
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:06:12.8751215Z Successfully installed uv version 0.13.6
+test	Install sandbox and shell capabilities	﻿2026-10-30T17:06:13.0353594Z ##[group]Run sudo apt-get update
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0353816Z ^[[36;1msudo apt-get update^[[0m
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0354057Z ^[[36;1msudo apt-get install --no-install-recommends -y bubblewrap openssl bash dash zsh^[[0m
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0371506Z shell: /usr/bin/bash -e {0}
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0371646Z env:
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0371757Z   TT_FORCE: 1
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0371874Z   GIT_CONFIG_NOSYSTEM: 1
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372010Z   UV_PYTHON: /usr/bin/python3
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372155Z   UV_PYTHON_DOWNLOADS: never
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372298Z   UV_FROZEN: 1
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372413Z   PYTEST_ADDOPTS: -rs
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372565Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372760Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0372942Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0373124Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0373333Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.0373532Z ##[endgroup]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.1024921Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.1503470Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.1515074Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.1548766Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.1580064Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.1605167Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.2687290Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [682 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.2996016Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1408 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3053706Z Get:15 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [617 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3068272Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [311 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3148571Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1708 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3237362Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [343 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3250180Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1813 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3320139Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [412 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.3336761Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [14.3 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.4177320Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1146 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.4208971Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [231 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.4225574Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1223 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:13.4697971Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [246 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:16.1785868Z Fetched 10.5 MB in 1s (12.0 MB/s)
+test	Install sandbox and shell capabilities	2026-10-30T17:06:16.8031169Z Reading package lists...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:16.8361751Z Reading package lists...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:16.9872421Z Building dependency tree...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:16.9877854Z Reading state information...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0917088Z openssl is already the newest version (3.0.13-0ubuntu3.16).
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0917499Z bash is already the newest version (5.2.21-2ubuntu4).
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0917796Z dash is already the newest version (0.5.12-6ubuntu5).
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0918112Z The following additional packages will be installed:
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0918427Z   zsh-common
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0920551Z Suggested packages:
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.0920677Z   zsh-doc
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1059772Z The following NEW packages will be installed:
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1063227Z   bubblewrap zsh zsh-common
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1224623Z 0 upgraded, 3 newly installed, 0 to remove and 6 not upgraded.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1225018Z Need to get 5036 kB of archives.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1225338Z After this operation, 19.3 MB of additional disk space will be used.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1225715Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.1817684Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 bubblewrap amd64 0.9.0-1ubuntu0.3 [50.4 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.2136015Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 zsh-common all 5.9-6ubuntu2 [4173 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.2807533Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 zsh amd64 5.9-6ubuntu2 [812 kB]
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.4765250Z Fetched 5036 kB in 0s (29.3 MB/s)
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.4982043Z Selecting previously unselected package bubblewrap.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5375026Z (Reading database ... 
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5375448Z (Reading database ... 5%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5375731Z (Reading database ... 10%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5375909Z (Reading database ... 15%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5376045Z (Reading database ... 20%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5376325Z (Reading database ... 25%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5376519Z (Reading database ... 30%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5376709Z (Reading database ... 35%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5376908Z (Reading database ... 40%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5377107Z (Reading database ... 45%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5377295Z (Reading database ... 50%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.5415796Z (Reading database ... 55%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.6674302Z (Reading database ... 60%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:17.7730654Z (Reading database ... 65%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.0160588Z (Reading database ... 70%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.2245596Z (Reading database ... 75%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.3640153Z (Reading database ... 80%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.4817382Z (Reading database ... 85%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.6157900Z (Reading database ... 90%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.7846398Z (Reading database ... 95%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.7846802Z (Reading database ... 100%
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.7847129Z (Reading database ... 215504 files and directories currently installed.)
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.7885704Z Preparing to unpack .../bubblewrap_0.9.0-1ubuntu0.3_amd64.deb ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.7909397Z Unpacking bubblewrap (0.9.0-1ubuntu0.3) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.8334148Z Selecting previously unselected package zsh-common.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.8447677Z Preparing to unpack .../zsh-common_5.9-6ubuntu2_all.deb ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:18.8520335Z Unpacking zsh-common (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.0904942Z Selecting previously unselected package zsh.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.1022083Z Preparing to unpack .../zsh_5.9-6ubuntu2_amd64.deb ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.1082852Z Unpacking zsh (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.1582372Z Setting up bubblewrap (0.9.0-1ubuntu0.3) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.1624070Z Setting up zsh-common (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.1767664Z Setting up zsh (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.1849493Z Processing triggers for debianutils (5.17build1) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.2577545Z Processing triggers for man-db (2.12.0-4build2) ...
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.2596234Z Not building database; man-db/auto-update is not 'true'.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7554521Z 
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7555021Z Running kernel seems to be up-to-date.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7555251Z 
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7555352Z No services need to be restarted.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7555507Z 
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7555568Z No containers need to be restarted.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7556077Z 
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7556327Z No user sessions are running outdated binaries.
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7556449Z 
+test	Install sandbox and shell capabilities	2026-10-30T17:06:19.7556562Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test	Check the system interpreter	﻿2026-10-30T17:06:20.7364971Z ##[group]Run /usr/bin/python3 -I -c '
+test	Check the system interpreter	2026-10-30T17:06:20.7365202Z ^[[36;1m/usr/bin/python3 -I -c '^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7365348Z ^[[36;1mimport os, signal, sys^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7365514Z ^[[36;1massert sys.version_info >= (3, 12), sys.version^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7365741Z ^[[36;1mneeded = ("os.setns", "os.pidfd_open", "signal.pidfd_send_signal")^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7366057Z ^[[36;1mmissing = [n for n in needed if not hasattr({"os": os, "signal": signal}[n.split(".")[0]], n.split(".")[1])]^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7366630Z ^[[36;1massert not missing, missing^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7366777Z ^[[36;1mprint(sys.version)^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7366905Z ^[[36;1m'^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7367195Z ^[[36;1mecho "kernel.apparmor_restrict_unprivileged_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"^[[0m
+test	Check the system interpreter	2026-10-30T17:06:20.7383224Z shell: /usr/bin/bash -e {0}
+test	Check the system interpreter	2026-10-30T17:06:20.7383365Z env:
+test	Check the system interpreter	2026-10-30T17:06:20.7383476Z   TT_FORCE: 1
+test	Check the system interpreter	2026-10-30T17:06:20.7383589Z   GIT_CONFIG_NOSYSTEM: 1
+test	Check the system interpreter	2026-10-30T17:06:20.7383747Z   UV_PYTHON: /usr/bin/python3
+test	Check the system interpreter	2026-10-30T17:06:20.7383885Z   UV_PYTHON_DOWNLOADS: never
+test	Check the system interpreter	2026-10-30T17:06:20.7384011Z   UV_FROZEN: 1
+test	Check the system interpreter	2026-10-30T17:06:20.7384122Z   PYTEST_ADDOPTS: -rs
+test	Check the system interpreter	2026-10-30T17:06:20.7384267Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Check the system interpreter	2026-10-30T17:06:20.7384456Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Check the system interpreter	2026-10-30T17:06:20.7384632Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Check the system interpreter	2026-10-30T17:06:20.7384832Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Check the system interpreter	2026-10-30T17:06:20.7385029Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Check the system interpreter	2026-10-30T17:06:20.7385209Z ##[endgroup]
+test	Check the system interpreter	2026-10-30T17:06:20.7530288Z 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+test	Check the system interpreter	2026-10-30T17:06:20.7569634Z kernel.apparmor_restrict_unprivileged_userns=1
+test	Build the pinned tasks CLI	﻿2026-10-30T17:06:20.7622183Z ##[group]Run git clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7622504Z ^[[36;1mgit clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"^[[0m
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7622810Z ^[[36;1mgit -C "$RUNNER_TEMP/tasks" checkout --detach 43b6eee5ae6c95ba83ac77e6108915ec9557f2b5^[[0m
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7623091Z ^[[36;1mrustup toolchain install 1.99.1 --profile minimal^[[0m
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7623366Z ^[[36;1mcargo +1.99.1 build --locked --release --manifest-path "$RUNNER_TEMP/tasks/Cargo.toml"^[[0m
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7623639Z ^[[36;1mecho "$RUNNER_TEMP/tasks/target/release" >> "$GITHUB_PATH"^[[0m
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7639555Z shell: /usr/bin/bash -e {0}
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7639690Z env:
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7639796Z   TT_FORCE: 1
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7639909Z   GIT_CONFIG_NOSYSTEM: 1
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640043Z   UV_PYTHON: /usr/bin/python3
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640181Z   UV_PYTHON_DOWNLOADS: never
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640318Z   UV_FROZEN: 1
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640430Z   PYTEST_ADDOPTS: -rs
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640595Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640785Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7640961Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7641138Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7641337Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7641516Z ##[endgroup]
+test	Build the pinned tasks CLI	2026-10-30T17:06:20.7682070Z Cloning into '/home/runner/work/_temp/tasks'...
+test	Build the pinned tasks CLI	2026-10-30T17:06:21.9774251Z HEAD is now at 43b6eee5 chore(tasks): note tasks-b4df1e
+test	Build the pinned tasks CLI	2026-10-30T17:06:22.0169368Z info: syncing channel updates for 1.99.1-x86_64-unknown-linux-gnu
+test	Build the pinned tasks CLI	2026-10-30T17:06:22.2668476Z info: latest update on 2026-10-15 for version 1.99.1 (58cf8f9c3 2026-10-13)
+test	Build the pinned tasks CLI	2026-10-30T17:06:22.2669929Z info: downloading 3 components
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.0205852Z 
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.0269275Z   1.99.1-x86_64-unknown-linux-gnu installed - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.0269608Z 
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.0720002Z     Updating crates.io index
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.3775193Z  Downloading crates ...
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.4972835Z   Downloaded anstream v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5080161Z   Downloaded anstyle v1.0.14
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5091587Z   Downloaded anstyle-parse v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5131519Z   Downloaded ansi-str v0.9.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5141430Z   Downloaded ansitok v0.3.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5212199Z   Downloaded clap_complete v4.6.9
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5279550Z   Downloaded crypto-common v0.1.7
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5286576Z   Downloaded clap_lex v1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5295524Z   Downloaded document-features v0.2.12
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5329581Z   Downloaded anstyle-query v1.1.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5337929Z   Downloaded cfg-if v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5347245Z   Downloaded cpufeatures v0.2.17
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5356847Z   Downloaded errno v0.3.14
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5367819Z   Downloaded generic-array v0.14.7
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5379619Z   Downloaded block-buffer v0.10.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5387242Z   Downloaded num-conv v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5393417Z   Downloaded strsim v0.11.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5403925Z   Downloaded serde_spanned v1.1.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5411875Z   Downloaded time-core v0.1.9
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5468574Z   Downloaded colorchoice v1.0.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5475215Z   Downloaded equivalent v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5486526Z   Downloaded heck v0.5.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5495866Z   Downloaded scopeguard v1.2.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5504808Z   Downloaded itoa v1.0.18
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5520327Z   Downloaded version_check v0.9.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5529352Z   Downloaded xterm-color v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5562663Z   Downloaded is_terminal_polyfill v1.70.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5570000Z   Downloaded utf8parse v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5576830Z   Downloaded terminal-trx v0.2.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5607914Z   Downloaded powerfmt v0.2.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5625222Z   Downloaded thiserror-impl v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5635932Z   Downloaded toml_datetime v1.1.1+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5645453Z   Downloaded fastrand v2.5.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5655322Z   Downloaded is_executable v1.0.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5665020Z   Downloaded lock_api v0.4.14
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5675267Z   Downloaded shlex v2.0.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5686428Z   Downloaded thiserror v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5734742Z   Downloaded toml_writer v1.1.2+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5745441Z   Downloaded quote v1.0.47
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5765894Z   Downloaded unicase v2.10.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5778303Z   Downloaded zmij v1.0.23
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5793881Z   Downloaded digest v0.10.7
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5809241Z   Downloaded arrayvec v0.7.8
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5827246Z   Downloaded sha2 v0.10.9
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5847980Z   Downloaded clap_derive v4.6.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5863497Z   Downloaded console v0.16.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5876649Z   Downloaded deranged v0.5.8
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5888457Z   Downloaded parking_lot v0.12.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5911491Z   Downloaded parking_lot_core v0.9.12
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5933113Z   Downloaded litrs v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.5980480Z   Downloaded smallvec v1.16.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6007500Z   Downloaded time-macros v0.2.32
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6046056Z   Downloaded clap v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6204753Z   Downloaded bitflags v2.13.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6292179Z   Downloaded toml_parser v1.1.3+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6336345Z   Downloaded unicode-ident v1.0.24
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6382834Z   Downloaded serde_core v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6435225Z   Downloaded serde_derive v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6492820Z   Downloaded toml v1.1.4+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6573813Z   Downloaded toml_edit v0.25.13+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6655233Z   Downloaded proc-macro2 v1.0.107
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6717987Z   Downloaded vte v0.14.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6748504Z   Downloaded comfy-table v8.0.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6853145Z   Downloaded serde v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.6915017Z   Downloaded hashbrown v0.17.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7006668Z   Downloaded memchr v2.8.3
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7047015Z   Downloaded minimal-lexical v0.2.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7079509Z   Downloaded indexmap v2.14.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7109424Z   Downloaded typenum v1.20.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7135586Z   Downloaded unicode-segmentation v1.13.3
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7156661Z   Downloaded nom v7.1.3
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7192558Z   Downloaded crossterm v0.29.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7240701Z   Downloaded pulldown-cmark v0.13.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7276498Z   Downloaded clap_builder v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7321936Z   Downloaded serde_json v1.0.151
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7373615Z   Downloaded winnow v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7442115Z   Downloaded time v0.3.55
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7641899Z   Downloaded unicode-width v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7749360Z   Downloaded syn v3.0.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.7938267Z   Downloaded rustix v1.1.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.8346776Z   Downloaded libc v0.2.189
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.8671549Z   Downloaded linux-raw-sys v0.12.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.9931937Z    Compiling proc-macro2 v1.0.107
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.9933519Z    Compiling unicode-ident v1.0.24
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.9933947Z    Compiling quote v1.0.47
+test	Build the pinned tasks CLI	2026-10-30T17:06:29.9935224Z    Compiling serde_core v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T17:06:30.0983590Z    Compiling libc v0.2.189
+test	Build the pinned tasks CLI	2026-10-30T17:06:30.2003798Z    Compiling memchr v2.8.3
+test	Build the pinned tasks CLI	2026-10-30T17:06:30.2050520Z    Compiling version_check v0.9.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:30.3630333Z    Compiling generic-array v0.14.7
+test	Build the pinned tasks CLI	2026-10-30T17:06:30.8561067Z    Compiling syn v3.0.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.1559382Z    Compiling cfg-if v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.1937028Z    Compiling typenum v1.20.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.2044977Z    Compiling utf8parse v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.2536543Z    Compiling parking_lot_core v0.9.12
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.3697803Z    Compiling anstyle-parse v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.4917618Z    Compiling rustix v1.1.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.6495727Z    Compiling minimal-lexical v0.2.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:31.8778467Z    Compiling smallvec v1.16.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.0347413Z    Compiling colorchoice v1.0.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.0771682Z    Compiling anstyle v1.0.14
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.2296465Z    Compiling is_terminal_polyfill v1.70.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.2709480Z    Compiling anstyle-query v1.1.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.2907823Z    Compiling arrayvec v0.7.8
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.3237406Z    Compiling bitflags v2.13.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.3308186Z    Compiling scopeguard v1.2.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.3687385Z    Compiling lock_api v0.4.14
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.4227473Z    Compiling vte v0.14.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.5187282Z    Compiling anstream v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.5598480Z    Compiling nom v7.1.3
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.8217166Z    Compiling winnow v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.8266960Z    Compiling heck v0.5.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:32.9308082Z    Compiling linux-raw-sys v0.12.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:33.2167928Z    Compiling strsim v0.11.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:33.6200508Z    Compiling clap_lex v1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:33.8298527Z    Compiling zmij v1.0.23
+test	Build the pinned tasks CLI	2026-10-30T17:06:33.8357551Z    Compiling litrs v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:33.9637378Z    Compiling ansitok v0.3.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:34.0147476Z    Compiling toml_parser v1.1.3+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:34.0667238Z    Compiling clap_builder v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:34.1654349Z    Compiling document-features v0.2.12
+test	Build the pinned tasks CLI	2026-10-30T17:06:34.4562254Z    Compiling clap_derive v4.6.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:35.4098268Z    Compiling parking_lot v0.12.5
+test	Build the pinned tasks CLI	2026-10-30T17:06:35.7090596Z    Compiling crypto-common v0.1.7
+test	Build the pinned tasks CLI	2026-10-30T17:06:35.7687353Z    Compiling block-buffer v0.10.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:35.8547772Z    Compiling toml_datetime v1.1.1+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.0257483Z    Compiling pulldown-cmark v0.13.4
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.0952931Z    Compiling toml_writer v1.1.2+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.1337718Z    Compiling equivalent v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.1407294Z    Compiling hashbrown v0.17.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.1601300Z    Compiling serde v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.2447582Z    Compiling thiserror v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.2757965Z    Compiling serde_json v1.0.151
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.3537441Z    Compiling unicode-width v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.4860087Z    Compiling clap v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.5427758Z    Compiling console v0.16.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.5497523Z    Compiling digest v0.10.7
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.6717540Z    Compiling crossterm v0.29.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:36.7196645Z    Compiling indexmap v2.14.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:37.3067376Z    Compiling ansi-str v0.9.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:37.6087487Z    Compiling thiserror-impl v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T17:06:37.6122870Z    Compiling serde_derive v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T17:06:37.9627747Z    Compiling serde_spanned v1.1.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.0297484Z    Compiling unicase v2.10.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.1877337Z    Compiling unicode-segmentation v1.13.3
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.4007908Z    Compiling is_executable v1.0.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.4443331Z    Compiling itoa v1.0.18
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.5826400Z    Compiling cpufeatures v0.2.17
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.6022124Z    Compiling time-core v0.1.9
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.6178105Z    Compiling shlex v2.0.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.7157487Z    Compiling powerfmt v0.2.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.7787277Z    Compiling num-conv v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.8487535Z    Compiling deranged v0.5.8
+test	Build the pinned tasks CLI	2026-10-30T17:06:38.8567318Z    Compiling clap_complete v4.6.9
+test	Build the pinned tasks CLI	2026-10-30T17:06:39.7486972Z    Compiling time v0.3.55
+test	Build the pinned tasks CLI	2026-10-30T17:06:40.1337418Z    Compiling sha2 v0.10.9
+test	Build the pinned tasks CLI	2026-10-30T17:06:42.2197368Z    Compiling comfy-table v8.0.1
+test	Build the pinned tasks CLI	2026-10-30T17:06:43.3107384Z    Compiling toml v1.1.4+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:43.5518191Z    Compiling toml_edit v0.25.13+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:44.2697793Z    Compiling terminal-trx v0.2.6
+test	Build the pinned tasks CLI	2026-10-30T17:06:44.4537431Z    Compiling fastrand v2.5.0
+test	Build the pinned tasks CLI	2026-10-30T17:06:44.6317224Z    Compiling xterm-color v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T17:06:46.3448490Z    Compiling tasks v0.4.0 (/home/runner/work/_temp/tasks)
+test	Build the pinned tasks CLI	2026-10-30T17:07:06.5111632Z     Finished `release` profile [optimized] target(s) in 37.46s
+test	Setup	﻿2026-10-30T17:07:06.5470210Z ##[group]Run just setup
+test	Setup	2026-10-30T17:07:06.5470398Z ^[[36;1mjust setup^[[0m
+test	Setup	2026-10-30T17:07:06.5487281Z shell: /usr/bin/bash -e {0}
+test	Setup	2026-10-30T17:07:06.5487427Z env:
+test	Setup	2026-10-30T17:07:06.5487537Z   TT_FORCE: 1
+test	Setup	2026-10-30T17:07:06.5487653Z   GIT_CONFIG_NOSYSTEM: 1
+test	Setup	2026-10-30T17:07:06.5487792Z   UV_PYTHON: /usr/bin/python3
+test	Setup	2026-10-30T17:07:06.5487933Z   UV_PYTHON_DOWNLOADS: never
+test	Setup	2026-10-30T17:07:06.5488061Z   UV_FROZEN: 1
+test	Setup	2026-10-30T17:07:06.5488175Z   PYTEST_ADDOPTS: -rs
+test	Setup	2026-10-30T17:07:06.5488321Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Setup	2026-10-30T17:07:06.5488516Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Setup	2026-10-30T17:07:06.5488699Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Setup	2026-10-30T17:07:06.5488965Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Setup	2026-10-30T17:07:06.5489608Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Setup	2026-10-30T17:07:06.5489797Z ##[endgroup]
+test	Setup	2026-10-30T17:07:06.7175469Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test	Setup	2026-10-30T17:07:06.7175830Z Creating virtual environment at: .venv
+test	Setup	2026-10-30T17:07:06.7206870Z    Building verifiably-autonomy @ file:///home/runner/work/autonomy/autonomy/python
+test	Setup	2026-10-30T17:07:06.7825953Z Downloading pygments (1.2MiB)
+test	Setup	2026-10-30T17:07:06.9440634Z  Downloaded pygments
+test	Setup	2026-10-30T17:07:07.1408370Z       Built verifiably-autonomy @ file:///home/runner/work/autonomy/autonomy/python
+test	Setup	2026-10-30T17:07:07.1415215Z Prepared 8 packages in 422ms
+test	Setup	2026-10-30T17:07:07.1481611Z Installed 8 packages in 6ms
+test	Setup	2026-10-30T17:07:07.1481870Z  + coverage==7.16.2
+test	Setup	2026-10-30T17:07:07.1482176Z  + iniconfig==2.3.1
+test	Setup	2026-10-30T17:07:07.1482464Z  + packaging==26.3
+test	Setup	2026-10-30T17:07:07.1482905Z  + pluggy==1.6.0
+test	Setup	2026-10-30T17:07:07.1483195Z  + pygments==2.21.0
+test	Setup	2026-10-30T17:07:07.1483468Z  + pytest==9.1.1
+test	Setup	2026-10-30T17:07:07.1483842Z  + pytest-testmon==2.2.0
+test	Setup	2026-10-30T17:07:07.1484290Z  + verifiably-autonomy==0.1.0 (from file:///home/runner/work/autonomy/autonomy/python)
+test	Allow unprivileged user namespaces on this VM	﻿2026-10-30T17:07:07.2372559Z ##[group]Run sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2373122Z ^[[36;1msudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0^[[0m
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405009Z shell: /usr/bin/bash -e {0}
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405151Z env:
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405262Z   TT_FORCE: 1
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405378Z   GIT_CONFIG_NOSYSTEM: 1
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405514Z   UV_PYTHON: /usr/bin/python3
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405656Z   UV_PYTHON_DOWNLOADS: never
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405786Z   UV_FROZEN: 1
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2405900Z   PYTEST_ADDOPTS: -rs
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2406047Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2406321Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2406507Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2406689Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2406893Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.2407122Z ##[endgroup]
+test	Allow unprivileged user namespaces on this VM	2026-10-30T17:07:07.3609318Z kernel.apparmor_restrict_unprivileged_userns = 0
+test	Namespace and TLS egress proof	﻿2026-10-30T17:07:07.4548057Z ##[group]Run just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4548493Z ^[[36;1mjust test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py^[[0m
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4563305Z shell: /usr/bin/bash -e {0}
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4563440Z env:
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4563549Z   TT_FORCE: 1
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4563666Z   GIT_CONFIG_NOSYSTEM: 1
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4563801Z   UV_PYTHON: /usr/bin/python3
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4563944Z   UV_PYTHON_DOWNLOADS: never
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4564073Z   UV_FROZEN: 1
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4564187Z   PYTEST_ADDOPTS: -rs
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4564335Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4564531Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4564714Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4564905Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4565115Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.4565321Z ##[endgroup]
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9624483Z ============================= test session starts ==============================
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9624941Z platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9625301Z rootdir: /home/runner/work/autonomy/autonomy/python
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9625616Z configfile: pyproject.toml
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9625861Z plugins: testmon-2.2.0
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9626071Z collected 45 items
+test	Namespace and TLS egress proof	2026-10-30T17:07:07.9626320Z 
+test	Namespace and TLS egress proof	2026-10-30T17:07:13.1111603Z tests/test_sandbox_probe.py ................                             [ 35%]
+test	Namespace and TLS egress proof	2026-10-30T17:07:13.8615880Z tests/test_egress_helper.py .....                                        [ 46%]
+test	Namespace and TLS egress proof	2026-10-30T17:07:20.3782541Z tests/test_egress_upstream.py ........................                   [100%]
+test	Namespace and TLS egress proof	2026-10-30T17:07:20.3782924Z 
+test	Namespace and TLS egress proof	2026-10-30T17:07:20.3783099Z ============================= 45 passed in 12.45s ==============================
+test	Hygiene	﻿2026-10-30T17:07:20.4138341Z ##[group]Run just check-hygiene
+test	Hygiene	2026-10-30T17:07:20.4138541Z ^[[36;1mjust check-hygiene^[[0m
+test	Hygiene	2026-10-30T17:07:20.4154799Z shell: /usr/bin/bash -e {0}
+test	Hygiene	2026-10-30T17:07:20.4154940Z env:
+test	Hygiene	2026-10-30T17:07:20.4155048Z   TT_FORCE: 1
+test	Hygiene	2026-10-30T17:07:20.4155162Z   GIT_CONFIG_NOSYSTEM: 1
+test	Hygiene	2026-10-30T17:07:20.4155295Z   UV_PYTHON: /usr/bin/python3
+test	Hygiene	2026-10-30T17:07:20.4155437Z   UV_PYTHON_DOWNLOADS: never
+test	Hygiene	2026-10-30T17:07:20.4155567Z   UV_FROZEN: 1
+test	Hygiene	2026-10-30T17:07:20.4155682Z   PYTEST_ADDOPTS: -rs
+test	Hygiene	2026-10-30T17:07:20.4155830Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Hygiene	2026-10-30T17:07:20.4156027Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Hygiene	2026-10-30T17:07:20.4156362Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Hygiene	2026-10-30T17:07:20.4156543Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Hygiene	2026-10-30T17:07:20.4156750Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Hygiene	2026-10-30T17:07:20.4157076Z ##[endgroup]
+test	Hygiene	2026-10-30T17:07:20.5839630Z {"errors":[],"warnings":[{"id":"autonomy-0b4c52","file":"tasks/autonomy-0b4c52.md","kind":"unreachable_dep","detail":"depends on unreachable ops-e5b39c"},{"id":"autonomy-23aeff","file":"tasks/autonomy-23aeff.md","kind":"unreachable_dep","detail":"depends on unreachable ops-68729d"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"unreachable_dep","detail":"depends on unreachable ops-fbc3d9"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"unreachable_dep","detail":"depends on unreachable sci-bef251"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"unreachable_dep","detail":"depends on unreachable sci-a45f10"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"unreachable_dep","detail":"depends on unreachable beliefs-7a56ef"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"unreachable_dep","detail":"depends on unreachable sci-a1d45f"},{"id":"autonomy-0b4c52","file":"tasks/autonomy-0b4c52.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-e5b39c"},{"id":"autonomy-23aeff","file":"tasks/autonomy-23aeff.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-68729d"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable beliefs-7a56ef"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-fbc3d9"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a1d45f"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a45f10"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-bef251"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable beliefs-7a56ef"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-fbc3d9"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a1d45f"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a45f10"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-bef251"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable beliefs-7a56ef"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a1d45f"},{"id":null,"file":"docs/plans/2026-10-29-closed-messages-policy.md","kind":"unlinked_step","detail":"heading \"Task 1: Close the route vocabulary\" has no task"},{"id":null,"file":"docs/plans/2026-10-29-closed-messages-policy.md","kind":"unlinked_step","detail":"heading \"Task 2: Enforce control shapes and prove compatibility\" has no task"}]}
+test	Full suite	﻿2026-10-30T17:07:20.5988283Z ##[group]Run just test-full
+test	Full suite	2026-10-30T17:07:20.5988480Z ^[[36;1mjust test-full^[[0m
+test	Full suite	2026-10-30T17:07:20.6004757Z shell: /usr/bin/bash -e {0}
+test	Full suite	2026-10-30T17:07:20.6004898Z env:
+test	Full suite	2026-10-30T17:07:20.6005008Z   TT_FORCE: 1
+test	Full suite	2026-10-30T17:07:20.6005122Z   GIT_CONFIG_NOSYSTEM: 1
+test	Full suite	2026-10-30T17:07:20.6005260Z   UV_PYTHON: /usr/bin/python3
+test	Full suite	2026-10-30T17:07:20.6005401Z   UV_PYTHON_DOWNLOADS: never
+test	Full suite	2026-10-30T17:07:20.6005528Z   UV_FROZEN: 1
+test	Full suite	2026-10-30T17:07:20.6005642Z   PYTEST_ADDOPTS: -rs
+test	Full suite	2026-10-30T17:07:20.6005793Z   GIT_CONFIG_GLOBAL: /home/runner/work/_temp/gitconfig
+test	Full suite	2026-10-30T17:07:20.6006278Z   XDG_CONFIG_HOME: /home/runner/work/_temp/xdg/config
+test	Full suite	2026-10-30T17:07:20.6006487Z   XDG_DATA_HOME: /home/runner/work/_temp/xdg/data
+test	Full suite	2026-10-30T17:07:20.6006668Z   XDG_STATE_HOME: /home/runner/work/_temp/xdg/state
+test	Full suite	2026-10-30T17:07:20.6006871Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test	Full suite	2026-10-30T17:07:20.6007059Z ##[endgroup]
+test	Full suite	2026-10-30T17:07:21.1552516Z ============================= test session starts ==============================
+test	Full suite	2026-10-30T17:07:21.1552978Z platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+test	Full suite	2026-10-30T17:07:21.1553193Z rootdir: /home/runner/work/autonomy/autonomy/python
+test	Full suite	2026-10-30T17:07:21.1553369Z configfile: pyproject.toml
+test	Full suite	2026-10-30T17:07:21.1553498Z testpaths: tests
+test	Full suite	2026-10-30T17:07:21.1553616Z plugins: testmon-2.2.0
+test	Full suite	2026-10-30T17:07:21.1553737Z collected 1394 items
+test	Full suite	2026-10-30T17:07:21.1553809Z 
+test	Full suite	2026-10-30T17:07:25.3678633Z tests/test_channel.py ....................                               [  1%]
+test	Full suite	2026-10-30T17:07:32.6820146Z tests/test_cli.py ...................................................    [  5%]
+test	Full suite	2026-10-30T17:07:32.6973941Z tests/test_closing.py .................................................. [  8%]
+test	Full suite	2026-10-30T17:07:32.7190354Z ........................................................................ [ 13%]
+test	Full suite	2026-10-30T17:07:32.7412788Z ........................................................................ [ 19%]
+test	Full suite	2026-10-30T17:07:32.7572453Z ....................................................                     [ 22%]
+test	Full suite	2026-10-30T17:07:32.7752752Z tests/test_egress_dialect.py ........................................... [ 25%]
+test	Full suite	2026-10-30T17:07:32.8041970Z ........................................................................ [ 30%]
+test	Full suite	2026-10-30T17:07:32.8318594Z ........................................................................ [ 36%]
+test	Full suite	2026-10-30T17:07:32.8572657Z ........................................................................ [ 41%]
+test	Full suite	2026-10-30T17:07:32.8817626Z ........................................................................ [ 46%]
+test	Full suite	2026-10-30T17:07:32.9058486Z ........................................................................ [ 51%]
+test	Full suite	2026-10-30T17:07:32.9312096Z ........................................................................ [ 56%]
+test	Full suite	2026-10-30T17:07:32.9543370Z ........................................................................ [ 61%]
+test	Full suite	2026-10-30T17:07:32.9617590Z ......................                                                   [ 63%]
+test	Full suite	2026-10-30T17:07:33.7028547Z tests/test_egress_helper.py .....                                        [ 63%]
+test	Full suite	2026-10-30T17:07:33.7077047Z tests/test_egress_live.py ............                                   [ 64%]
+test	Full suite	2026-10-30T17:07:42.8912932Z tests/test_egress_proxy.py ...................                           [ 66%]
+test	Full suite	2026-10-30T17:07:42.9037149Z tests/test_egress_request.py ............................                [ 68%]
+test	Full suite	2026-10-30T17:07:42.9463165Z tests/test_egress_route.py ............................................. [ 71%]
+test	Full suite	2026-10-30T17:07:42.9695179Z .......................                                                  [ 73%]
+test	Full suite	2026-10-30T17:07:45.7827991Z tests/test_egress_server.py ............................................ [ 76%]
+test	Full suite	2026-10-30T17:08:00.1557887Z ............................................                             [ 79%]
+test	Full suite	2026-10-30T17:08:48.9502832Z tests/test_egress_session.py .............................               [ 81%]
+test	Full suite	2026-10-30T17:08:55.4040304Z tests/test_egress_upstream.py ........................                   [ 83%]
+test	Full suite	2026-10-30T17:08:57.2883625Z tests/test_front_door.py .....................                           [ 84%]
+test	Full suite	2026-10-30T17:08:57.2966289Z tests/test_ledger.py .....................                               [ 86%]
+test	Full suite	2026-10-30T17:08:57.3031995Z tests/test_membership.py ........................                        [ 87%]
+test	Full suite	2026-10-30T17:08:57.5662686Z tests/test_run.py .....................................                  [ 90%]
+test	Full suite	2026-10-30T17:09:02.1424517Z tests/test_sandbox_launch.py ..............................              [ 92%]
+test	Full suite	2026-10-30T17:09:07.2932322Z tests/test_sandbox_probe.py ................                             [ 93%]
+test	Full suite	2026-10-30T17:09:07.3241055Z tests/test_sandbox_static.py ..........................                  [ 95%]
+test	Full suite	2026-10-30T17:09:07.3878618Z tests/test_stdio.py ...................................                  [ 98%]
+test	Full suite	2026-10-30T17:09:07.4345607Z tests/test_tiers.py .........................                            [100%]
+test	Full suite	2026-10-30T17:09:07.4345880Z 
+test	Full suite	2026-10-30T17:09:07.4345979Z ======================= 1394 passed in 106.62s (0:01:46) =======================
+test	Post Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	﻿2026-10-30T17:09:07.5062181Z Post job cleanup.
+test	Post Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T17:09:07.5747802Z UV_PYTHON_INSTALL_DIR is already set to /home/runner/work/_temp/uv-python-dir
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	﻿2026-10-30T17:09:07.5942686Z Post job cleanup.
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6528113Z [command]/usr/bin/git version
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6564395Z git version 2.56.0
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6588929Z Temporarily overriding HOME='/home/runner/work/_temp/91ae9384-6855-4463-8cbf-4e6a8a1109c9' before making global git config changes
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6589701Z Adding repository directory to the temporary git global config as a safe directory
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6591074Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/autonomy/autonomy
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6622092Z Removing SSH command configuration
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6626327Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6682651Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6888260Z Removing HTTP extra header
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6893278Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.6930759Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.7165487Z Removing includeIf entries pointing to credentials config files
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.7171807Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T17:09:07.7234994Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	Complete job	﻿2026-10-30T17:09:07.7545703Z Cleaning up orphan processes
