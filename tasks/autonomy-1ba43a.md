@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T19:18:16Z
+updated: 2026-10-30T19:18:17Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -42,3 +42,5 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T19:09:06Z (main): User approved one diagnostic push beyond the cap, limited to a8338d7ba569c577ffdeb8e07f7fe7109a8042fd; pushed; run 41112785423. No further retry is authorized.
 - 2026-10-30T19:18:16Z (main): Diagnostic run 41112785423 (head a8338d7) succeeded, 1396/1396. test_the_actor_times_every_step: proxy_start_to_close 12.55 s, launch_to_exit 12.47, actor 12.39, sweep 12.39, dns 0.0014, doc-v4 0.00004. e21 in the same job: proxy_start_to_close 1.52, sweep 0.17, stream 1.21, dns 0.0003. Runner resolver: /etc/resolv.conf -> ../run/systemd/resolve/stub-resolv.conf (nameserver 127.0.0.53, edns0 trust-ad, search *.internal.cloudapp.net), nsswitch hosts: files dns. DNS hypothesis refuted; the delay is the actor's filesystem sweep, slow on its first run in a job (12.4 s) and fast after (0.17 s). Unconfirmed reading: cold reads of the bound /etc and other reachable files; which files and why the cost varies are unknown. Log archive sha256 f2c438396bee8a79ff82159b4b84f244f30c786a2b6a032bafacd1c62ee7dec1 at $WORK_ROOT/autonomy/autonomy-23aeff/run-41112785423-zip/logs.zip.
+- 2026-10-30T19:18:17Z (main): parked (waiting on user, decision): User chooses the next step for the slow first sweep: approve a per-directory sweep timing diagnostic (one more frozen revision and push), or a fix design (warm the sweep before the proxy starts, or move the sweep outside the lease window; assertions kept). Then the agent prepares it and brings the frozen SHA.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
