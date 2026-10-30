@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T17:47:13Z
+updated: 2026-10-30T17:59:16Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -104,3 +104,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T17:44:43Z (design/autonomy-23aeff-test-policy): review: impl round 2 — verdict: revise; findings: Important 1, Minor 3; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T17:47:12Z (design/autonomy-23aeff-test-policy): review: impl round 3 — verdict: accept; findings: none; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T17:47:12Z (design/autonomy-23aeff-test-policy): Pilot push 4/5 under packet B: 26c8a0e26e63aa9424463cee0fbf82cd6e831379 (policy-off fc775b8 + AGENTS cadence fix 26c8a0e, both reviewed); local hook ran hygiene and recorded test-fast skipped by policy; run 41101402802.
+- 2026-10-30T17:59:16Z (main): policy: disabled at 2026-10-30T17:59:04Z revision b6fdc728a1ac80f947751d5bda0c7507a457b154
