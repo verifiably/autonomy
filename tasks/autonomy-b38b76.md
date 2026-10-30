@@ -7,7 +7,7 @@ size: s
 complexity: low
 process: direct
 created: 2026-10-30T16:50:50Z
-updated: 2026-10-30T16:50:50Z
+updated: 2026-10-30T16:52:38Z
 depends: []
 tags: [sandbox]
 source: autonomy-7f4bc7
@@ -21,3 +21,4 @@ Deferred minors from autonomy-7f4bc7's impl review round 1 (claude-code/claude-o
 
 - 2026-10-30T16:50:50Z (add): created
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
+- 2026-10-30T16:52:38Z (main): Also from autonomy-7f4bc7 round 2: test import order in test_egress_session.py; the layout-refusal test could assert egress.jsonl and proxy.log are not created; the layout check runs at step 9 (start), not step 7 (check_proxy).
