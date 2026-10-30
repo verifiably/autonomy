@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T18:57:58Z
+updated: 2026-10-30T18:59:06Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -35,3 +35,4 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
 - 2026-10-30T18:37:13Z (main): parked (waiting on user, decision): User approves (or redirects) the next diagnostic: per-step actor timings recorded on pass as well as failure and printed by an always() workflow step, plus the runner's resolver configuration and a timed sandboxed getaddrinfo, as one frozen revision on the pilot branch for a separately approved push. Then the agent prepares it and brings the SHA.
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T18:57:58Z (main): User correction 2026-10-30: the 9.20 s duration of test_the_actor_times_every_step includes proxy startup, actor launch and cleanup; it does not establish that an actor step caused the delay. DNS remains unconfirmed. Next diagnostic per user: PYTEST_ADDOPTS -rsP --durations=30, print world.actor_timings in the timing test, resolver-configuration output; standalone DNS probe deferred.
+- 2026-10-30T18:59:06Z (main): Smaller diagnostic frozen at a8338d7ba569c577ffdeb8e07f7fe7109a8042fd on the pilot branch (parent d4a6bae): PYTEST_ADDOPTS -rsP --durations=30; test_the_actor_times_every_step prints proxy_start_to_close and world.actor_timings; workflow step 'Show the resolver configuration' (ls/readlink/cat /etc/resolv.conf, nsswitch hosts line; no lookup); standalone DNS probe deferred. Verified locally: -rsP shows both timing prints for passing tests; test_egress_session.py + test_front_door.py 52 passed; just check 0; 0 test lines removed; resolver commands run under bash -euo pipefail. Awaits approval for one diagnostic push beyond the exhausted cap.
