@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T14:15:08Z
+updated: 2026-10-30T14:15:09Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -50,3 +50,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
   provenance: {"harness_session":"codex:01a18c8a-2c3b-7a23-ad9a-ee1621b14ebb","harness_session_source":"CODEX_THREAD_ID"}
 - 2026-10-30T14:15:08Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"codex:01a18c8a-2c3b-7a23-ad9a-ee1621b14ebb","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-30T14:15:09Z (design/autonomy-23aeff-test-policy): Intent traced to the filing session codex:01a1874f-c2d8-7320-ae81-7114e37e343f human turns at 2026-10-29T11:25:29Z and 11:36:20Z: reduce local broad verification contention, retain focused implementation tests, use wrapper-owned policy and push CI; binary policy is the approved shared design. Shared spec 1ce9abe and plan ddcfdab approved; ops pilot complete, ops tt v8 and obs schema17/parser2 readers landed. Project process remains planned; this phase prepares the project design only. Isolated .worktrees/autonomy-23aeff on design/autonomy-23aeff-test-policy hydrated with just setup; broad baseline deferred to implementation Setup. No runtime, workflow publication or policy change.
