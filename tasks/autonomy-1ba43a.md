@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T19:38:03Z
+updated: 2026-10-30T19:38:04Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -48,3 +48,4 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T19:30:48Z (main): User decision 2026-10-30: fix by renewing the lease while e21's bounded actor run is active (existing renewal API, during the actor wait with its 120 s timeout), stopping renewal before explicit close including on failure; full sweep and every assertion kept; expiry tests unchanged; RED->GREEN with a controlled actor delay beyond a short lease, e21 still closing by close. Reviewed frozen SHA for push approval; no hosted run authorized yet. Timings establish sweep slowness in run 41112785423, not what consumed 30 s in the original failure.
 - 2026-10-30T19:38:03Z (main): review: impl round 1 — verdict: accept; findings: Minor 4; reviewer: claude-code/claude-opus-5-5
+- 2026-10-30T19:38:03Z (main): Fix frozen at b49e7ae79a9009fa326ed20c724f8e6c922af93c on the pilot branch (parent a8338d7, one file): run_actor(renew_every=) renews via EgressSession.renew() from a thread started after launch attaches the listener, during actor.wait(timeout=120), stopped and joined in finally before return; e21 passes E21_RENEW_EVERY = 10.0; new sleep step; control test (2.5 s sleep, 1 s lease -> closes by lease) and renewal test (renew_every 0.25 -> close, no findings), RED (control closed by close: no sleep step; TypeError on renew_every) then GREEN. Full sweep and every assertion unchanged (removed lines: old run_actor signature and e21's call only); expiry tests untouched. test_egress_session.py + test_front_door.py 54 passed; reviewer ran test_egress_session.py + test_egress_proxy.py 51 passed and the pair 3x. Deferred minors: (1) e21 comments at the proxy_started line and the timings print still speak of a 30 s budget; (2) the pair does not assert world.actor_timings['steps']['slow'] >= 2.5, so each test alone does not prove the delay ran; (3) the renewer starts outside the try, and the first renew comes one interval after launch (a renew before the loop would remove the launch-latency dependence); (4) E21_RENEW_EVERY is tied to World.start's 30 s default only by a comment. Awaits user approval for a push.
