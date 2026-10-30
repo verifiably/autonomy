@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T16:22:32Z
+updated: 2026-10-30T16:22:33Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -79,3 +79,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T16:22:32Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T16:22:33Z (design/autonomy-23aeff-test-policy): Packet A approved by user 2026-10-30: one initial pilot push (code f71c605, head 2f261d7, tasks-only since), 15-min timeout, 5-push cap with per-retry revision approval; AppArmor runtime sysctl approved conditional on the first run showing that restriction caused the namespace failure, corrective revision still needs approval. Pushed 2f261d76d7850d31bb96e2d995961a382ca368dc to origin (push 1/5).
