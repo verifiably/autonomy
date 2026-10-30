@@ -269,3 +269,11 @@ def test_a_tag_push_takes_the_full_gate(front_door):
     result = front_door.push("origin", refs("refs/tags/v1"))
     assert result.returncode == 0, result.stderr
     assert front_door.markers() == [["hygiene"], ["suite"]]
+
+
+def test_the_namespace_exception_is_runtime_only_and_precedes_the_proof():
+    wf = workflow()
+    lift = "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+    assert wf.count(lift) == 1
+    assert wf.index("os.setns") < wf.index(lift) < wf.index("run: just test-one")
+    assert "/etc/sysctl" not in wf and "sysctl -p" not in wf

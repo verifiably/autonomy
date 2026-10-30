@@ -68,6 +68,12 @@ jobs:
           echo "$RUNNER_TEMP/tasks/target/release" >> "$GITHUB_PATH"
       - name: Setup
         run: just setup
+      - name: Allow unprivileged user namespaces on this VM
+        # Approved exception (autonomy-23aeff): Ubuntu 24.04's AppArmor default denies
+        # capabilities inside the sandbox's user namespaces (bwrap: Failed RTM_NEWADDR).
+        # Runtime only, on the disposable runner; never persisted, never on a host.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Namespace and TLS egress proof
         run: just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
       - name: Hygiene

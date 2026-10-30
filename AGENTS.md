@@ -28,7 +28,9 @@ with earlier whole-hook durations.
 
 Remote coverage: `.github/workflows/test.yml` runs setup, a namespace and TLS egress proof,
 `check-hygiene` and the forced full suite on every branch push (and manual dispatch) to
-origin; tags and pull-request events run nothing. `ci_suite_refs` declares that schedule
+origin; tags and pull-request events run nothing. The job lifts Ubuntu's AppArmor
+restriction on unprivileged user namespaces with a runtime sysctl on its disposable VM,
+an approved exception that is never persisted and never applies to a host. `ci_suite_refs` declares that schedule
 so a covered push takes the shorter hook; the declaration is intent, not proof that the
 pushed head passed. The hosted hygiene has known gaps: `tasks check` cannot validate
 dependencies on other projects' tasks, and ops-check cannot compare vendored tools with
