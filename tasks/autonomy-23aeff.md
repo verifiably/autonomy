@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T16:22:33Z
+updated: 2026-10-30T16:25:49Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -80,3 +80,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T16:22:32Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T16:22:33Z (design/autonomy-23aeff-test-policy): Packet A approved by user 2026-10-30: one initial pilot push (code f71c605, head 2f261d7, tasks-only since), 15-min timeout, 5-push cap with per-retry revision approval; AppArmor runtime sysctl approved conditional on the first run showing that restriction caused the namespace failure, corrective revision still needs approval. Pushed 2f261d76d7850d31bb96e2d995961a382ca368dc to origin (push 1/5).
+- 2026-10-30T16:25:49Z (design/autonomy-23aeff-test-policy): Hosted run 41089297381 (head 2f261d7) failed at the namespace and TLS proof: 12 failed, 32 passed of 44; Python 3.12.3 at /usr/bin/python3; kernel.apparmor_restrict_unprivileged_userns=1. Every failure is bwrap 'loopback: Failed RTM_NEWADDR: Operation not permitted' (capabilities denied in the new user namespace) or downstream of it (sandbox gone, /proc/<pid>/ns/net missing). The approved condition for the AppArmor runtime sysctl is met; Hygiene and Full suite were skipped. Log sha256 36c6aac4df0da602d817ec1d1dd07b651cab0ea1b83eb434ca2c1b197e574c4b.
