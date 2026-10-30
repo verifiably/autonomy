@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-10-30T18:15:10Z
-updated: 2026-10-30T18:37:12Z
+updated: 2026-10-30T18:37:13Z
 started: 2026-10-30T18:20:33Z
 depends: []
 tags: [egress]
@@ -32,3 +32,5 @@ Observed 2026-10-30 in main's hosted run 41104200861 (verifiably/autonomy, ubunt
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T18:32:12Z (main): User approved pilot push 5/5 of d4a6baeb4cdc6686b45059bb9f7d9eb1175a80a6; pushed; run 41107688532. Pilot push cap now exhausted; any further run or corrective push needs separate approval.
 - 2026-10-30T18:37:12Z (main): Diagnostic run 41107688532 (head d4a6bae) succeeded: 1396/1396, proof 45/45; e21 1.56 s on the runner this time (passed, so its per-step timings were not printed). --durations=30: the slowest test was the new test_the_actor_times_every_step at 9.20 s (steps: dns resolve first, doc-v4 connect, sweep); locally it takes 0.31 s (2 runs). The 30 slowest are otherwise lease/timeout tests at their designed 2-5 s. So the slowness is intermittent and inside an actor step, not the proxy or the lease logic; the leading hypothesis (DNS resolution inside the sandbox on the runner, first lookup slow and variable) is unconfirmed. A docker ubuntu:24.04 reproduction failed to model the runner (docker bind-mounts its own resolv.conf). Next evidence needs a hosted run: per-step timings recorded on pass too (run_actor appends to a file a final always() workflow step prints), plus the runner's /etc/resolv.conf target and nsswitch hosts line, and a timed getaddrinfo inside an actor-shaped bwrap sandbox. Log sha256 bbbe784b8ffacf61d34d33a05b52c4fe65488046be88dcd3a6b8a9077449ca93.
+- 2026-10-30T18:37:13Z (main): parked (waiting on user, decision): User approves (or redirects) the next diagnostic: per-step actor timings recorded on pass as well as failure and printed by an always() workflow step, plus the runner's resolver configuration and a timed sandboxed getaddrinfo, as one frozen revision on the pilot branch for a separately approved push. Then the agent prepares it and brings the SHA.
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
