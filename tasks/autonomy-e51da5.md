@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-30T23:55:38Z
+updated: 2026-10-30T23:55:39Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -31,3 +31,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-30T23:54:56Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-9523dc4.log", "state": "kept", "verification": "verified", "purpose": "Exact raw suite evidence underlying the portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-e51da5", "cleanup_trigger": "After a published tasks CLI with attachments support is pinned and normal hosted hygiene accepts the raw attachment, reassess preservation", "sha256": "0911fc7267306f75a5c7f45dae7db951b65644ce725b9f142f6c9b90eb395482"}
 - 2026-10-30T23:54:58Z (main): Tooling mismatch reported as ops-c2263c. Exact raw bytes verified before detaching; original-to-placeholder mapping recorded on autonomy-23aeff. Reproduction guard fails before repair because ops-check calls attachment eligibility.
 - 2026-10-30T23:55:38Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5", "state": "kept", "verification": "verified", "purpose": "Exact raw logs and portable derivatives for hosted hygiene repair; active attachments verified by reversible byte comparison", "next_owner": "task:autonomy-e51da5", "cleanup_trigger": "After approved push and hosted hygiene verdict, establish ongoing ownership of raw evidence before closing this task; retain raws until normal checks accept originals", "manifest": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/sha256-manifest.txt", "sha256": "b76d9f381a26f681158afcdbe3d2e5165a5c46565232c174b44779b66ad1d209"}
+- 2026-10-30T23:55:39Z (main): Verification: both portable attachments listed by tasks show; each is exactly reversible to its hashed raw source by the single <PYTEST_ROOT> substitution. ops-check with attachment eligibility queries forbidden: failed before repair, passed after. just check-hygiene exit 0; two unrelated unlinked-step warnings in docs/plans/2026-10-29-closed-messages-policy.md. No pytest run for record-only maintenance; no actual pinned CLI build or hosted rerun. All repair changes committed on main by tasks CLI; no code/workflow/pin edits, worktree or host pointer changes. Push remains subject to user approval.
