@@ -43,6 +43,9 @@ class World:
     other: FakeUpstream
     canary: str
     sessions: list = field(default_factory=list)
+    # The last actor's monotonic timings (run_actor): seconds per step, the actor's own
+    # span, and launch to exit as the host saw it. Diagnostics only; no test asserts a bound.
+    actor_timings: dict = field(default_factory=dict)
 
     def loaded(self):
         return load_route(self.config, "anthropic")
@@ -101,7 +104,9 @@ ACTOR = textwrap.dedent(r'''
     port = int(os.environ["VERIFIABLY_MODEL_URL"].rsplit(":", 1)[1])
     task = json.loads(sys.argv[1])
     scratch = os.environ["SCRATCH"]
+    actor_started = time.monotonic()
     report = {}
+    timings = {}
     received = []
 
     def ask(data, *, until_eof=True, mark=None):
@@ -139,6 +144,7 @@ ACTOR = textwrap.dedent(r'''
 
     for step in task:
         kind = step["kind"]
+        started = time.monotonic()
         if kind == "ask":
             got, first = ask(step["data"], mark=step.get("mark"))
             report[step["name"]] = {"first": first, "events": got.count(b"event: message"),
@@ -200,6 +206,8 @@ ACTOR = textwrap.dedent(r'''
             if any(needle in got for got in received):
                 found.append("proxy-replies")
             report[step["name"]] = found
+        timings[step.get("name") or f"{kind}:{step.get('file', '')}"] = time.monotonic() - started
+    print(json.dumps({"timings": {"steps": timings, "actor": time.monotonic() - actor_started}}), flush=True)
     print(json.dumps(report), flush=True)
 ''')
 
@@ -209,13 +217,17 @@ def run_actor(world: World, session: EgressSession, task: list[dict], *, make=No
     out = world.scratch.parent / "actor.out"
     with open(out, "wb") as stdout, open(os.devnull, "rb") as null:
         hook = session.attach if make is None else (lambda c, p: session.attach(c, p, make=make))
+        launched = time.monotonic()
         actor = launch(spec, ["/usr/bin/python3", "-I", "-c", ACTOR, json.dumps(task)],
                        stdin=null.fileno(), stdout=stdout.fileno(), stderr=stdout.fileno(), before_release=hook)
         try:
             actor.wait(timeout=120)
         finally:
             actor.close()
+    exited = time.monotonic()
     lines = out.read_bytes().decode().strip().splitlines()
+    world.actor_timings = {**next(json.loads(line)["timings"] for line in lines if line.startswith('{"timings"')),
+                           "launch_to_exit": exited - launched}
     return json.loads(lines[-1]), actor.child_pid
 
 
@@ -295,6 +307,20 @@ def test_the_proxy_gets_stdin_from_dev_null(world, monkeypatch):  # E20, the pro
 
 # -- E21 -----------------------------------------------------------------------------
 
+def test_the_actor_times_every_step(world):
+    session = world.start()
+    run_actor(world, session, [
+        {"kind": "resolve", "name": "dns", "host": "api.anthropic.com"},
+        {"kind": "connect", "name": "doc-v4", "host": "192.0.2.1", "port": 443},
+        {"kind": "sweep", "name": "sweep", "needle": world.canary.encode().hex()},
+    ])
+    session.close()
+    steps = world.actor_timings["steps"]
+    assert list(steps) == ["dns", "doc-v4", "sweep"]
+    assert all(type(seconds) is float and seconds >= 0 for seconds in steps.values())
+    assert world.actor_timings["actor"] >= sum(steps.values())
+
+
 def test_e21_the_model_route_is_the_actors_only_way_out(world):
     abstract = f"va-test-{os.getpid()}"
     host_listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -303,7 +329,9 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
     world.upstream.events, world.upstream.gap = 5, 0.3
     loaded = world.loaded()
     spec = SandboxSpec(scratch=world.scratch, env={"VERIFIABLY_MODEL_URL": MODEL_URL, "SCRATCH": str(world.scratch)})
+    proved = time.monotonic()
     prove(spec, world.denied(loaded))
+    proxy_started = time.monotonic()  # the 30 s lease runs from here until close
     session = world.start()
     proxy_cmdline = Path(f"/proc/{session.process.pid}/cmdline").read_bytes()
     task = [
@@ -320,7 +348,11 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
     ]
     report, _ = run_actor(world, session, task)
     closed = session.close()
+    closed_at = time.monotonic()
     host_listener.close()
+    # Shown by pytest only when the test fails: where the lease's 30 s went (autonomy-1ba43a).
+    print("e21 timings:", json.dumps({"prove": proxy_started - proved, "proxy_start_to_close": closed_at - proxy_started,
+                                       **world.actor_timings}))
     assert report["stream"]["status"] == "200" and report["stream"]["events"] == 5
     assert report["stream"]["first"] < world.upstream.last_event_at
     assert json.loads(report["connect-tunnel"]["body"])["error"]["code"] == "target-refused"
