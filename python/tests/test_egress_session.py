@@ -168,6 +168,8 @@ ACTOR = textwrap.dedent(r'''
                     report[step["name"]] = errno.errorcode.get(caught.errno)
         elif kind == "wait":
             wait_for(step["file"])
+        elif kind == "sleep":
+            time.sleep(step["seconds"])
         elif kind == "timed-connect":
             started = time.monotonic()
             try:
@@ -212,7 +214,11 @@ ACTOR = textwrap.dedent(r'''
 ''')
 
 
-def run_actor(world: World, session: EgressSession, task: list[dict], *, make=None) -> tuple[dict, int]:
+def run_actor(world: World, session: EgressSession, task: list[dict], *, make=None,
+              renew_every: float | None = None) -> tuple[dict, int]:
+    """Run the actor to exit (at most 120 s). With `renew_every`, the lease is renewed at
+    that interval while the actor runs, after the listener is attached, and the renewals
+    stop before this returns or raises, so the caller's close is never raced."""
     spec = SandboxSpec(scratch=world.scratch, env={"VERIFIABLY_MODEL_URL": MODEL_URL, "SCRATCH": str(world.scratch)})
     out = world.scratch.parent / "actor.out"
     with open(out, "wb") as stdout, open(os.devnull, "rb") as null:
@@ -220,15 +226,28 @@ def run_actor(world: World, session: EgressSession, task: list[dict], *, make=No
         launched = time.monotonic()
         actor = launch(spec, ["/usr/bin/python3", "-I", "-c", ACTOR, json.dumps(task)],
                        stdin=null.fileno(), stdout=stdout.fileno(), stderr=stdout.fileno(), before_release=hook)
+        stop = threading.Event()
+        renewer = None
+        if renew_every is not None:
+            renewer = threading.Thread(target=_renew_until, args=(session, renew_every, stop), daemon=True)
+            renewer.start()
         try:
             actor.wait(timeout=120)
         finally:
+            stop.set()
+            if renewer is not None:
+                renewer.join()
             actor.close()
     exited = time.monotonic()
     lines = out.read_bytes().decode().strip().splitlines()
     world.actor_timings = {**next(json.loads(line)["timings"] for line in lines if line.startswith('{"timings"')),
                            "launch_to_exit": exited - launched}
     return json.loads(lines[-1]), actor.child_pid
+
+
+def _renew_until(session: EgressSession, every: float, stop: threading.Event) -> None:
+    while not stop.wait(every):
+        session.renew()
 
 
 def ask(name: str, body: dict | bytes | None = None, **kw) -> dict:
@@ -307,6 +326,23 @@ def test_the_proxy_gets_stdin_from_dev_null(world, monkeypatch):  # E20, the pro
 
 # -- E21 -----------------------------------------------------------------------------
 
+SLOW_STEP = {"kind": "sleep", "name": "slow", "seconds": 2.5}  # outlasts the 1 s lease below
+
+
+def test_a_slow_actor_outlives_a_short_lease_without_renewal(world):
+    """The control for the next test: this delay really does exceed the lease."""
+    session = world.start(lease=1.0)
+    run_actor(world, session, [SLOW_STEP])
+    assert session.close().cause == "lease"
+
+
+def test_renewal_keeps_a_slow_actors_route_until_its_explicit_close(world):
+    session = world.start(lease=1.0)
+    run_actor(world, session, [SLOW_STEP], renew_every=0.25)
+    closed = session.close()
+    assert (closed.cause, closed.timed_out, closed.findings()) == ("close", False, ())
+
+
 def test_the_actor_times_every_step(world):
     proxy_started = time.monotonic()
     session = world.start()
@@ -322,6 +358,9 @@ def test_the_actor_times_every_step(world):
     assert list(steps) == ["dns", "doc-v4", "sweep"]
     assert all(type(seconds) is float and seconds >= 0 for seconds in steps.values())
     assert world.actor_timings["actor"] >= sum(steps.values())
+
+
+E21_RENEW_EVERY = 10.0  # a third of World.start's 30 s lease
 
 
 def test_e21_the_model_route_is_the_actors_only_way_out(world):
@@ -349,7 +388,9 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
         {"kind": "abstract", "name": "abstract", "name_": abstract},
         {"kind": "sweep", "name": "sweep", "needle": world.canary.encode().hex()},
     ]
-    report, _ = run_actor(world, session, task)
+    # Renewed while the actor runs, so a slow sweep (cold reads on a hosted runner) cannot
+    # end the route by lease mid-check; expiry has its own tests (autonomy-1ba43a).
+    report, _ = run_actor(world, session, task, renew_every=E21_RENEW_EVERY)
     closed = session.close()
     closed_at = time.monotonic()
     host_listener.close()
