@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-30T23:54:54Z
+updated: 2026-10-30T23:54:56Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -28,3 +28,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-30T23:54:29Z (main): Direct task-record repair in main (worktree exception). Scope: preserve both raw suite logs, replace their active attachments with explicitly labelled portable derivatives, verify exact replacement and hygiene without attachment eligibility support. No code, workflow or tool pin changes; no pytest obligation for records-only work. Reproduced that ops-check attempts attachment eligibility on the current logs.
 - 2026-10-30T23:54:53Z (main): Created persistent scratch on titan: /mnt/ssd3/work/autonomy/autonomy-23aeff/portable-log-repair-e51da5; purpose: preserve original suite logs and prepare portable derivatives; owner autonomy-e51da5; contents mutable, not yet checkpointed.
 - 2026-10-30T23:54:54Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-f71c605.log", "state": "kept", "verification": "verified", "purpose": "Exact raw suite evidence underlying the portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-e51da5", "cleanup_trigger": "After a published tasks CLI with attachments support is pinned and normal hosted hygiene accepts the raw attachment, reassess preservation", "sha256": "8a081b5ad21d9b4208553cc15ef3c7050daf06fac30919d964a046a7e33bb228"}
+- 2026-10-30T23:54:56Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-9523dc4.log", "state": "kept", "verification": "verified", "purpose": "Exact raw suite evidence underlying the portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-e51da5", "cleanup_trigger": "After a published tasks CLI with attachments support is pinned and normal hosted hygiene accepts the raw attachment, reassess preservation", "sha256": "0911fc7267306f75a5c7f45dae7db951b65644ce725b9f142f6c9b90eb395482"}
