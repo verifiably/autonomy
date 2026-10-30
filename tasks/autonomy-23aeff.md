@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T22:59:56Z
+updated: 2026-10-30T23:00:10Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -130,3 +130,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T22:59:53Z (main): attached: hosted-run-41120536343-logs.zip (39398 bytes): Renewal fix be0dea3 log archive: 1399/1399
 - 2026-10-30T22:59:54Z (main): attached: hosted-run-41141028249-logs.zip (36473 bytes): Main 3b281bd log archive: 1398/1398, green
 - 2026-10-30T22:59:55Z (main): attached: local-suite-9523dc4.log (3099 bytes): Local forced suite at 9523dc4: 1394/1394, compared in packet B
+- 2026-10-30T23:00:10Z (main): attached: plan-ledger-progress.md (7732 bytes): Executing-plans ledger for the test policy plan: task completions, rulings, deferred minors
