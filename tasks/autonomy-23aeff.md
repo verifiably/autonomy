@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T22:59:54Z
+updated: 2026-10-30T22:59:55Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -128,3 +128,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T22:59:52Z (main): attached: hosted-run-41107688532.log (82013 bytes): Diagnostic d4a6bae: durations; e21 passed
 - 2026-10-30T22:59:53Z (main): attached: hosted-run-41112785423-logs.zip (39445 bytes): Diagnostic a8338d7 log archive: sweep 12.39 s first in job; resolver configuration
 - 2026-10-30T22:59:53Z (main): attached: hosted-run-41120536343-logs.zip (39398 bytes): Renewal fix be0dea3 log archive: 1399/1399
+- 2026-10-30T22:59:54Z (main): attached: hosted-run-41141028249-logs.zip (36473 bytes): Main 3b281bd log archive: 1398/1398, green
