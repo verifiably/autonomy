@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T22:59:49Z
+updated: 2026-10-30T22:59:50Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -123,3 +123,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T22:59:00Z (main): attached: hosted-run-41095831866.log (92083 bytes): Hosted run 41095831866: accepted coverage, 1394/1394 (packet B)
 - 2026-10-30T22:59:48Z (main): attached: hosted-run-41089297381.log (129356 bytes): Pilot push 1: namespace proof failed under Ubuntu AppArmor userns restriction
 - 2026-10-30T22:59:49Z (main): attached: hosted-run-41090873620.log (131344 bytes): Pilot push 2: sysctl lifted; sandbox /lib64 layout defect (autonomy-7f4bc7)
+- 2026-10-30T22:59:50Z (main): attached: hosted-run-41101402802.log (73705 bytes): Policy-off head 26c8a0e: 1395/1395
