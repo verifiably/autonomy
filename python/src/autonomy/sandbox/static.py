@@ -5,10 +5,11 @@ so a symlinked or bind-mounted alias of a corpus is caught before anything runs.
 from __future__ import annotations
 
 import os
+import posixpath
 from collections.abc import Iterable
 from pathlib import Path
 
-from autonomy.sandbox.spec import SandboxSpec
+from autonomy.sandbox.spec import SYSTEM_LINKS, SandboxSpec
 
 
 class SandboxUnproven(Exception):
@@ -18,6 +19,26 @@ class SandboxUnproven(Exception):
         super().__init__(f"{code}: {path}: {message}")
         self.code = code
         self.path = path
+
+
+def system_symlinks(root: Path = Path("/")) -> tuple[tuple[str, str], ...]:
+    """The host's merged-/usr links as `(target, link)` pairs, to recreate inside the
+    sandbox. They mirror the host because the targets differ by distribution (Arch:
+    `/lib64 -> usr/lib`; Debian and Ubuntu: `usr/lib64`), and a wrong one leaves every
+    binary without its ELF interpreter. Only `/usr` is bound, so each link must resolve
+    under it; a link the host lacks is left out."""
+    links: list[tuple[str, str]] = []
+    for link in SYSTEM_LINKS:
+        host = root / link.lstrip("/")
+        if not os.path.lexists(host):
+            continue
+        if not host.is_symlink():
+            raise SandboxUnproven("layout-unsupported", link, "not a merged-/usr symlink on this host")
+        target = os.readlink(host)
+        if not posixpath.normpath(posixpath.join("/", target)).startswith("/usr/"):
+            raise SandboxUnproven("layout-unsupported", link, f"points at {target}, outside the bound /usr")
+        links.append((target, link))
+    return tuple(links)
 
 
 def _identity(path: Path) -> tuple[int, int]:

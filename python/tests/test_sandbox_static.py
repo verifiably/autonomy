@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from autonomy.sandbox.spec import SandboxSpec
-from autonomy.sandbox.static import SandboxUnproven, check_binds, check_sources
+from autonomy.sandbox.static import SandboxUnproven, check_binds, check_sources, system_symlinks
 
 
 @pytest.fixture
@@ -152,3 +152,46 @@ def test_the_exemption_is_exact_not_an_ancestor(tmp_path):
     credential.write_text("k\n")
     with pytest.raises(SandboxUnproven):
         check_sources([config / "credentials"], [config], exempt=[credential])
+
+
+def host_root(tmp_path, links):
+    """A fake root whose top-level entries are the given symlinks (name -> target)."""
+    root = tmp_path / "root"
+    (root / "usr").mkdir(parents=True)
+    for name, target in links.items():
+        (root / name).symlink_to(target)
+    return root
+
+
+def test_the_system_links_mirror_an_ubuntu_hosts_targets(tmp_path):
+    root = host_root(tmp_path, {"bin": "usr/bin", "lib": "usr/lib", "lib64": "usr/lib64", "sbin": "usr/sbin"})
+    assert system_symlinks(root) == (
+        ("usr/bin", "/bin"), ("usr/lib", "/lib"), ("usr/lib64", "/lib64"), ("usr/sbin", "/sbin"))
+
+
+def test_the_system_links_mirror_an_arch_hosts_targets(tmp_path):
+    root = host_root(tmp_path, {"bin": "usr/bin", "lib": "usr/lib", "lib64": "usr/lib", "sbin": "usr/bin"})
+    assert system_symlinks(root) == (
+        ("usr/bin", "/bin"), ("usr/lib", "/lib"), ("usr/lib", "/lib64"), ("usr/bin", "/sbin"))
+
+
+def test_a_link_the_host_lacks_is_left_out(tmp_path):
+    root = host_root(tmp_path, {"bin": "usr/bin", "lib": "usr/lib", "sbin": "usr/bin"})
+    assert ("usr/lib64", "/lib64") not in system_symlinks(root)
+    assert [link for _, link in system_symlinks(root)] == ["/bin", "/lib", "/sbin"]
+
+
+@pytest.mark.parametrize("target", ["/opt/lib", "../etc", "usr/../etc", "/"])
+def test_a_link_outside_usr_is_typed(tmp_path, target):
+    root = host_root(tmp_path, {"bin": "usr/bin", "lib": target})
+    with pytest.raises(SandboxUnproven) as caught:
+        system_symlinks(root)
+    assert (caught.value.code, caught.value.path) == ("layout-unsupported", "/lib")
+
+
+def test_a_real_directory_where_a_link_belongs_is_typed(tmp_path):
+    root = host_root(tmp_path, {"bin": "usr/bin"})
+    (root / "lib").mkdir()
+    with pytest.raises(SandboxUnproven) as caught:
+        system_symlinks(root)
+    assert (caught.value.code, caught.value.path) == ("layout-unsupported", "/lib")

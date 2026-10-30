@@ -16,8 +16,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from autonomy.sandbox.spec import IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SYSTEM_SYMLINKS, SandboxSpec
-from autonomy.sandbox.static import SandboxUnproven, check_binds
+from autonomy.sandbox.spec import IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec
+from autonomy.sandbox.static import SandboxUnproven, check_binds, system_symlinks
 
 _PROBE = """\
 import errno, os, socket, sys
@@ -48,7 +48,7 @@ def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
         raise SandboxUnproven("bwrap-missing", "bwrap", "bubblewrap is not on PATH")
     trial = [
         "bwrap", "--unshare-all", "--die-with-parent", "--ro-bind", "/usr", "/usr",
-        *[arg for target, link in SYSTEM_SYMLINKS for arg in ("--symlink", target, link)],
+        *[arg for target, link in system_symlinks() for arg in ("--symlink", target, link)],
         "--", "/usr/bin/true",
     ]
     try:
@@ -66,7 +66,7 @@ def build_argv(
     args += ["--die-with-parent", "--new-session", "--clearenv", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]
     for path in SYSTEM_RO:
         args += ["--ro-bind", str(path), str(path)]
-    for target, link in SYSTEM_SYMLINKS:
+    for target, link in system_symlinks():
         args += ["--symlink", target, link]
     for path in spec.ro_binds:
         args += ["--ro-bind", str(path), str(path)]
