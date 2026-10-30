@@ -277,3 +277,21 @@ def test_the_namespace_exception_is_runtime_only_and_precedes_the_proof():
     assert wf.count(lift) == 1
     assert wf.index("os.setns") < wf.index(lift) < wf.index("run: just test-one")
     assert "/etc/sysctl" not in wf and "sysctl -p" not in wf
+
+
+READ_POLICY = """\
+import importlib.machinery, importlib.util, json, pathlib, sys
+loader = importlib.machinery.SourceFileLoader("tt_policy", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+tt = importlib.util.module_from_spec(spec)
+loader.exec_module(tt)
+policy = tt.read_policy(pathlib.Path.cwd())
+print(json.dumps(None if policy is None else {k: v for k, v in policy.items() if k != "path"}))
+"""
+
+
+def test_the_repository_policy_disables_only_the_broad_suites(front_door):
+    # tt's own reader, run in this checkout with the fixture's key-by-key environment.
+    result = subprocess.run(["python3", "-c", READ_POLICY, str(REPO / "tools/tt")], cwd=REPO,
+                            env=front_door.env, text=True, capture_output=True, check=True)
+    assert json.loads(result.stdout) == {"automatic_broad": False, "broad_targets": ["test", "test-fast"]}

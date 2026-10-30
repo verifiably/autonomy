@@ -20,6 +20,12 @@ while working and `just test-fast` (pytest-testmon) before committing. Tests mar
 Test execution policy is `.tt.toml` at this checkout's Git top level (each worktree
 reads its own), never task records or a sibling checkout; tt alone reads it. `test` and
 `test-fast` are the broad targets it can skip; `test-one` and `check-hygiene` always run.
+Local broad suites are off (`automatic_broad = false`): `just test` and `just test-fast`
+record a skip, the hosted workflow below runs the full suite on every branch push, and
+`just test-full` runs it here when you need it. Rollback sets `automatic_broad = true`,
+updates `test_the_repository_policy_disables_only_the_broad_suites` to match, and records
+`policy: enabled at <RFC3339-UTC> revision <full-sha>` on the adoption task at the
+landed rollback.
 `just test-full` (or `TT_FORCE=1 just test`) runs the full suite deliberately and returns
 its status. testmon reselects only on Python changes, so a justfile or hook edit runs
 `just test-one tests/test_front_door.py`. The hooks time mandatory hygiene alone and call
