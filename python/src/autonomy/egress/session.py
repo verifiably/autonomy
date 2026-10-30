@@ -25,7 +25,7 @@ from autonomy.egress.proxy import BOOT, IN_SANDBOX_CA, IN_SANDBOX_CREDENTIAL, re
 from autonomy.egress.route import LoadedRoute, Route
 from autonomy.membership import Finding
 from autonomy.sandbox.bwrap import read_info
-from autonomy.sandbox.spec import SYSTEM_SYMLINKS
+from autonomy.sandbox.static import system_symlinks
 from autonomy.sandbox.static import SandboxUnproven, check_sources
 
 PROXY_START_TIMEOUT = 10.0
@@ -69,14 +69,15 @@ def check_proxy(binds: ProxyBinds, denied: Iterable[Path]) -> None:
         raise EgressUnproven("proxy-bind-refused", str(caught)) from None
 
 
-def proxy_argv(binds: ProxyBinds, *, control_fd: int, records_fd: int, info_fd: int) -> list[str]:
+def proxy_argv(binds: ProxyBinds, links: tuple[tuple[str, str], ...], *, control_fd: int, records_fd: int,
+               info_fd: int) -> list[str]:
     """No `--die-with-parent`, deliberately: a proxy that died with the orchestrator
     would write no closing line. It sees EOF on its control socket and closes."""
     args = ["bwrap", "--unshare-all", "--share-net", "--new-session", "--clearenv",
             "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/run/va"]
     for source, destination in binds.ro:
         args += ["--ro-bind", str(source), destination]
-    for target, link in SYSTEM_SYMLINKS:
+    for target, link in links:
         args += ["--symlink", target, link]
     args += ["--setenv", "PATH", "/usr/bin", "--info-fd", str(info_fd), "--",
              "/usr/bin/python3", "-I", "-c", BOOT, str(_package().parent), str(control_fd), str(records_fd)]
@@ -145,6 +146,10 @@ class EgressSession:
     def start(cls, loaded: LoadedRoute, run_dir: Path, *, lease: float, denied: Iterable[Path]) -> EgressSession:
         binds = proxy_binds(loaded.route)
         check_proxy(binds, denied)
+        try:  # before any descriptor exists, so a refusal leaks none
+            links = system_symlinks()
+        except SandboxUnproven as caught:
+            raise EgressUnproven("proxy-unstarted", str(caught)) from None
         flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_CLOEXEC
         records = os.open(run_dir / EGRESS_RECORDS, flags, 0o600)
         log = os.open(run_dir / PROXY_LOG, flags, 0o600)
@@ -152,7 +157,7 @@ class EgressSession:
         info_read, info_write = os.pipe()
         try:
             process = subprocess.Popen(
-                proxy_argv(binds, control_fd=theirs.fileno(), records_fd=records, info_fd=info_write),
+                proxy_argv(binds, links, control_fd=theirs.fileno(), records_fd=records, info_fd=info_write),
                 pass_fds=(theirs.fileno(), records, info_write), stdin=subprocess.DEVNULL,
                 stdout=log, stderr=log, start_new_session=True,
             )

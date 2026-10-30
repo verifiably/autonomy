@@ -21,6 +21,7 @@ from egress_fixtures import (  # noqa: F401  (tls is a fixture)
 )
 from autonomy.egress import session as session_module
 from autonomy.egress.errors import EgressUnproven
+from autonomy.sandbox.static import SandboxUnproven, system_symlinks
 from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import egress_denied, load_route
 from autonomy.egress.session import (
@@ -233,12 +234,32 @@ def proxy_pid(session: EgressSession) -> int:
 def test_the_proxys_argv(world):
     route = world.loaded().route
     binds = proxy_binds(route)
-    argv = proxy_argv(binds, control_fd=5, records_fd=6, info_fd=7)
+    argv = proxy_argv(binds, system_symlinks(), control_fd=5, records_fd=6, info_fd=7)
     assert argv[:6] == ["bwrap", "--unshare-all", "--share-net", "--new-session", "--clearenv", "--proc"]
     assert "--die-with-parent" not in argv
     at = argv.index(str(world.credential))
     assert argv[at - 1 : at + 2] == ["--ro-bind", str(world.credential), "/run/va/credential"]
     assert argv[argv.index("--info-fd") + 1] == "7"
+
+
+def test_the_proxys_links_are_the_ones_resolved_at_start(world):
+    links = (("usr/bin", "/bin"), ("usr/lib64", "/lib64"))
+    argv = proxy_argv(proxy_binds(world.loaded().route), links, control_fd=5, records_fd=6, info_fd=7)
+    assert [tuple(argv[i + 1:i + 3]) for i, arg in enumerate(argv) if arg == "--symlink"] == list(links)
+
+
+def test_an_unsupported_host_layout_leaves_the_proxy_unstarted_and_leaks_nothing(world, monkeypatch):
+    import autonomy.egress.session as session
+
+    def unsupported():
+        raise SandboxUnproven("layout-unsupported", "/lib", "points at /opt/lib, outside the bound /usr")
+    monkeypatch.setattr(session, "system_symlinks", unsupported)
+    loaded = world.loaded()
+    before = set(os.listdir("/proc/self/fd"))
+    with pytest.raises(EgressUnproven) as caught:
+        EgressSession.start(loaded, world.run_dir, lease=30, denied=world.denied(loaded))
+    assert caught.value.code == "proxy-unstarted" and "layout-unsupported" in caught.value.message
+    assert set(os.listdir("/proc/self/fd")) <= before
 
 
 def test_a_resolver_outside_etc_is_bound(world, tmp_path):

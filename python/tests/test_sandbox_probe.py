@@ -33,6 +33,20 @@ def test_argv_shape(layout):
     assert argv[argv.index("--chdir") + 1] == scratch
 
 
+UBUNTU_LINKS = (("usr/bin", "/bin"), ("usr/lib", "/lib"), ("usr/lib64", "/lib64"), ("usr/sbin", "/sbin"))
+
+
+def symlink_args(argv):
+    return [tuple(argv[i + 1:i + 3]) for i, arg in enumerate(argv) if arg == "--symlink"]
+
+
+def test_the_actors_links_are_the_hosts(layout, monkeypatch):
+    import autonomy.sandbox.bwrap as bwrap
+    monkeypatch.setattr(bwrap, "system_symlinks", lambda: UBUNTU_LINKS)
+    argv = build_argv(SandboxSpec(scratch=layout["scratch"]), ["/usr/bin/true"], info_fd=None)
+    assert symlink_args(argv) == list(UBUNTU_LINKS)
+
+
 def test_no_sandbox_shares_the_host_network(layout):
     spec = SandboxSpec(scratch=layout["scratch"])
     assert "--share-net" not in build_argv(spec, ["/usr/bin/true"], info_fd=None)
