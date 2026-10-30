@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T14:20:31Z
+updated: 2026-10-30T14:20:33Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -56,3 +56,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T14:19:54Z (design/autonomy-23aeff-test-policy): review: spec round 1 — verdict: accept; findings: none; reviewer: codex/gpt-6.1-sol
 - 2026-10-30T14:19:57Z (design/autonomy-23aeff-test-policy): attached: design-builder-report.md (876 bytes): Full read-only builder review by codex/gpt-6.1-sol of frozen ec27ca5; accepted with zero Critical, Important or Minor findings.
 - 2026-10-30T14:20:31Z (design/autonomy-23aeff-test-policy): Builder review is attached and listed by tasks show; SHA-256 17ff83849d2fbe390f4eb696f12d484961fa900edf2416bb7f943105ad8d3c66 matched the workspace copy before its removal. Review accepted with no findings; no rulings or deferred minors. No standalone scratch/evidence copy remains. Design content stays frozen at ec27ca5c3a90f66c2178ca7b5a48f35fe1e7e1b3.
+- 2026-10-30T14:20:33Z (design/autonomy-23aeff-test-policy): retained: {"host":"titan","kind":"worktree","path":".worktrees/autonomy-23aeff","state":"kept","verification":"verified","purpose":"Frozen design ec27ca5 and attached accepted builder review await user design review; branch design/autonomy-23aeff-test-policy is unmerged","next_owner":"task:autonomy-23aeff","cleanup_trigger":"After user design review, approved planning and authorized integration, inspect ignored files and host pointers and harvest timings before considering removal"}
