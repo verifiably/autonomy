@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: design/autonomy-23aeff-test-policy
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T16:33:16Z
+updated: 2026-10-30T16:33:18Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -85,3 +85,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-30T16:33:16Z (design/autonomy-23aeff-test-policy): resumed
   provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T16:33:18Z (design/autonomy-23aeff-test-policy): User approved retry; pushed 29e81e2723a01de84a44e13b167e729fad582c86 (code 30efc34, tasks-only since) as pilot push 2/5; run 41090873620.
