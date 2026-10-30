@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T17:47:13Z
+updated: 2026-10-30T18:15:22Z
 started: 2026-10-30T14:13:58Z
 depends: [ops-68729d]
 tags: []
@@ -104,3 +104,16 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T17:44:43Z (design/autonomy-23aeff-test-policy): review: impl round 2 — verdict: revise; findings: Important 1, Minor 3; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T17:47:12Z (design/autonomy-23aeff-test-policy): review: impl round 3 — verdict: accept; findings: none; reviewer: claude-code/claude-opus-5-5
 - 2026-10-30T17:47:12Z (design/autonomy-23aeff-test-policy): Pilot push 4/5 under packet B: 26c8a0e26e63aa9424463cee0fbf82cd6e831379 (policy-off fc775b8 + AGENTS cadence fix 26c8a0e, both reviewed); local hook ran hygiene and recorded test-fast skipped by policy; run 41101402802.
+- 2026-10-30T17:59:16Z (main): policy: disabled at 2026-10-30T17:59:04Z revision b6fdc728a1ac80f947751d5bda0c7507a457b154
+- 2026-10-30T17:59:19Z (main): resumed
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T18:00:14Z (main): Latency disposition at registered main b6fdc728a1ac80f947751d5bda0c7507a457b154: no autonomy test-latency incident or halt; the only open test-latency task across projects is mm-f1dccf (multiple-myeloma, unrelated). Nothing retired; no performance-verification claim.
+- 2026-10-30T18:00:51Z (main): attached: activation-packet-c.md (3427 bytes): Packet C: push local main (97 commits incl. another session's ops-check v16 vendoring 0ab3671); policy-off run 41101402802 1395/1395
+- 2026-10-30T18:00:53Z (main): parked (waiting on user, approval): User approves packet C (attached): git push origin main. Then the agent verifies main's hosted run and finishes Task 6 (report to ops-8bfa85 and ops-56aab7, retained items, close).
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T18:08:21Z (main): resumed
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-30T18:08:24Z (main): User approved packet C: pushed main 3c5f272ab1b5aa820a0af9191a0a2bf451384a41 (55417bc..3c5f272, incl. 0ab3671); local hook ran hygiene and recorded test-fast skipped by policy; main run 41104200861.
+- 2026-10-30T18:15:11Z (main): Main hosted run 41104200861 (head 3c5f272) FAILED: 1 failed, 1394 passed of 1395; proof 45/45; 21 modules. The failure is test_e21_the_model_route_is_the_actors_only_way_out: the proxy closed by lease (30 s elapsed) instead of close; it passed on the same code in runs 41095831866 and 41101402802, and takes 1.7 s locally. Filed autonomy-1ba43a. Log sha256 66bc428ed89938e9020972c951b7ff1c966a88d667e0baa1e92e2b84cd1d3d23. Policy stays as landed (disabled at b6fdc72); rollback is the user's call.
+- 2026-10-30T18:15:22Z (main): parked (waiting on user, decision): User decides: keep local policy off and approve a diagnostic hosted run for autonomy-1ba43a (per-test durations; the last pilot push or a workflow_dispatch on main), or roll back to automatic_broad = true. Then the agent fixes autonomy-1ba43a, verifies main green, and finishes Task 6 (ops-8bfa85 and ops-56aab7 reports, retained items, close).
+  provenance: {"harness_session":"claude-code:ebd9e3fd-0ff3-49af-84ef-dffb5a446c3c","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
