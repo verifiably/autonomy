@@ -7,7 +7,7 @@ size: m
 complexity: high
 process: planned
 created: 2026-10-31T23:48:00Z
-updated: 2026-10-31T23:48:01Z
+updated: 2026-10-31T23:48:02Z
 depends: [autonomy-f6efe8]
 tags: [sandbox]
 source: autonomy-2e2519
@@ -25,3 +25,4 @@ Blocked on autonomy-f6efe8.
 
 - 2026-10-31T23:48:00Z (add): created
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
+- 2026-10-31T23:48:02Z (main): concerns: autonomy-2e2519 extension — the destination decision 14 names for the launch once run can launch
