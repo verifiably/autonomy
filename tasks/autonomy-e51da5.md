@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-30T23:55:48Z
+updated: 2026-10-31T00:04:41Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -33,4 +33,6 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-30T23:55:38Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5", "state": "kept", "verification": "verified", "purpose": "Exact raw logs and portable derivatives for hosted hygiene repair; active attachments verified by reversible byte comparison", "next_owner": "task:autonomy-e51da5", "cleanup_trigger": "After approved push and hosted hygiene verdict, establish ongoing ownership of raw evidence before closing this task; retain raws until normal checks accept originals", "manifest": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/sha256-manifest.txt", "sha256": "b76d9f381a26f681158afcdbe3d2e5165a5c46565232c174b44779b66ad1d209"}
 - 2026-10-30T23:55:39Z (main): Verification: both portable attachments listed by tasks show; each is exactly reversible to its hashed raw source by the single <PYTEST_ROOT> substitution. ops-check with attachment eligibility queries forbidden: failed before repair, passed after. just check-hygiene exit 0; two unrelated unlinked-step warnings in docs/plans/2026-10-29-closed-messages-policy.md. No pytest run for record-only maintenance; no actual pinned CLI build or hosted rerun. All repair changes committed on main by tasks CLI; no code/workflow/pin edits, worktree or host pointer changes. Push remains subject to user approval.
 - 2026-10-30T23:55:48Z (main): parked (waiting on user, approval): User approves pushing main; then agent runs git push origin main, inspects hosted hygiene and records its verdict, and establishes ongoing raw-evidence ownership before closing.
+  provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-31T00:04:41Z (main): resumed
   provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
