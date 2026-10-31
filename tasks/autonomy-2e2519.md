@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: analyst-launch
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T21:56:06Z
+updated: 2026-10-31T22:10:17Z
 started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
@@ -60,3 +60,4 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
 - 2026-10-31T21:43:15Z (analyst-launch): review: spec round 2 — verdict: accept; findings: none; reviewer: human
 - 2026-10-31T21:43:16Z (analyst-launch): spec approved by the user 2026-10-31 at frozen revision 5c5c423b09c58b0751c3ca87ad3cac6364933eac (relayed reviewer label: gemini-4-argon; all twelve design calls accepted). The user also authorized proceeding through the plan, its review and execution in this session.
 - 2026-10-31T21:56:06Z (analyst-launch): baseline (execution Setup, policy-off): just test-one over tests/test_sandbox_static.py test_sandbox_probe.py test_sandbox_launch.py test_egress_session.py test_egress_upstream.py test_egress_proxy.py test_cli.py test_front_door.py test_egress_live.py passed 232 tests in 78 s on the pre-change tree (96d17c1 + task records). The broad suite is deliberately not run locally (.tt.toml automatic_broad = false); the hosted workflow runs it on push. Plan frozen at 96d17c1, children autonomy-985aae, e4af6b, cd3e4b, 4d17fa, 23012d, 18222d, bc7305; plan review dispatched to a fresh agent.
+- 2026-10-31T22:10:17Z (analyst-launch): review: plan round 1 — verdict: revise; findings: critical 3, important 5, minor 11; reviewer: claude-code/claude-fable-5-1
