@@ -97,6 +97,29 @@ def _copy(src_fd: int, dest_fd: int) -> tuple[int, str]:
 
 
 def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) -> None:
+    """Walk `src_fd` into `dest_fd` iteratively: an explicit stack of open directory pairs,
+    so a deep outputs tree (which the analyst can make) costs no Python recursion. Both
+    descriptors of every pushed pair are owned by the stack and closed when popped; the
+    caller's two are not."""
+    stack: list[tuple[int, int, str, bool]] = [(src_fd, dest_fd, prefix, False)]
+    try:
+        while stack:
+            src, dest, where, owned = stack.pop()
+            try:
+                _release_entries(src, dest, where, report, stack)
+            finally:
+                if owned:
+                    os.close(src)
+                    os.close(dest)
+    finally:
+        for src, dest, _, owned in stack:
+            if owned:
+                os.close(src)
+                os.close(dest)
+
+
+def _release_entries(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport,
+                     stack: list[tuple[int, int, str, bool]]) -> None:
     with os.scandir(src_fd) as entries:
         names = [entry.name for entry in entries]
     for name in sorted(names):
@@ -119,6 +142,7 @@ def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) 
                  "detail": caught.strerror}
             )
             continue
+        keep = False
         try:
             opened = os.fstat(fd)
             if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino) or _classify(opened) is not None:
@@ -131,10 +155,8 @@ def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) 
                 except FileExistsError:
                     report.refused.append({"path": relative, "reason": "collision"})
                     continue
-                try:
-                    _release_dir(fd, child, relative + "/", report)
-                finally:
-                    os.close(child)
+                stack.append((fd, child, relative + "/", True))
+                keep = True
                 continue
             try:
                 out = os.open(name, _CREATE, 0o600, dir_fd=dest_fd)
@@ -147,14 +169,19 @@ def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) 
                 os.close(out)
             report.released.append({"path": relative, "size": size, "sha256": sha256})
         finally:
-            os.close(fd)
+            if not keep:
+                os.close(fd)
 
 
 def release(outputs: Path, destination: Path) -> ReleaseReport:
     """Copy `outputs` (the scratch output directory the launcher made) into
     `destination` (checked by `check_release_dir`), by descriptor, following no link."""
     report = ReleaseReport()
-    src = os.open(outputs, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        src = os.open(outputs, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    except OSError as caught:  # the analyst replaced, removed or locked outputs/ itself
+        report.refused.append({"path": "", "reason": "outputs-unusable", "detail": f"{outputs}: {caught.strerror}"})
+        return report
     try:
         dest = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
         try:

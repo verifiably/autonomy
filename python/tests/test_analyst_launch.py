@@ -248,3 +248,68 @@ def test_a_failed_walk_exits_4_with_its_code_recorded(served_world):
     events = [json.loads(line) for line in (progress.run_dir / "events.jsonl").read_text().splitlines()]
     assert events[-1]["event"] == "unproven" and events[-1]["code"] == "walk-hardlink"
     assert not (progress.run_dir / "release.json").exists()
+
+
+@bwrap
+def test_an_actor_that_replaces_outputs_still_closes_with_exit_3(served_world):
+    key_dir = served_world["tmp"] / "key"
+    code, progress, _, _, lines, _ = run_execute(
+        served_world, report=True, script=f"rmdir SCRATCH/outputs; ln -s {key_dir} SCRATCH/outputs; exit 0")
+    assert code == 3 and lines[1]["exit"] == 3 and lines[1]["refused"] == 1 and lines[1]["released"] == 0
+    report = json.loads((progress.run_dir / "release.json").read_text())
+    assert report["refused"][0]["reason"] == "outputs-unusable"
+    assert json.loads((progress.run_dir / "events.jsonl").read_text().splitlines()[-1])["event"] == "closed"
+    assert not (served_world["tmp"] / "release/k.json").exists()
+
+
+@bwrap
+def test_a_start_time_that_cannot_be_read_is_recorded_as_null(served_world, monkeypatch):
+    """A fast-exiting actor's init can be gone before /proc/<pid>/stat is read (Review Focus 4)."""
+    import autonomy.analyst.launch as launch_module
+
+    def gone(pid):
+        raise FileNotFoundError(f"/proc/{pid}/stat")
+
+    monkeypatch.setattr(launch_module, "_start_time", gone)
+    code, progress, _, _, _, _ = run_execute(served_world, script="exit 0")
+    events = [json.loads(line) for line in (progress.run_dir / "events.jsonl").read_text().splitlines()]
+    launched = next(e for e in events if e["event"] == "launched")
+    assert code == 0 and launched["start_time"] is None and events[-1]["event"] == "closed"
+
+
+@bwrap
+def test_a_failure_during_supervision_still_kills_the_proxy_and_the_actor(served_world, monkeypatch):
+    import autonomy.analyst.launch as launch_module
+
+    def boom(actor, session, request, log):
+        raise RuntimeError("supervision failed")
+
+    monkeypatch.setattr(launch_module, "_supervise", boom)
+    to_actor_r, to_actor_w = os.pipe()
+    from_actor_r, from_actor_w = os.pipe()
+    err_r, err_w = os.pipe()
+    progress = Progress()
+    try:
+        with pytest.raises(RuntimeError, match="supervision failed"):
+            execute(served_world["request"], served_world["env"], diag=lambda line: None, progress=progress,
+                    actor_fds=(to_actor_r, from_actor_w, err_w), actor_argv=shell_actor("sleep 60"))
+    finally:
+        for fd in (to_actor_r, to_actor_w, from_actor_r, from_actor_w, err_r, err_w):
+            os.close(fd)
+    events = [json.loads(line) for line in (progress.run_dir / "events.jsonl").read_text().splitlines()]
+    proxy = next(e for e in events if e["event"] == "egress-proxy")
+    actor = next(e for e in events if e["event"] == "launched")
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline and any(_alive(e["pid"] if "pid" in e else e["child_pid"], e["start_time"]) for e in (proxy, actor)):
+        time.sleep(0.1)
+    assert not _alive(proxy["pid"], proxy["start_time"]), "the proxy namespace survived"
+    assert not _alive(actor["child_pid"], actor["start_time"]), "the actor namespace survived"
+
+
+def _alive(pid: int, start_time: int | None) -> bool:
+    """True when `pid` is a live process with that start time (a reused pid is not it)."""
+    try:
+        stat_ = Path(f"/proc/{pid}/stat").read_bytes()
+    except FileNotFoundError:
+        return False
+    return start_time is None or int(stat_.rsplit(b")", 1)[1].split()[19]) == start_time

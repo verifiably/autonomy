@@ -357,16 +357,27 @@ def execute(
             append_event(run_dir, "unproven", code=code, path="launch", message=str(caught))
             diag(f"analyst run {dirs.run_id} never started: {caught}")
             return EXIT_UNSTARTED
-        append_event(run_dir, "launched", child_pid=actor.child_pid, start_time=_start_time(actor.child_pid))
-        log = _Log(run_dir)
-        log.write(f"launched pi as namespace init {actor.child_pid}")
-        if tuple(actor_fds) == ACTOR_FDS:
-            _take_stdio(log)
-        try:
+        route_closed = False
+        try:  # from here the actor and the proxy are live: every way out kills what is still up
+            try:
+                start_time: int | None = _start_time(actor.child_pid)
+            except OSError:  # an actor that exited at once: its init is already reaped
+                start_time = None
+            append_event(run_dir, "launched", child_pid=actor.child_pid, start_time=start_time)
+            log = _Log(run_dir)
+            log.write(f"launched pi as namespace init {actor.child_pid}")
+            if tuple(actor_fds) == ACTOR_FDS:
+                _take_stdio(log)
             pi_exit = _supervise(actor, session, request, log)
             closed = _close_route(session, run_dir, log)
+            route_closed = True
         finally:
             actor.close()
+            if not route_closed:
+                try:
+                    session.kill()
+                except Exception:  # noqa: BLE001 - the original exception is what matters
+                    pass
         released = release(scratch / "outputs", prepared.release_dir)
         _write_json(run_dir / "release.json", released.to_json())
         findings = pi_exit != 0 or closed.cause != "close" or bool(closed.findings()) or bool(released.refused)

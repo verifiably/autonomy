@@ -99,3 +99,49 @@ def test_a_release_directory_inside_or_around_a_forbidden_path_is_refused(tmp_pa
             check_release_dir(candidate, forbidden=[forbidden])
         assert caught.value.code == "release-unusable", (candidate, forbidden)
     assert check_release_dir(tmp_path / "rel2", forbidden=[tmp_path / "in"]) == (tmp_path / "rel2").resolve()
+
+
+@pytest.mark.parametrize("sabotage", [
+    lambda o, t: (o.rmdir(), o.symlink_to(t / "secret")),
+    lambda o, t: o.rmdir(),
+    lambda o, t: o.chmod(0o000),
+])
+def test_a_replaced_or_removed_outputs_directory_is_refused_not_raised(tmp_path, sabotage):
+    """Scratch is the analyst's writable bind, so outputs/ itself can be replaced, removed or
+    locked; the release reports that as a refusal instead of escaping as an exception."""
+    out = tmp_path / "scratch/outputs"
+    out.mkdir(parents=True)
+    (tmp_path / "secret").mkdir()
+    (tmp_path / "secret/k").write_text("K")
+    dest = tmp_path / "release"
+    dest.mkdir()
+    sabotage(out, tmp_path)
+    try:
+        report = release(out, dest)
+    finally:
+        if out.is_dir() and not out.is_symlink():
+            out.chmod(0o700)
+    assert report.released == [] and len(report.refused) == 1
+    assert report.refused[0]["path"] == "" and report.refused[0]["reason"] == "outputs-unusable"
+    assert not (dest / "k").exists()
+
+
+def test_a_deep_outputs_tree_is_released(tmp_path):
+    out = tmp_path / "scratch/outputs"
+    out.mkdir(parents=True)
+    fd = os.open(out, os.O_RDONLY | os.O_DIRECTORY)  # built iteratively by dir_fd: makedirs and pathlib both recurse
+    try:
+        for _ in range(1500):
+            os.mkdir("d", 0o700, dir_fd=fd)
+            child = os.open("d", os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        leaf = os.open("leaf", os.O_WRONLY | os.O_CREAT, 0o600, dir_fd=fd)
+        os.write(leaf, b"x")
+        os.close(leaf)
+    finally:
+        os.close(fd)
+    dest = tmp_path / "release"
+    dest.mkdir()
+    report = release(out, dest)
+    assert [e["path"] for e in report.released] == ["/".join(["d"] * 1500) + "/leaf"] and report.refused == []
