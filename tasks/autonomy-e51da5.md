@@ -1,15 +1,17 @@
 ---
 id: autonomy-e51da5
 title: "Main's hosted hygiene fails: two attachments carry host paths and the pinned tasks CLI cannot judge attachment eligibility"
-status: doing
+status: done
 priority: 1
 size: xs
 complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-31T00:13:43Z
+updated: 2026-10-31T00:13:44Z
 started: 2026-10-30T23:53:56Z
+completed: 2026-10-31T00:13:44Z
+closed: 2026-10-31T00:13:44Z
 depends: []
 tags: [gates]
 source: autonomy-23aeff
@@ -46,3 +48,7 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-31T00:09:07Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-e51da5/hosted-portable-repair", "state": "kept", "verification": "verified", "purpose": "Six exact raw hosted-run logs and six reversible portable derivatives", "next_owner": "task:autonomy-30c717", "cleanup_trigger": "After compatible hosted tasks pin and normal raw attachment acceptance, verify preservation and reassess each copy; no deletion authorized by task closure", "manifest": "$WORK_ROOT/autonomy/autonomy-e51da5/hosted-portable-repair/sha256-manifest.txt", "sha256": "2d18a1b6e6b8aa85a0170ed5d279d39da114e74ea5fd975dc3bc412ab244178a"}
 - 2026-10-31T00:09:24Z (main): Corrected verification: all six hosted-run derivatives are byte-for-byte reversible using <RUNNER_HOME> = /home/runner; retained manifest verified. Both local ops-check and simulated hosted layout scan pass with attachment queries forbidden. just check-hygiene exits 0 (same two pre-existing plan warnings). Exact raw hosted logs and manifest custody recorded on autonomy-30c717. Repushing under user approval.
 - 2026-10-31T00:13:43Z (main): Hosted verification accepted: https://github.com/verifiably/autonomy/actions/runs/41148613564 at 0eca0e33d5ad89ae31336d606ff610007801795e completed success. Hygiene passed using the existing pinned public tasks CLI; namespace/TLS proof 45 passed in 12.74s; forced full suite 1398 passed in 111.54s. First post-approval run 41148198669 failed on six additional runner-home-bearing historical logs; their portable derivatives now verified. Eight raw logs remain intact in the two checkpointed directories, custody autonomy-30c717. No code, workflow or pinned tool changes; no worktree, host pointer, or session process remains.
+- 2026-10-31T00:13:44Z (main): done
+  provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
+- 2026-10-31T00:13:44Z (main): Repaired all eight layout-bearing attachments with explicitly labelled portable derivatives and preserved exact hashed raws under autonomy-30c717. Hosted run 41148613564 passed hygiene, namespace/TLS proof (45 tests), and the forced full suite (1398 tests).
+  provenance: {"harness_session":"codex:01a18f3b-625c-7fe1-a950-48b95107ec84","harness_session_source":"CODEX_THREAD_ID"}
