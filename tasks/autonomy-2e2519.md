@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: analyst-launch
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T21:31:07Z
+updated: 2026-10-31T21:43:14Z
 started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
@@ -53,4 +53,6 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-31T21:31:05Z (analyst-launch): design calls (all mine, for the reviewer): (1) a new subcommand autonomy analyst over the B1 launch path and the egress plan with no endpoint, not flags on autonomy run (unwired before launch until B2; its run dir is the orphan scan's) and not a script; (2) submount detection by /proc/self/mountinfo plus st_dev, not statx (no stdlib statx); (3) release by per-component O_NOFOLLOW opens on dir fds, not openat2 (no stdlib openat2); (4) ANALYST_TOOLS is a constant read,bash,grep,find,ls,write, not a flag; (5) stdio handed through as decision 12, optional --report-fd with run's two-line protocol; (6) run dir <state>/analyst/<id>, scratch <cache>/analyst/<id>/scratch, scratch left to the caller; (7) exit codes 0 clean, 2 refused, 3 released-with-findings, 4 never started; (8) denied set = caller's + egress entries + <state> + release dir; (9) pi-mismatch check against PI_VERSION 1.1.0 from the install's package-lock.json; epoch.json records pi lock sha256, node, bwrap, rg, fd; (10) /usr and /etc walked with mount and inode rules only; (11) E24 grep glob excludes dev as well (deviation from the brief, re-verified: rg exits 2 on /dev/tty under --new-session); (12) XDG_RUNTIME_DIR not required. hq-a99924's four deferred minors are all taken into decision 14 (denied-unlistable, walk credentials and the search/list rule, node bin shadowing rg/fd, /usr beside /etc under other channels). Builder check: one round, three questions, settled in the text, none left for the user.
 - 2026-10-31T21:31:06Z (analyst-launch): parked (waiting on user, review): User reviews the decision 14 spec amendment at frozen revision autonomy 5c5c423b09c58b0751c3ca87ad3cac6364933eac, docs/specs/2026-10-12-envelope-design.md (git -C .worktrees/analyst-launch show 5c5c423:docs/specs/2026-10-12-envelope-design.md; the amendment is the header paragraph near line 46, decision 14 from line 1048, the walk paragraph in §7, rows E23 and E24, §13 item 6 and the last four §14 bullets). On approval: mark the status approved in the spec, then run writing-plans in .worktrees/analyst-launch for the implementation plan, its review, then execution with the focused baseline at Setup.
+  provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-31T21:43:14Z (analyst-launch): resumed
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
