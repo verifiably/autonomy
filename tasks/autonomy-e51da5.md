@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-31T00:05:40Z
+updated: 2026-10-31T00:05:44Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -39,3 +39,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-31T00:04:59Z (main): User approved pushing main in this session. Resumed and verified the retained manifest and all four evidence files against recorded SHA-256 values before use.
 - 2026-10-31T00:05:37Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-f71c605.log", "state": "released", "verification": "verified", "purpose": "Custody transferred to autonomy-30c717; verified kept record exists there. Files remain in place.", "next_owner": "none", "cleanup_trigger": "none"}
 - 2026-10-31T00:05:40Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-9523dc4.log", "state": "released", "verification": "verified", "purpose": "Custody transferred to autonomy-30c717; verified kept record exists there. Files remain in place.", "next_owner": "none", "cleanup_trigger": "none"}
+- 2026-10-31T00:05:44Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5", "state": "released", "verification": "verified", "purpose": "Custody transferred to autonomy-30c717; verified kept record exists there. Files remain in place.", "next_owner": "none", "cleanup_trigger": "none"}
