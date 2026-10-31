@@ -1,13 +1,15 @@
 ---
 id: autonomy-4d17fa
 title: "Analyst launch Task 4: The scripted upstream"
-status: todo
+status: doing
 priority: 2
 size: s
 complexity: low
 process: direct
+owner: analyst-launch
 created: 2026-10-31T21:53:50Z
-updated: 2026-10-31T21:53:50Z
+updated: 2026-10-31T22:35:24Z
+started: 2026-10-31T22:35:24Z
 depends: []
 parent: autonomy-2e2519
 tags: [sandbox]
@@ -21,3 +23,5 @@ step: "Task 4: The scripted upstream"
 
 - 2026-10-31T21:53:50Z (add): created
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
+- 2026-10-31T22:35:24Z (analyst-launch): started
+  provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
