@@ -127,11 +127,23 @@ def test_a_replaced_or_removed_outputs_directory_is_refused_not_raised(tmp_path,
 
 
 def test_a_deep_outputs_tree_is_released(tmp_path):
+    """Depth 400 under a recursion limit of 300: a recursive walk would fail, and the
+    descriptor cost (two per level) stays under a 1024-descriptor host limit."""
+    import sys
+    limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(300)
+    try:
+        _deep_tree_is_released(tmp_path, 400)
+    finally:
+        sys.setrecursionlimit(limit)
+
+
+def _deep_tree_is_released(tmp_path, depth):
     out = tmp_path / "scratch/outputs"
     out.mkdir(parents=True)
     fd = os.open(out, os.O_RDONLY | os.O_DIRECTORY)  # built iteratively by dir_fd: makedirs and pathlib both recurse
     try:
-        for _ in range(1500):
+        for _ in range(depth):
             os.mkdir("d", 0o700, dir_fd=fd)
             child = os.open("d", os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd)
             os.close(fd)
@@ -144,4 +156,54 @@ def test_a_deep_outputs_tree_is_released(tmp_path):
     dest = tmp_path / "release"
     dest.mkdir()
     report = release(out, dest)
-    assert [e["path"] for e in report.released] == ["/".join(["d"] * 1500) + "/leaf"] and report.refused == []
+    assert [e["path"] for e in report.released] == ["/".join(["d"] * depth) + "/leaf"] and report.refused == []
+
+
+@pytest.fixture
+def low_fd_limit():
+    """A soft RLIMIT_NOFILE of 256 for one test, restored afterwards."""
+    import resource
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (min(256, hard), hard))
+    try:
+        yield 256
+    finally:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
+
+
+def test_a_wide_outputs_tree_is_released_under_a_low_fd_limit(tmp_path, low_fd_limit):
+    """Open descriptors must grow with depth, never with width: 300 sibling directories
+    under a 256-descriptor limit are all released."""
+    out = tmp_path / "scratch/outputs"
+    out.mkdir(parents=True)
+    for i in range(300):
+        (out / f"d{i:04d}").mkdir()
+        (out / f"d{i:04d}/f").write_text("x")
+    dest = tmp_path / "release"
+    dest.mkdir()
+    report = release(out, dest)
+    assert len(report.released) == 300 and report.refused == []
+
+
+def test_descriptor_exhaustion_on_depth_degrades_to_refusals(tmp_path, low_fd_limit):
+    """A tree deeper than the descriptor budget allows is refused where it runs out, never
+    raised out of the release."""
+    out = tmp_path / "scratch/outputs"
+    out.mkdir(parents=True)
+    fd = os.open(out, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for _ in range(300):
+            os.mkdir("d", 0o700, dir_fd=fd)
+            child = os.open("d", os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        leaf = os.open("leaf", os.O_WRONLY | os.O_CREAT, 0o600, dir_fd=fd)
+        os.write(leaf, b"x")
+        os.close(leaf)
+    finally:
+        os.close(fd)
+    dest = tmp_path / "release"
+    dest.mkdir()
+    report = release(out, dest)
+    assert report.released == [] and report.refused and all(e["reason"] == "unopenable" for e in report.refused)
+    assert all("Too many open files" in e.get("detail", "") for e in report.refused)

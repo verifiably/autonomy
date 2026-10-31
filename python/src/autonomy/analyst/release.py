@@ -96,81 +96,112 @@ def _copy(src_fd: int, dest_fd: int) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
-def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) -> None:
-    """Walk `src_fd` into `dest_fd` iteratively: an explicit stack of open directory pairs,
-    so a deep outputs tree (which the analyst can make) costs no Python recursion. Both
-    descriptors of every pushed pair are owned by the stack and closed when popped; the
-    caller's two are not."""
-    stack: list[tuple[int, int, str, bool]] = [(src_fd, dest_fd, prefix, False)]
+def _names(src_fd: int, where: str, report: ReleaseReport) -> list[str]:
+    """A directory's entries, sorted descending so `pop()` yields them in order; a
+    directory that cannot be listed (descriptor exhaustion included) is one refusal."""
     try:
-        while stack:
-            src, dest, where, owned = stack.pop()
-            try:
-                _release_entries(src, dest, where, report, stack)
-            finally:
+        with os.scandir(src_fd) as entries:
+            return sorted((entry.name for entry in entries), reverse=True)
+    except OSError as caught:
+        report.refused.append({"path": where.rstrip("/"), "reason": "unopenable", "detail": caught.strerror})
+        return []
+
+
+def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) -> None:
+    """Walk `src_fd` into `dest_fd` depth-first with one frame per open directory pair and
+    that directory's pending names, so open descriptors grow with the tree's depth and
+    never with its width (an analyst can make either). A frame's two descriptors are
+    closed when its names run out; the caller's pair is not owned. Past the descriptor
+    budget, opens fail with EMFILE and become refusals, never an exception."""
+    frames: list[list] = [[src_fd, dest_fd, prefix, _names(src_fd, prefix, report), False]]
+    try:
+        while frames:
+            src, dest, where, names, owned = frames[-1]
+            if not names:
+                frames.pop()
                 if owned:
                     os.close(src)
                     os.close(dest)
+                continue
+            child = _release_entry(src, dest, where, names.pop(), report)
+            if child is not None:
+                child_src, child_dest, child_where = child
+                frames.append([child_src, child_dest, child_where, _names(child_src, child_where, report), True])
     finally:
-        for src, dest, _, owned in stack:
+        for src, dest, _, _, owned in frames:
             if owned:
                 os.close(src)
                 os.close(dest)
 
 
-def _release_entries(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport,
-                     stack: list[tuple[int, int, str, bool]]) -> None:
-    with os.scandir(src_fd) as entries:
-        names = [entry.name for entry in entries]
-    for name in sorted(names):
-        relative = f"{prefix}{name}"
-        try:
-            info = os.stat(name, dir_fd=src_fd, follow_symlinks=False)
-        except OSError as caught:
-            report.refused.append({"path": relative, "reason": "unopenable", "detail": caught.strerror})
-            continue
-        reason = _classify(info)
-        if reason is not None:
-            report.refused.append({"path": relative, "reason": reason})
-            continue
-        directory = stat.S_ISDIR(info.st_mode)
-        try:
-            fd = os.open(name, _OPEN | (os.O_DIRECTORY if directory else 0), dir_fd=src_fd)
-        except OSError as caught:
-            report.refused.append(
-                {"path": relative, "reason": "symlink" if caught.errno in (errno.ELOOP, errno.ENOTDIR) else "unopenable",
-                 "detail": caught.strerror}
-            )
-            continue
-        keep = False
-        try:
-            opened = os.fstat(fd)
-            if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino) or _classify(opened) is not None:
-                report.refused.append({"path": relative, "reason": "symlink", "detail": "swapped between stat and open"})
-                continue
-            if directory:
-                try:
-                    os.mkdir(name, 0o700, dir_fd=dest_fd)
-                    child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dest_fd)
-                except FileExistsError:
-                    report.refused.append({"path": relative, "reason": "collision"})
-                    continue
-                stack.append((fd, child, relative + "/", True))
-                keep = True
-                continue
+def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: ReleaseReport) -> tuple[int, int, str] | None:
+    """One entry: refused, copied, or (for a directory) created at the destination and
+    returned as an open pair to descend into."""
+    relative = f"{prefix}{name}"
+
+    def refuse(reason: str, detail: str | None = None) -> None:
+        entry = {"path": relative, "reason": reason}
+        if detail:
+            entry["detail"] = detail
+        report.refused.append(entry)
+
+    try:
+        info = os.stat(name, dir_fd=src_fd, follow_symlinks=False)
+    except OSError as caught:
+        refuse("unopenable", caught.strerror)
+        return None
+    reason = _classify(info)
+    if reason is not None:
+        refuse(reason)
+        return None
+    directory = stat.S_ISDIR(info.st_mode)
+    try:
+        fd = os.open(name, _OPEN | (os.O_DIRECTORY if directory else 0), dir_fd=src_fd)
+    except OSError as caught:
+        refuse("symlink" if caught.errno in (errno.ELOOP, errno.ENOTDIR) else "unopenable", caught.strerror)
+        return None
+    try:
+        opened = os.fstat(fd)
+        if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino) or _classify(opened) is not None:
+            refuse("symlink", "swapped between stat and open")
+            return None
+        if directory:
             try:
-                out = os.open(name, _CREATE, 0o600, dir_fd=dest_fd)
+                os.mkdir(name, 0o700, dir_fd=dest_fd)
+                child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dest_fd)
             except FileExistsError:
-                report.refused.append({"path": relative, "reason": "collision"})
-                continue
+                refuse("collision")
+                return None
+            except OSError as caught:
+                refuse("unopenable", caught.strerror)
+                return None
+            pair = (fd, child, relative + "/")
+            fd = -1  # owned by the frame now
+            return pair
+        try:
+            out = os.open(name, _CREATE, 0o600, dir_fd=dest_fd)
+        except FileExistsError:
+            refuse("collision")
+            return None
+        except OSError as caught:
+            refuse("unopenable", caught.strerror)
+            return None
+        try:
+            size, sha256 = _copy(fd, out)
+        except OSError as caught:
+            refuse("unopenable", caught.strerror)
             try:
-                size, sha256 = _copy(fd, out)
-            finally:
-                os.close(out)
-            report.released.append({"path": relative, "size": size, "sha256": sha256})
+                os.unlink(name, dir_fd=dest_fd)  # a partial copy is not a release
+            except OSError:
+                pass
+            return None
         finally:
-            if not keep:
-                os.close(fd)
+            os.close(out)
+        report.released.append({"path": relative, "size": size, "sha256": sha256})
+        return None
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
 def release(outputs: Path, destination: Path) -> ReleaseReport:

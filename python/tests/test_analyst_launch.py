@@ -285,6 +285,17 @@ def test_a_failure_during_supervision_still_kills_the_proxy_and_the_actor(served
         raise RuntimeError("supervision failed")
 
     monkeypatch.setattr(launch_module, "_supervise", boom)
+    # Hold the session: the proxy would also die of EOF when the session object is collected,
+    # so the proof that execute killed it is its released pidfd while the reference lives.
+    sessions = []
+    real_start = launch_module.EgressSession.start
+
+    def recording_start(*args, **kwargs):
+        session = real_start(*args, **kwargs)
+        sessions.append(session)
+        return session
+
+    monkeypatch.setattr(launch_module.EgressSession, "start", recording_start)
     to_actor_r, to_actor_w = os.pipe()
     from_actor_r, from_actor_w = os.pipe()
     err_r, err_w = os.pipe()
@@ -296,14 +307,16 @@ def test_a_failure_during_supervision_still_kills_the_proxy_and_the_actor(served
     finally:
         for fd in (to_actor_r, to_actor_w, from_actor_r, from_actor_w, err_r, err_w):
             os.close(fd)
+    assert len(sessions) == 1 and sessions[0].pidfd == -1, "execute did not kill or close the proxy session"
     events = [json.loads(line) for line in (progress.run_dir / "events.jsonl").read_text().splitlines()]
     proxy = next(e for e in events if e["event"] == "egress-proxy")
     actor = next(e for e in events if e["event"] == "launched")
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline and any(_alive(e["pid"] if "pid" in e else e["child_pid"], e["start_time"]) for e in (proxy, actor)):
-        time.sleep(0.1)
     assert not _alive(proxy["pid"], proxy["start_time"]), "the proxy namespace survived"
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline and _alive(actor["child_pid"], actor["start_time"]):
+        time.sleep(0.1)
     assert not _alive(actor["child_pid"], actor["start_time"]), "the actor namespace survived"
+    del sessions[:]
 
 
 def _alive(pid: int, start_time: int | None) -> bool:
