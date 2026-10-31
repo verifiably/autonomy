@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-30T23:55:07Z
+updated: 2026-10-31T00:05:36Z
 started: 2026-10-30T14:13:58Z
 completed: 2026-10-30T23:01:46Z
 closed: 2026-10-30T23:01:46Z
@@ -154,3 +154,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-30T23:55:05Z (main): detached: local-suite-9523dc4.log: Replace host-bearing active attachment with a portable derivative; exact original and SHA-256 retained under the raw evidence record owned by autonomy-e51da5.
 - 2026-10-30T23:55:06Z (main): attached: local-suite-f71c605-portable.log (3055 bytes): Portable derivative of historical f71c605 suite log; rootdir replaced by <PYTEST_ROOT>. Exact raw bytes and mapping: retained evidence records on this task, owner autonomy-e51da5.
 - 2026-10-30T23:55:07Z (main): attached: local-suite-9523dc4-portable.log (3055 bytes): Portable derivative of historical 9523dc4 suite log; rootdir replaced by <PYTEST_ROOT>. Exact raw bytes and mapping: retained evidence records on this task, owner autonomy-e51da5.
+- 2026-10-31T00:05:36Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/local-suite-f71c605.log", "state": "kept", "verification": "verified", "purpose": "Exact raw suite evidence underlying the portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-30c717", "cleanup_trigger": "After a published compatible tasks CLI is pinned and the executing checker accepts raw attachments normally, verify preservation and reassess each copy; no deletion is authorized by task closure", "sha256": "8a081b5ad21d9b4208553cc15ef3c7050daf06fac30919d964a046a7e33bb228"}
