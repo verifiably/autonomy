@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: analyst-launch
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T21:43:16Z
+updated: 2026-10-31T21:53:46Z
 started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
@@ -16,6 +16,7 @@ source: hq-a99924
 agent: claude-code/claude-opus-5-5
 origin: mixed
 spec: docs/specs/2026-10-12-envelope-design.md
+plan: docs/plans/2026-10-31-analyst-launch.md
 ---
 
 Outcome: a supported launch that starts a fresh pi analyst under the envelope's sandbox with only caller-declared read-only inputs and one output directory, enforced denial of caller-declared private paths (key, source data, world) across every pi tool, and a passing zero-cost check that proves it. mm's Phase 2 pilot (mm-62e2da, plan docs/plans/2026-10-18-phase-2-descriptive-report.md Task 8) keeps its analyst-isolation gate closed until this check passes.
