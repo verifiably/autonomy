@@ -52,8 +52,9 @@ with no endpoint. It changes §7, §12 (rows E23 and E24), §13 (item 6) and §1
 It adopts the contract hq-a99924 pinned in hq's headless-workers brief
 (`docs/notes/2026-10-15-headless-workers-brief.md` at hq `fd1468b`, section *Analyst
 launch qualification*). **Status: approved 2026-10-31 (human review, after one agent builder-check round), frozen
-revision `5c5c423b09c58b0751c3ca87ad3cac6364933eac`; plan and implementation follow in
-autonomy-2e2519**, after one
+revision `5c5c423b09c58b0751c3ca87ad3cac6364933eac`; implemented by autonomy-2e2519 on
+2026-10-31 (`docs/plans/2026-10-31-analyst-launch.md`), whole-branch review accepted after
+three rounds**, after one
 independent builder check (three questions, each settled in the text as the author's
 call: the grep glob excludes `dev`, the CLI takes an optional `--report-fd`, and the
 runtime directory is not required). Every design call in it is the author's; the user's recorded ask (hq-0806e7) is a fresh analyst with enforced
