@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: analyst-launch
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T23:10:49Z
+updated: 2026-10-31T23:27:35Z
 started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
@@ -66,3 +66,4 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
 - 2026-10-31T22:50:46Z (analyst-launch): attached: e24-check-titan.txt (702 bytes): row E24 scripted-upstream tool-denial check, passing run on titan 2026-10-31: pi 1.1.0 (lock 744e9654...), node v26.5.0, bubblewrap 0.13.1, ripgrep 15.2.0, fd 10.5.0; 30 tool turns over read,bash,grep,find,ls,write; no paid call
 - 2026-10-31T22:53:29Z (analyst-launch): verification: focused tests 302 passed in 113 s via just test-one over tests/test_analyst_{toolchain,walk,release,launch,check}.py, test_egress_fixtures_script.py, test_cli.py, test_sandbox_{static,probe,launch}.py, test_egress_{session,upstream,proxy,live}.py, test_front_door.py; E24 passing run attached as e24-check-titan.txt; hygiene clean; the broad suite is deliberately not run locally (policy-off), the hosted workflow runs it on push and skips the pi-marked check.
 - 2026-10-31T23:10:49Z (analyst-launch): review: impl round 1 — verdict: revise; findings: important 3, minor 6; reviewer: claude-code/claude-fable-5-1
+- 2026-10-31T23:27:35Z (analyst-launch): review: impl round 2 — verdict: revise; findings: important 1, minor 3; reviewer: claude-code/claude-fable-5-1
