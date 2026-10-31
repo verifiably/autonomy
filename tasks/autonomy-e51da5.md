@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-31T00:08:00Z
+updated: 2026-10-31T00:08:24Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -42,3 +42,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-31T00:05:44Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5", "state": "released", "verification": "verified", "purpose": "Custody transferred to autonomy-30c717; verified kept record exists there. Files remain in place.", "next_owner": "none", "cleanup_trigger": "none"}
 - 2026-10-31T00:05:45Z (main): Ongoing raw-evidence custody transferred to open follow-up autonomy-30c717; both raw file hashes and the scratch manifest verified on resume. Original source autonomy-23aeff also has updated owner records. No evidence deleted.
 - 2026-10-31T00:08:00Z (main): Hosted run 41148198669 at f902e03 failed hygiene (exit 2); namespace/TLS proof passed, full suite never ran. Root cause persists in six historical hosted-run text attachments carrying /home/runner. Local-only layout reproduction missed that CI-specific value. Extend the same portable-derivative repair to all six, preserve exact raws, verify with both local and hosted layouts while forbidding attachment queries, then repush under the existing approval.
+- 2026-10-31T00:08:24Z (main): Created persistent scratch on titan: /mnt/ssd3/work/autonomy/autonomy-e51da5/hosted-portable-repair; purpose: preserve six raw hosted-run logs and prepare portable derivatives; current task owner autonomy-e51da5, eventual custody autonomy-30c717; mutable and not yet checkpointed.
