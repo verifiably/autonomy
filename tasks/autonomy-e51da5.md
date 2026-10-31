@@ -8,7 +8,7 @@ complexity: low
 process: direct
 owner: main
 created: 2026-10-30T23:45:24Z
-updated: 2026-10-31T00:09:07Z
+updated: 2026-10-31T00:09:24Z
 started: 2026-10-30T23:53:56Z
 depends: []
 tags: [gates]
@@ -44,3 +44,4 @@ Hosted run 41145953343 (main a35145d, task-record commits only; code identical t
 - 2026-10-31T00:08:00Z (main): Hosted run 41148198669 at f902e03 failed hygiene (exit 2); namespace/TLS proof passed, full suite never ran. Root cause persists in six historical hosted-run text attachments carrying /home/runner. Local-only layout reproduction missed that CI-specific value. Extend the same portable-derivative repair to all six, preserve exact raws, verify with both local and hosted layouts while forbidding attachment queries, then repush under the existing approval.
 - 2026-10-31T00:08:24Z (main): Created persistent scratch on titan: /mnt/ssd3/work/autonomy/autonomy-e51da5/hosted-portable-repair; purpose: preserve six raw hosted-run logs and prepare portable derivatives; current task owner autonomy-e51da5, eventual custody autonomy-30c717; mutable and not yet checkpointed.
 - 2026-10-31T00:09:07Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-e51da5/hosted-portable-repair", "state": "kept", "verification": "verified", "purpose": "Six exact raw hosted-run logs and six reversible portable derivatives", "next_owner": "task:autonomy-30c717", "cleanup_trigger": "After compatible hosted tasks pin and normal raw attachment acceptance, verify preservation and reassess each copy; no deletion authorized by task closure", "manifest": "$WORK_ROOT/autonomy/autonomy-e51da5/hosted-portable-repair/sha256-manifest.txt", "sha256": "2d18a1b6e6b8aa85a0170ed5d279d39da114e74ea5fd975dc3bc412ab244178a"}
+- 2026-10-31T00:09:24Z (main): Corrected verification: all six hosted-run derivatives are byte-for-byte reversible using <RUNNER_HOME> = /home/runner; retained manifest verified. Both local ops-check and simulated hosted layout scan pass with attachment queries forbidden. just check-hygiene exits 0 (same two pre-existing plan warnings). Exact raw hosted logs and manifest custody recorded on autonomy-30c717. Repushing under user approval.
