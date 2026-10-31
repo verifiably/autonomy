@@ -1,13 +1,15 @@
 ---
 id: autonomy-985aae
 title: "Analyst launch Task 1: Toolchain checks and the epoch record"
-status: todo
+status: doing
 priority: 2
 size: s
 complexity: low
 process: direct
+owner: analyst-launch
 created: 2026-10-31T21:53:47Z
-updated: 2026-10-31T21:53:47Z
+updated: 2026-10-31T22:30:18Z
+started: 2026-10-31T22:30:18Z
 depends: []
 parent: autonomy-2e2519
 tags: [sandbox]
@@ -21,3 +23,5 @@ step: "Task 1: Toolchain checks and the epoch record"
 
 - 2026-10-31T21:53:47Z (add): created
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"agent"}
+- 2026-10-31T22:30:18Z (analyst-launch): started
+  provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
