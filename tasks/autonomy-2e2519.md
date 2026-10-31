@@ -1,18 +1,21 @@
 ---
 id: autonomy-2e2519
 title: "Analyst launch: a fresh pi analyst with caller-declared inputs, outputs and denied paths under the sandbox, with a scripted-upstream tool-denial check"
-status: doing
+status: done
 priority: 2
 size: l
 complexity: high
 process: planned
 owner: main
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T23:44:00Z
+updated: 2026-10-31T23:44:01Z
 started: 2026-10-31T21:07:12Z
+completed: 2026-10-31T23:44:01Z
+closed: 2026-10-31T23:44:01Z
 depends: []
 tags: [sandbox]
 source: hq-a99924
+model: claude-fable-5-1
 agent: claude-code/claude-opus-5-5
 origin: mixed
 spec: docs/specs/2026-10-12-envelope-design.md
@@ -74,4 +77,8 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
 - 2026-10-31T23:43:58Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/analyst-launch","state":"released","verification":"verified","purpose":"branch analyst-launch merged into main at 6ff0fef (focused suite 311/311 on the merged tree); worktree clean, ignored files only the uv environment, pytest and bytecode caches (regenerable) and the plan workspace, whose ledger is attached as analyst-launch-ledger.md (sha256 3be5ed50...); no host pointer resolved into it; tt-report run; worktree removed and branch deleted","next_owner":"none","cleanup_trigger":"none"}
 - 2026-10-31T23:43:59Z (main): rulings and deferred minors: every Ruling (4 during tasks, 10 on the final review's declined-to-judge list, 1 on the depth trade) and every minor (deferred) (6 from round 1, 2 from round 2, 5 from round 3) are in files:analyst-launch-ledger.md. The ones that touch the next user: a live route for pi 1.1.0 must list the anthropic-beta tokens mid-conversation-output-config-2026-07-01, thinking-binding-controls-2026-08-01 and inline-tools-2026-09-15 (README does not yet say so); output trees deeper than half the descriptor limit are refused at release rather than released; decision 14's release sentence now says read/write while hashing (no copy_file_range). Post-fix verification: focused suite 311 passed in the worktree and again on merged main; hygiene clean; E24 evidence files:e24-check-titan.txt.
 - 2026-10-31T23:44:00Z (main): retention checkpoint: observed 2026-10-31T23:44:00Z on titan; basis autonomy in-tree . e7e63c88501af49cd4bb9d46f2f4d2b5d07b8916:tasks/autonomy-2e2519.md; retained by main; this host: kept verified 0, kept unknown 0, released 1; changed 1. Rechecked the one identity on this host (worktree removed, verified absent); no task scratch under WORK_ROOT was created; session scratchpad copies (brief extract, amendment fragments, review outputs) are regenerable and discarded. Other hosts hold nothing for this task. host-load --section session: nothing left running. Next: none for this task; mm-62e2da's owner names mm's real denied set and bundle and runs the walk, prove and its Task 8 gate on autonomy analyst.
+  provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-31T23:44:01Z (main): done
+  provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-31T23:44:01Z (main): autonomy analyst landed on main (6ff0fef..): decision 14 amendment approved and implemented; toolchain checks, alias walk, no-follow release, the launch and CLI, FakeUpstream script mode, row E23 tests and the row E24 scripted-upstream tool-denial check, which passed on titan with no paid call (files:e24-check-titan.txt). Three review rounds, ledger attached (files:analyst-launch-ledger.md). Nothing pushed; mm's analyst-isolation gate may now be run by mm's owner.
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
