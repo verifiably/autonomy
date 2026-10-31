@@ -42,6 +42,41 @@ Until science's run endpoint exists, every run that passes its checks closes
 id and directory, then one with its disposition and exit code
 (`docs/specs/2026-10-12-envelope-design.md`, decision 12).
 
+### `autonomy analyst`
+
+A fresh pi analyst over declared inputs, under the same sandbox and model route, with
+no endpoint (`docs/specs/2026-10-12-envelope-design.md`, decision 14):
+
+```sh
+autonomy analyst --model-route NAME --model MODEL --input DIR... [--deny PATH]... \
+  --release DIR [--report-fd N] [--pi-dir DIR] [--node-dir DIR] [--lease SECONDS] [--deadline SECONDS]
+```
+
+Each `--input` is bound read-only at its real path; each `--deny` joins the denied set
+beside the route's entries, `<state>` and the release directory. Before launch the
+static check, a walk of every admitted tree (no submount, no hard link in a
+user-writable tree, no inode shared with a denied root) and the probe all run. pi 1.1.0
+runs from the pinned install (`--pi-dir`, `PI_DIR`, or `~/.local/share/pi/1.1.0`) with
+a fixed argv and the fixed tool set `read,bash,grep,find,ls,write`; the prompt comes
+over fds 0 and 1 (pi's RPC), which the caller drives as for `autonomy run`. When pi
+exits, outputs cross from the outputs directory under scratch to the release directory, which must exist
+and be empty, by a walk that follows no link: a symlink, FIFO, socket, device or
+hard-linked file is refused and listed.
+
+| Exit | Meaning |
+|------|---------|
+| 0 | released, the route closed clean, pi exited 0 |
+| 3 | released with findings: pi exited non-zero, the route did not close clean, or an entry was refused at release |
+| 4 | the analyst never started (a failed static check, walk, probe or launch) |
+| 2 | refused at configuration: nothing kept |
+
+The run directory `<state>/analyst/<run-id>/` holds the events log, the epoch record (pi's
+lock hash and the node, bwrap, rg and fd versions), the walk report, the route's
+records and proxy log, the launcher's log and the release report (released files with
+their hashes, refused entries with their reasons); `--report-fd` carries its path out as
+for `autonomy run`. Scratch under `<cache>/analyst/<run-id>/` is left for the caller:
+pi's session files there hold everything the analyst read.
+
 ### The model route
 
 An actor has no network of its own. `--model-route NAME` gives it one path out: a

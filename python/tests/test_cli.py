@@ -487,3 +487,41 @@ def test_a_valid_model_route_passes_step_2(tmp_path, pipes):
     status, _ = autonomy(tmp_path, [*RUN, "--model-route", "anthropic", *ACTOR], pipes["io"])
     assert status == 4  # this build closes unwired at step 3, after step 2 accepted the route
     assert len(runs(tmp_path)) == 1
+
+
+def test_the_analyst_parser_builds_a_request(monkeypatch):
+    import autonomy.analyst.launch as launch
+    from autonomy import cli
+    seen = {}
+
+    def fake_execute(request, env, *, diag, progress, **kw):
+        seen["request"] = request
+        return 0
+
+    monkeypatch.setattr(launch, "execute", fake_execute)
+    assert cli.main(["analyst", "--model-route", "pi", "--model", "m", "--input", "/a", "--input", "/b", "--deny", "/k",
+                     "--release", "/r", "--lease", "30", "--deadline", "100", "--report-fd", "7"]) == 0
+    request = seen["request"]
+    assert request.inputs == (Path("/a"), Path("/b")) and request.denied == (Path("/k"),)
+    assert request.release_dir == Path("/r") and request.model == "m" and request.model_route == "pi"
+    assert request.lease == 30 and request.deadline == 100 and request.report_fd == 7
+
+
+def test_the_analyst_parser_needs_an_input():
+    """The diagnostic goes to fd 2 through the non-blocking channel, which writes a pipe
+    and never a regular file (pytest's capture), so the test puts a pipe on fd 2."""
+    from autonomy import cli
+    read_end, write_end = os.pipe()
+    saved = os.dup(2)
+    try:
+        os.dup2(write_end, 2)
+        code = cli.main(["analyst", "--model-route", "pi", "--model", "m", "--release", "/r"])
+    finally:
+        os.dup2(saved, 2)
+        os.close(saved)
+        os.close(write_end)
+    try:
+        err = os.read(read_end, 65536)
+    finally:
+        os.close(read_end)
+    assert code == 2 and b"refused: input-missing" in err
