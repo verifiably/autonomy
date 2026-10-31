@@ -1,13 +1,15 @@
 ---
 id: autonomy-2e2519
 title: "Analyst launch: a fresh pi analyst with caller-declared inputs, outputs and denied paths under the sandbox, with a scripted-upstream tool-denial check"
-status: todo
+status: doing
 priority: 2
 size: l
 complexity: high
 process: planned
+owner: main
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T21:04:57Z
+updated: 2026-10-31T21:07:12Z
+started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
 source: hq-a99924
@@ -38,3 +40,5 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
 
 - 2026-10-31T21:04:57Z (add): created
   provenance: {"harness_session":"claude-code:11d3486a-d5fd-410b-a675-76d16a9f4384","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"mixed"}
+- 2026-10-31T21:07:12Z (main): started
+  provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
