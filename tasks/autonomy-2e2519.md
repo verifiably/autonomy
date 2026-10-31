@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: main
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T23:43:58Z
+updated: 2026-10-31T23:43:59Z
 started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
@@ -72,3 +72,4 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-31T23:42:58Z (main): attached: analyst-launch-ledger.md (12053 bytes): SDD ledger for docs/plans/2026-10-31-analyst-launch.md: task completions, every Ruling, every minor (deferred), the three review rounds and their fixes
 - 2026-10-31T23:43:58Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/analyst-launch","state":"released","verification":"verified","purpose":"branch analyst-launch merged into main at 6ff0fef (focused suite 311/311 on the merged tree); worktree clean, ignored files only the uv environment, pytest and bytecode caches (regenerable) and the plan workspace, whose ledger is attached as analyst-launch-ledger.md (sha256 3be5ed50...); no host pointer resolved into it; tt-report run; worktree removed and branch deleted","next_owner":"none","cleanup_trigger":"none"}
+- 2026-10-31T23:43:59Z (main): rulings and deferred minors: every Ruling (4 during tasks, 10 on the final review's declined-to-judge list, 1 on the depth trade) and every minor (deferred) (6 from round 1, 2 from round 2, 5 from round 3) are in files:analyst-launch-ledger.md. The ones that touch the next user: a live route for pi 1.1.0 must list the anthropic-beta tokens mid-conversation-output-config-2026-07-01, thinking-binding-controls-2026-08-01 and inline-tools-2026-09-15 (README does not yet say so); output trees deeper than half the descriptor limit are refused at release rather than released; decision 14's release sentence now says read/write while hashing (no copy_file_range). Post-fix verification: focused suite 311 passed in the worktree and again on merged main; hygiene clean; E24 evidence files:e24-check-titan.txt.
