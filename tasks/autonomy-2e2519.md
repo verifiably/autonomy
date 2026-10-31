@@ -8,7 +8,7 @@ complexity: high
 process: planned
 owner: analyst-launch
 created: 2026-10-31T21:04:57Z
-updated: 2026-10-31T21:17:59Z
+updated: 2026-10-31T21:30:26Z
 started: 2026-10-31T21:07:12Z
 depends: []
 tags: [sandbox]
@@ -47,3 +47,4 @@ Not compared: a confined Codex executor; the gap is a launcher, which that route
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
 - 2026-10-31T21:13:37Z (analyst-launch): process: planned; workspace .worktrees/analyst-launch (branch analyst-launch, just setup done; baseline deferred to execution Setup as the policy-off rule says). Origin read: hq-0806e7 (user: analyst isolation with enforced key/source/world denial), hq-a99924's verdict and the pinned brief section at hq fd1468b. Nothing is left for the user to describe, so the design amendment is written without questions, every call marked as mine; its review is the gate. Design shape: decision 14 in the envelope spec (declared inputs, extra denied paths, output directory, alias walk, no-follow release, the autonomy analyst launch), rows E23/E24, §13 item 6.
   provenance: {"harness_session":"claude-code:fc4eb4dd-05c5-441e-9e3b-34ef5c547637","harness_session_source":"CLAUDE_CODE_SESSION_ID"}
+- 2026-10-31T21:30:26Z (analyst-launch): review: spec round 1 — verdict: revise; findings: important 2, minor 1; reviewer: claude-code/claude-fable-5-1
