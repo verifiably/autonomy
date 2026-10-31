@@ -114,6 +114,24 @@ class Tls:
     key: Path
 
 
+@dataclass(frozen=True)
+class ToolTurn:
+    """A scripted assistant turn that asks for one client tool call."""
+
+    name: str
+    input: dict
+
+
+@dataclass(frozen=True)
+class TextTurn:
+    """A scripted assistant turn that ends the exchange with text."""
+
+    text: str
+
+
+Turn = ToolTurn | TextTurn
+
+
 @pytest.fixture(scope="session")
 def tls(tmp_path_factory) -> Tls:
     """A self-signed certificate for localhost, `other` and 127.0.0.1. The tests need
@@ -165,7 +183,12 @@ class FakeUpstream:
     - `silent`: send a streaming head, then nothing; `peer_closed` is set when the
       proxy closes the connection;
     - `nohandshake`: accept TCP and never answer TLS; `peer_closed` as for `silent`;
-    - `garbage`, `hugehead`, `badchunk`: malformed answers.
+    - `garbage`, `hugehead`, `badchunk`: malformed answers;
+    - `script`: each `/v1/messages` request consumes the next `Turn` of `script` and is
+      answered with the Anthropic Messages SSE stream pi's SDK parses (a `tool_use`
+      block for a `ToolTurn`, a text block with `end_turn` for a `TextTurn`); past the
+      end, `TextTurn("done")`. `tool_uses` pairs each served tool_use id with its turn,
+      and `tool_results()` reads every `tool_result` block the client sent back.
     Every request it reads is in `seen`, and `connections` counts every accept."""
 
     def __init__(self, tls: Tls, *, mode: str = "json") -> None:
@@ -186,6 +209,9 @@ class FakeUpstream:
         self.connections = 0
         self.last_event_at: float | None = None
         self.peer_closed = threading.Event()
+        self.script: list[Turn] = []
+        self.tool_uses: list[tuple[str, ToolTurn]] = []
+        self._served = 0
         self._stalled: list[tuple[Seen, ssl.SSLSocket]] = []
         self._lock = threading.Lock()
         threading.Thread(target=self._accept, daemon=True).start()
@@ -259,7 +285,10 @@ class FakeUpstream:
                 seen.body += chunk
             with self._lock:
                 self.seen.append(seen)
-            self._answer(conn)
+            if self.mode == "script":
+                self._answer_scripted(conn, seen)
+            else:
+                self._answer(conn)
         except OSError:
             pass
         finally:
@@ -308,6 +337,69 @@ class FakeUpstream:
             conn.sendall(b"HTTP/1.1 200 OK\r\nx-a: " + b"a" * 70_000 + b"\r\n\r\n")
         elif self.mode == "badchunk":
             conn.sendall(b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\nzz\r\nhello\r\n0\r\n\r\n")
+
+    def _answer_scripted(self, conn: ssl.SSLSocket, seen: Seen) -> None:
+        with self._lock:
+            index = self._served
+            self._served += 1
+            turn = self.script[index] if index < len(self.script) else TextTurn("done")
+            if isinstance(turn, ToolTurn):
+                self.tool_uses.append((f"toolu_{index}", turn))
+        try:
+            model = json.loads(seen.body).get("model", "")
+        except ValueError:
+            model = ""
+        start = {"type": "message", "id": f"msg_{index}", "role": "assistant", "model": model, "content": [],
+                 "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}}
+        if isinstance(turn, ToolTurn):
+            block = {"type": "tool_use", "id": f"toolu_{index}", "name": turn.name, "input": {}}
+            delta = {"type": "input_json_delta", "partial_json": json.dumps(turn.input)}
+            stop_reason = "tool_use"
+        else:
+            block = {"type": "text", "text": ""}
+            delta = {"type": "text_delta", "text": turn.text}
+            stop_reason = "end_turn"
+        events = [
+            ("message_start", {"type": "message_start", "message": start}),
+            ("content_block_start", {"type": "content_block_start", "index": 0, "content_block": block}),
+            ("content_block_delta", {"type": "content_block_delta", "index": 0, "delta": delta}),
+            ("content_block_stop", {"type": "content_block_stop", "index": 0}),
+            ("message_delta", {"type": "message_delta", "delta": {"stop_reason": stop_reason, "stop_sequence": None},
+                               "usage": {"output_tokens": 1}}),
+            ("message_stop", {"type": "message_stop"}),
+        ]
+        conn.sendall(
+            b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\nrequest-id: req_script\r\n"
+            b"transfer-encoding: chunked\r\n\r\n"
+        )
+        for name, data in events:
+            event = f"event: {name}\ndata: {json.dumps(data)}\n\n".encode()
+            conn.sendall(b"%x\r\n%s\r\n" % (len(event), event))
+        conn.sendall(b"0\r\n\r\n")
+
+    def tool_results(self) -> list[dict]:
+        """Every `tool_result` block in the `messages` of every request body, in request
+        order, its content flattened to the concatenated text of its text blocks."""
+        results: list[dict] = []
+        with self._lock:
+            bodies = [seen.body for seen in self.seen]
+        for body in bodies:
+            try:
+                messages = json.loads(body).get("messages", [])
+            except ValueError:
+                continue
+            for message_ in messages:
+                content = message_.get("content") if isinstance(message_, dict) else None
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "tool_result":
+                        inner = block.get("content", "")
+                        if isinstance(inner, list):
+                            inner = "".join(b.get("text", "") for b in inner if isinstance(b, dict) and b.get("type") == "text")
+                        results.append({"tool_use_id": block.get("tool_use_id"), "content": inner,
+                                        "is_error": bool(block.get("is_error", False))})
+        return results
 
     def stalled_bytes(self) -> int:
         """Drain every stalled connection now and count the body bytes it ever received."""

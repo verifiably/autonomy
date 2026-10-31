@@ -15,7 +15,10 @@ import math
 import os
 import select
 from collections.abc import Sequence
+from pathlib import Path
 
+import autonomy.analyst.launch as analyst
+from autonomy.analyst.toolchain import AnalystRefused
 from autonomy.channel import LineChannel
 from autonomy.run import (
     EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, Diag, Progress, RunRefused, RunRequest,
@@ -129,6 +132,25 @@ def _parser(diag: Diag) -> _Parser:
         help="the model route under <config>/routes/NAME.toml: the actor's only network path (decision 13)",
     )
     run.add_argument("actor", nargs="+", metavar="ACTOR", help="the actor's argv, after --")
+    analyst_parser = commands.add_parser(
+        "analyst",
+        help="run a fresh pi analyst over declared inputs under the sandbox (decision 14)",
+        description=(
+            "Run a fresh pi analyst under the sandbox with only the declared read-only inputs, the declared paths "
+            "denied, and its outputs released to one directory. Exit 0 clean, 3 released with findings, "
+            "4 the analyst never started, 2 refused."
+        ),
+    )
+    analyst_parser.add_argument("--model-route", required=True, metavar="NAME", help="the model route under <config>/routes/NAME.toml")
+    analyst_parser.add_argument("--model", required=True, metavar="MODEL", help="pi's --model; must be in the route's models")
+    analyst_parser.add_argument("--input", action="append", default=[], type=Path, metavar="DIR", help="a directory bound read-only at its real path; repeat for each")
+    analyst_parser.add_argument("--deny", action="append", default=[], type=Path, metavar="PATH", help="a path the analyst must not reach; repeat for each")
+    analyst_parser.add_argument("--release", required=True, type=Path, metavar="DIR", help="an existing empty directory the outputs are released into")
+    analyst_parser.add_argument("--report-fd", type=_fd, metavar="N", help="an anonymous pipe or connected AF_UNIX stream socket, not fd 0-2, for the run and closing lines")
+    analyst_parser.add_argument("--pi-dir", type=Path, metavar="DIR", help="the pinned pi install (default PI_DIR, else ~/.local/share/pi/<version>)")
+    analyst_parser.add_argument("--node-dir", type=Path, metavar="DIR", help="the node prefix (default NODE_DIR, else the prefix of node on PATH)")
+    analyst_parser.add_argument("--lease", type=_seconds, default=LEASE_DEFAULT, metavar="SECONDS", help=f"the route's lease (default {LEASE_DEFAULT:g}, floor {LEASE_FLOOR:g})")
+    analyst_parser.add_argument("--deadline", type=_seconds, default=analyst.DEADLINE_DEFAULT, metavar="SECONDS", help=f"the whole run's wall-clock bound (default {analyst.DEADLINE_DEFAULT:g})")
     return parser
 
 
@@ -148,20 +170,40 @@ def _run(args: argparse.Namespace, diag: Diag, progress: Progress) -> int:
         return EXIT_REFUSED
 
 
-def _unexpected(caught: BaseException, diag: Diag, progress: Progress) -> int:
+def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -> int:
+    try:
+        if not args.input:
+            raise AnalystRefused("input-missing", "at least one --input directory is required")
+        request = analyst.AnalystRequest(
+            args.model_route, args.model, tuple(args.input), tuple(args.deny), args.release, report_fd=args.report_fd,
+            pi_dir=args.pi_dir, node_dir=args.node_dir, lease=args.lease, deadline=args.deadline,
+        )
+        return analyst.execute(request, os.environ, diag=diag, progress=progress)
+    except AnalystRefused as caught:
+        diag(f"refused: {caught.code}: {caught.message}")
+        return EXIT_REFUSED
+
+
+def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.Progress) -> int:
     """The last resort for an exception nothing else handles, SIGINT's
     `KeyboardInterrupt` included: one diagnostic line, then exit 2 when no run
     directory exists, or 4 when one does. That run has no `disposition.json` and is
     left for `run close`, and `execute` has already closed its report fd; without a
     run directory, the process's exit closes it."""
-    status = EXIT_REFUSED if progress.dirs is None else _EXIT_LEFT
+    if isinstance(progress, analyst.Progress):
+        run_dir = progress.run_dir
+        label = "analyst run"
+    else:
+        run_dir = None if progress.dirs is None else progress.dirs.run_dir
+        label = "run"
+    status = EXIT_REFUSED if run_dir is None else _EXIT_LEFT
     try:
         message = " ".join(str(caught).splitlines())
         what = f"{type(caught).__name__}: {message}" if message else type(caught).__name__
-        if progress.dirs is None:
+        if run_dir is None:
             diag(f"failed: {what}")
         else:
-            diag(f"run {progress.dirs.run_id} stopped by {what}; {progress.dirs.run_dir} is left for run close")
+            diag(f"{label} {run_dir.name} stopped by {what}; {run_dir} is left" + ("" if label == "analyst run" else " for run close"))
     except BaseException:
         pass  # a diagnostic that cannot be written is ignored (decision 12); the exit code is the record
     return status
@@ -169,12 +211,15 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     diag = _Diagnostics()
-    progress = Progress()
+    progress: Progress | analyst.Progress = Progress()
     try:
         try:
             args = _parser(diag).parse_args(argv)
         except _Stop as stop:
             return stop.status
+        if args.command == "analyst":
+            progress = analyst.Progress()
+            return _analyst(args, diag, progress)
         return _run(args, diag, progress)
     except BaseException as caught:
         return _unexpected(caught, diag, progress)
