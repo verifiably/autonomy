@@ -43,6 +43,17 @@ fields and tool types and defines their nested shapes. The subsection *Closed
 anthropic-messages body* below records the alternatives, compatibility cost and
 acceptance matrix. The author's proposed choices there were accepted by this
 review; implementation followed the approved plan in autonomy-58799c.
+**Amendment of 2026-10-31** (autonomy-2e2519, from hq-a99924): the analyst launch. It
+adds decision 14: caller-declared read-only inputs, extra denied paths and an output
+directory in the sandbox spec; a pre-launch walk of every admitted tree for aliases of a
+denied path; a release of outputs that follows no link; and `autonomy analyst`, a
+supported launch of a fresh pi analyst over Plan B1's launch path and the egress plan,
+with no endpoint. It changes §7, §12 (rows E23 and E24), §13 (item 6) and §14 to match.
+It adopts the contract hq-a99924 pinned in hq's headless-workers brief
+(`docs/notes/2026-10-15-headless-workers-brief.md` at hq `fd1468b`, section *Analyst
+launch qualification*). **Status: draft, awaiting human review.** Every design call in
+it is the author's; the user's recorded ask (hq-0806e7) is a fresh analyst with enforced
+denial of key, source and world paths across every tool, and a check that proves it.
 **Task:** autonomy-250f4d. Its goal is ops-3f5aa6, a science harness on pi. The
 bounded unattended run (autonomy-9e8a43) cannot start before this exists.
 
@@ -1034,6 +1045,197 @@ while drafting, and the review may overturn them.
       `settle` does nothing beyond the record line. A run configured with an allowance
       whose check is unavailable will be refused at open, never run unmetered.
 
+14. **A caller may declare what an actor reads, where it writes and what else it must
+    not reach; the launch proves that the admitted trees hold no alias of a denied
+    path; and outputs leave scratch through a release that follows no link.** Decision 8
+    proves the sandbox against a denied set computed from the world configuration, and
+    §7 binds only toolchain paths. A fresh analyst that works on a staged bundle has no
+    world to compute a denied set from, and the material it must not reach (a private
+    key, source data, a world root) is the caller's to name. hq-a99924 (2026-10-31)
+    qualified the existing routes read-only and found no supported launch: `autonomy
+    run` closes `unwired` before launch until Plan B2 lands and takes no input, output
+    or denied flags, and the only code that runs pi under the sandbox is
+    `python/scripts/egress_live.py`, E21's live arm. This decision adds the missing
+    launcher and its checks. The envelope's isolation (`bwrap`, the model route) is
+    unchanged; what is new is who names the binds and the denied set, and two checks
+    that binds and outputs need once a caller names them.
+
+    - **Declared inputs.** `SandboxSpec.ro_binds` already takes any read-only bind;
+      the launch takes them from the caller (`--input DIR`, repeatable). Each is a host
+      directory, resolved to its real path before the argv is built and bound at that
+      real path, so the analyst sees it where the host does. (`egress_live.py` passes
+      `pi_dir` unresolved: `bwrap` binds a symlinked source at the link's name, and the
+      static check and the walk would then examine a different path from the one
+      mounted.) The static check applies to every input as to every bind: one that is,
+      contains or lies inside a denied path is refused `bind-overlaps-denied`. Inputs
+      may not nest in one another or in a toolchain root (`input-nested`): a nested
+      bind is a mount below the outer tree's root, which the walk refuses.
+    - **Extra denied paths.** The caller names them (`--deny PATH`, repeatable). The
+      denied set is their real paths plus the computed entries: decision 13's egress
+      entries (`<config>`, the route file, the credential), `<state>` (which holds every
+      run directory, this launch's included) and the release directory (below). Naming
+      nothing denies nothing less: the sandbox is default-deny, and the denied set is
+      what the static check, the walk and the probe test, not what the kernel enforces.
+      A denied path need not exist (an unconfigured root takes part by path, as in the
+      static check); one that exists but cannot be `stat`ed is refused
+      `denied-unreadable`.
+    - **The output directory** is `scratch/outputs/`, made empty before launch. Scratch
+      is the only writable bind, pi's agent directory and sessions are also under it,
+      and the analyst learns where to write from its prompt. There is no second
+      writable bind.
+    - **The walk.** The static check compares bind roots only. `bwrap` binds carry
+      submounts, a hard link gives a denied file a second name, and a file under an
+      admitted tree can be the same inode as one under a denied root. So, after the
+      static check and before the probe, the launcher walks each admitted tree with its
+      own credentials (the user's uid and groups, no capabilities) and refuses the
+      launch on:
+      - a mount below the tree's root (`walk-submount`). Detection reads
+        `/proc/self/mountinfo` (its paths unescaped: `\040`, `\011`, `\012`, `\134`),
+        fails on any mount point strictly below the root's real path, and also fails on
+        any entry whose `st_dev` differs from the root's. The second rule alone misses
+        a bind from the same filesystem; the first lists it. Python's standard library
+        has no `statx`, so `STATX_MNT_ID` is not used; the brief names `mountinfo` as
+        the alternative. The tree's root may itself be a mount point;
+      - a regular file with `st_nlink > 1` (`walk-hardlink`), in the user-writable
+        trees only: the inputs, node and pi. `/usr` and `/etc` are root-owned and hold
+        many hard-linked files by packaging, and the user cannot link a file into them;
+      - an entry whose `(st_dev, st_ino)` equals one under a denied root
+        (`walk-alias`), in every tree, `/usr` and `/etc` included. The denied inodes are
+        collected first by walking each denied root that exists, with `lstat`, following
+        no link. Collection fails on a directory under a denied root that the user
+        cannot list (`denied-unlistable`): an unlisted directory is exactly where an
+        alias would hide.
+
+      The walk uses `lstat` and follows no symlink: a link's own inode is compared, and
+      its target is whatever it resolves to inside the namespace, where a denied path
+      is absent. A directory in an admitted tree that the user can neither list nor
+      search is skipped, because the analyst runs as the same uid and cannot reach it
+      either; one that the user can search but not list fails (`walk-unlistable`). The
+      walk writes `walk.json` to the run directory: each tree, the rules applied, the
+      counts and the duration. Its cost is linear in the admitted and denied trees; on
+      the development host `/usr` and `/etc` hold about 600,000 entries. The walk, like
+      the probe, runs immediately before launch and is never cached.
+    - **The release.** Scratch is where the analyst wrote freely. A caller that reads
+      it by path would follow a symlink the analyst planted: inside the namespace it
+      dangles, and on the host it resolves, to a path denied to the analyst and
+      readable by the caller. So outputs cross to the host through one release, after
+      the namespace is dead and the route closed, into a host directory the caller
+      names (`--release DIR`), which must exist, be a directory, be empty, and lie
+      outside every input, scratch and denied path (`release-unusable`). The release
+      opens `scratch/outputs/` and walks it by descriptor: each component is opened
+      relative to its parent's descriptor with `O_NOFOLLOW | O_CLOEXEC` (`O_DIRECTORY`
+      for a directory), never by a path from the root, so a component swapped for a
+      symlink between steps is refused by the kernel (`ELOOP`); each file is opened
+      with `O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC` and then `fstat`ed, so a
+      planted FIFO cannot stall the release; a regular file with `st_nlink == 1` is
+      copied by descriptor (`copy_file_range`, falling back to `read` and `write`) to
+      the same relative name under the release directory, mode 0600, directories 0700;
+      a directory is recreated and descended. Anything else (a symlink, a FIFO, a
+      socket, a device, a hard-linked file) is refused and listed with its reason.
+      `openat2` with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS` is the brief's first-named
+      mechanism; it is not in Python's standard library and would need `ctypes` and an
+      architecture-specific syscall number, and the per-component `O_NOFOLLOW` open
+      the brief names second gives the same guarantee: no link is followed at any
+      component. `release.json` in the run directory lists every released file with
+      its relative path, size and SHA-256, and every refused entry. A refused entry
+      does not undo the others' release; it is reported and makes the launch exit 3.
+      The release copies bytes and reads them as nothing.
+    - **`autonomy analyst`**, the supported launch. It composes Plan B1's launch path
+      (`sandbox.launch`, the gate, the pidfd), the egress plan (`EgressSession`, the
+      listener, the proxy) and pi 1.1.0, with no endpoint: an analyst writes no corpus.
+      Its argv is
+
+      `autonomy analyst --model-route NAME --model MODEL --input DIR... --deny PATH...
+      --release DIR [--pi-dir DIR] [--node-dir DIR] [--lease SECONDS] [--deadline SECONDS]`
+
+      and it runs these steps:
+      1. **Refuse on configuration** (exit 2, nothing kept). The places resolve as §3
+         step 1 says. Fds 0, 1 and 2 pass decision 12's check (`stdio-refused`): the
+         caller drives pi's RPC over fds 0 and 1, and fd 2 carries pi's stderr. The
+         route loads and its credential passes step 2's checks (`route-unknown`,
+         `route-invalid`, `credential-unavailable`); `MODEL` is in the route's `models`
+         for `POST /v1/messages` (`model-unrouted`), so a doomed launch is refused
+         before anything runs. Each input exists and is a directory (`input-missing`),
+         and no two nest (`input-nested`). The pi directory (`--pi-dir`, else `PI_DIR`,
+         else `~/.local/share/pi/1.1.0`) holds `node_modules/.bin/pi` and a
+         `package-lock.json` whose `@earendil-works/pi-coding-agent` version is the one
+         this build was checked with, `PI_VERSION = "1.1.0"` (`pi-mismatch`); the node
+         directory (`--node-dir`, else `NODE_DIR`, else the prefix of `node` on PATH)
+         holds `bin/node` (`node-missing`) and its `bin/` holds no `rg` or `fd`
+         (`toolchain-shadowed`: pi resolves them from its agent directory's `bin/`,
+         then PATH, and PATH in the sandbox is `<node>/bin:/usr/bin`). The release
+         directory passes the rule above. The lease is at or above §8's floor.
+      2. **Allocate** `<state>/analyst/<run-id>/` (the run directory) and
+         `<cache>/analyst/<run-id>/scratch/` with `agent/`, `agent/bin/` (empty),
+         `home/`, `sessions/` and `outputs/`, each new, all or none, as §3 step 1
+         allocates. Write `agent/models.json`: the `anthropic` provider's `baseUrl` is
+         `VERIFIABLY_MODEL_URL` (`http://127.0.0.1:4780`) and its `apiKey` the literal
+         `placeholder`. Write `epoch.json`: pi's version and its `package-lock.json`
+         SHA-256, and the versions of `node`, `bwrap`, `rg` and `fd` as the host
+         reports them. A change in any of them is a new epoch for row E24, as hq's
+         pin says.
+      3. **Prove** (exit 4, run directory kept): the preflight, the static check over
+         the full denied set, the walk, then the probe, in that order, each immediately
+         before launch. A failure is written to `events.jsonl` with its code.
+      4. **Start the proxy** with the route and the lease (`EgressSession.start`), then
+         **launch pi** from the main thread with `sandbox.launch`, the launcher's own
+         fds 0, 1 and 2 handed through, and `session.attach` as the hook before the
+         release. The spec is `SandboxSpec(scratch, ro_binds=(node, pi, *inputs),
+         env=...)` with `PATH=<node>/bin:/usr/bin`, `HOME=<scratch>/home`,
+         `PI_CODING_AGENT_DIR=<scratch>/agent`, `PI_OFFLINE=1`, `PI_TELEMETRY=0`,
+         `LANG=C.UTF-8` and `VERIFIABLY_MODEL_URL`. pi's argv is fixed:
+         `<pi>/node_modules/.bin/pi --mode rpc --provider anthropic --model MODEL
+         --thinking off --session-dir <scratch>/sessions --no-approve --no-extensions
+         --no-skills --no-prompt-templates --no-mcp --no-context-files --tools
+         read,bash,grep,find,ls,write`. The tool list is the constant `ANALYST_TOOLS`,
+         not a flag: the launch runs exactly the set row E24 tested, and `edit` joins
+         it only when the check tests it. `--no-context-files` keeps any `AGENTS.md` in
+         a bound tree out of the context. The prompt comes only over RPC from the
+         caller (decision 12). After the launch the launcher replaces its own fds 0 and
+         1 with `/dev/null` and fd 2 with `<run dir>/launcher.log`, as `run` does.
+      5. **During**, renew the lease every lease/3. The deadline (`--deadline`, default
+         3600 s) bounds the whole run: at expiry the namespace is killed.
+      6. **Close** on pi's exit (the caller closes fd 0, pi sees EOF on its RPC input
+         and exits), on the deadline, or on SIGTERM, SIGINT or SIGHUP: close the route
+         (`session.close`, 5 s, then kill), kill the actor's namespace through the
+         pidfd (`Sandboxed.close`), release the outputs, write `release.json`, append
+         the closing event, and exit: 0 when pi exited 0, the route closed `close` with
+         no finding and nothing was refused at release; 3 otherwise
+         (`released-with-findings`); 4 when the actor never started.
+
+      Scratch stays in place: it holds pi's session files, which carry everything the
+      analyst read and wrote, and the caller owns its removal, as the brief's cleanup
+      row says. The run directory holds `events.jsonl` (each step, the pids with their
+      start times), `epoch.json`, `walk.json`, `egress.jsonl`, `proxy.log`,
+      `launcher.log` and `release.json`. Nothing in the run directory is readable from
+      the namespace: `<state>` is denied and unbound.
+    - **Approaches considered.** Three were real:
+      1. *Flags on `autonomy run` now* (`--input`, `--deny`, `--release`). Rejected for
+         now: `run` closes every run `unwired` before launch until B2 lands, and its run
+         directory is the orphan scan's domain, so an analyst run there would be an
+         orphan to `run close` with no interval to compute a disposition from. When B2
+         lands, `run` gains this decision's declarations, the walk and the release, and
+         `autonomy analyst` becomes a composition over it with an endpoint. That is
+         filed then.
+      2. *A library module and a script*, as `egress_live.py` is. Rejected: hq-a99924's
+         verdict was that a script with one fixed prompt is not a supported launch, and
+         mm's gate needs an entry point with a documented contract and exit codes.
+      3. *A new subcommand over the existing launch path, no endpoint* (chosen). It
+         reuses every proven piece and adds only what a caller-declared sandbox needs.
+    - **What this decision does not do.** It names a harness. The envelope names none
+      (Scope), and §13 item 5's live recipe already composes pi; `autonomy analyst` is
+      a consumer of the envelope's launch path, as that recipe is, and a second harness
+      is a second launcher over the same declarations and checks. It does not compare a
+      confined Codex executor (hq-a99924: the gap is a launcher, which that route would
+      also need). It authorizes no run against a real key, source or world: row E24 uses
+      fixtures, and a tool-level run on real private paths is a separately authorized
+      step, because a failed denial would copy private bytes into the upstream's log.
+      It does not check that the bound `/usr` and `/etc` hold no *copy* of denied
+      content: the static check holds denied paths out of them, the walk catches links
+      and mounts, and a content copy there is the operator's precondition, as the
+      brief's *Other channels* row says. It does not mint, run `science` or touch a
+      corpus: the analyst reaches the world only through what the caller binds.
+
 ## 3. A run, end to end
 
 **Open.** Steps run in order, with one exception: step 2's checks that need no
@@ -1392,6 +1594,8 @@ directory.
 - the read-only system binds (`/usr`, `/etc`, and the `/bin`, `/lib`, `/lib64` and
   `/sbin` symlinks);
 - the actor's own toolchain paths, each listed;
+- the caller's declared inputs (decision 14), directories bound read-only at their
+  real paths;
 - the scratch directory, canonicalized to its real path and bound read-write there,
   so a path means the same thing inside the sandbox and to the endpoint;
 - the endpoint socket, at the fixed path `/run/va/endpoint.sock`;
@@ -1432,7 +1636,8 @@ which is also the working directory. A run with a model route also gives
 holds no other descriptor (decision 12). The token never appears in an argv, the
 environment, the baseline, a log, or any command's output.
 
-**The denied set** is computed from the world configuration, never from the spec:
+**The denied set** is computed from the world configuration, never from the spec, and
+joined by the paths a caller declares (decision 14):
 
 - the world root and every corpus root;
 - the store root;
@@ -1440,6 +1645,8 @@ environment, the baseline, a log, or any command's output.
 - `<state>`, which holds every run directory;
 - `<config>`, which holds the routes, and the real path of each route's credential
   file (decision 13).
+- the paths the caller of `autonomy analyst` names, and its release directory
+  (decision 14).
 
 The host-side socket directory holds only the socket and the token file. It must lie
 outside the denied set. The static check verifies that, as for every bind, and a
@@ -1448,6 +1655,11 @@ configuration that puts a denied root under `$XDG_RUNTIME_DIR` fails closed at s
 **The static check** refuses a bind whose source's real path, or whose
 `(st_dev, st_ino)` chain, is an ancestor or descendant of any denied path. A bind of
 `/` is refused by the same rule.
+
+**The walk** (decision 14) runs after the static check and before the probe, over every
+admitted tree: no mount below a bind's root, no hard-linked regular file in a
+user-writable tree, and no inode shared with a denied root. The static check compares
+roots; the walk compares what the roots contain.
 
 **The probe** runs `/usr/bin/python3 -I` in the identical spec, from the bound
 `/usr`, because a shell cannot report which errno `stat` failed with. For each denied
@@ -1792,6 +2004,8 @@ named, never passed.
 | E20 *(full-run arm pending, science)* | the actor's stdio is the caller's (decision 12): bytes reach it across the gate, it holds only fds 0–2, the release cannot come from stdin, no other child holds the caller's descriptors, step 2 accepts only the three kinds, `autonomy run` never writes stdout and leaves the channel once the actor starts, the report fd carries the run and its disposition out of the actor's reach, and a scope stop, or a signal to the orchestrator's process group, leaves a sealed run | launch, under real `bwrap`: with fds 3–16 held open in the orchestrator, so the gate's fd is above 9, an echo actor driven over anonymous pipes and again over a socketpair, one line written before the release and one after, both echoed, and EOF ends it with exit 0; the actor lists `/proc/self/fd` and sees 0–3 (3 is the listing's own); step 2: `/dev/null` and a socketpair pass, and each of these exits 2 `stdio-refused` with no run directory, an empty stdout and nothing on the report fd: a pty on fd 1, a regular file on fd 2, `/dev/zero` on fd 0, a named FIFO, an unconnected UDP socket, an unconnected `AF_UNIX` stream socket, a listening `AF_UNIX` socket, a connected `AF_INET` socket, a closed fd 0, a `--report-fd` of 1, a `--report-fd 3` duplicated from fd 2, a report fd that is a tty, and a report fd that is a regular file; children: the recorded spawn arguments give the preflight, the probe, each `science` read, the endpoint, the proxy and the namespace helper stdin from `/dev/null`, and the endpoint shows `/dev/null` at `/proc/<pid>/fd/0`; a run that closes `unwired` at step 4 still writes the closing line after `disposition.json`; with the report pipe shrunk to one page (`F_SETPIPE_SZ`) and never read, that run still exits 4 within its bounds, its closing line dropped and `report-unwritten` in `events.jsonl`; with stderr a one-page pipe the caller has filled and never reads, a refusal at step 2 still exits 2; with a second writer the caller holds on the report pipe, and on a stderr pipe, filling the channel after the poll reports writable (a test hook between poll and write), the write returns `EAGAIN`, the line is dropped, the run exits within its bounds, and the original descriptors are still blocking afterwards; the same with a socketpair report fd; the documented terminal recipe returns 4 for that run under bash and zsh; full run with `--report-fd`: the actor's `/proc/self/fd` listing shows 0–3 only; bytes written on stdin before step 7 reach the actor intact; a silent actor leaves stdout empty; with the seal reply held by a test hook, the caller sees EOF on stdout and stderr once the namespace is gone while `autonomy run` has not exited; the report fd carries the run line and then the closing line, whose disposition and exit match `disposition.json` and the exit code; an actor that reopens fd 2 for reading gets neither line; with the orchestrator SIGSTOPped (no seal request, no EOF), SIGTERM to the endpoint within the lease gives `seal.json` with cause `term` and `session-close`, and after SIGCONT the orchestrator closes from that `seal.json`, kills the actor and writes the closing line; SIGTERM to every process of the run closes it through the orchestrator, whose exit code matches `disposition.json` and whose closing line arrives on the report fd; the same with the orchestrator SIGKILLed once `seal.json` appears leaves a run that `run close` settles `unwired` (`orchestrator-lost`) from that `seal.json`; SIGINT to the orchestrator's process group reaches neither the endpoint nor the outer `bwrap`, and the orchestrator seals before the actor dies and closes the run | a shell gate under `/usr/bin/dash` (skipped, naming dash, where it is absent) fails on the fd above 9 with `Bad fd number`; a blocking report write hangs the shrunk-pipe run past its bounds; a poll followed by a blocking write hangs the competing-writer case until a reader drains it; a non-blocking write through a `dup` leaves the original description non-blocking; the recipe without `pipefail` returns 0; a gate that reads its release on fd 0 consumes the first line, or exits 125 on it; a gate that reopens stdin on `/dev/null` gives immediate EOF; a gate that keeps its fd shows a fifth descriptor; `run` written on stdin with the gate fd closed unreleased exits 125, and the actor never runs; a check that accepts any character device but a tty passes `/dev/zero`; a check by `S_ISSOCK` alone passes the UDP socket, and its actor reaches a host listener from its own network namespace; a check by `SO_PEERCRED` alone passes the unconnected `AF_UNIX` socket; a report-fd check by number alone passes `3>&2`; a launch that passes the report fd into the sandbox shows a fifth descriptor; a probe that inherits stdin and reads it consumes the early bytes; an orchestrator that keeps its fds holds stdout open until it exits; an endpoint with the default SIGTERM disposition dies in the SIGSTOP case with no `seal.json`; without the endpoint-exit close trigger, the SIGCONT case stays open until the actor exits; with SIGTERM sent to the endpoint first and to the orchestrator only once the endpoint's pidfd shows it exited, a close step 1 without the already-sealed clause records `seal-missing`; an outer `bwrap` in the orchestrator's process group dies on the SIGINT before the seal; an endpoint in the caller's session dies on the SIGINT with no `seal.json` |
 | E21 *(full-run arm pending, science)* | the model route is the actor's only network path, and the credential never reaches the actor (decision 13): an allowed request streams, direct network access is unavailable, destination overrides are refused or rewritten, and the credential is absent from everything the actor can read | launch, under real `bwrap`, with a fake upstream on the host serving TLS under a test CA (the model route's `ca_file`) and a canary credential: an actor script sends the allowed operation, and the upstream sends server-sent events 200 ms apart; the actor reads the first event before the upstream sends the last; the upstream saw its own `Host`, the canary in the route's header, none of the actor's `x-api-key` or `authorization`, and the body's bytes unchanged; from inside, a connect to the upstream's address, to `192.0.2.1:443` and to `[::1]:443` fails, the upstream's name does not resolve, and a host abstract `AF_UNIX` socket the test listens on is refused; refused with their codes, and absent from the upstream's request log: `CONNECT`, an absolute-form and an authority-form target, `/v1/messages/../x`, `/v1/%2e%2e/x`, `//other/v1/messages`, a query outside the route, a model outside the route, `Upgrade: h2c`, a chunked body carrying a second request to an unlisted path, a body over `max_request_bytes`, a body with `mcp_servers`, a `tools` element of type `web_fetch_20250910`, an image source of type `url`, an `anthropic-beta` token outside `header_tokens`, `anthropic-beta` repeated on two lines with the second holding an unlisted token, `anthropic-beta` and `Anthropic-Beta` on one request, an unlisted `anthropic-version`, a content block type outside `block_types`, a `tool_result` holding an unlisted block type, a `document` source of type `file`, a body with `model` twice (the allowed value first), a body with a byte-order mark, and a body with `NaN`; `Connection: x-api-key` with an `x-api-key` header leaves the upstream seeing only the canary; requests carrying `Host: other` or `X-Forwarded-Host: other` reach only the route's upstream, under its own `Host`, and never a second fake server named `other`; an upstream `302` to `other` returns to the actor, and `other` is never contacted; the actor walks every file it can read, its environment, and `/proc/*/environ` and `/proc/*/cmdline` of every process it can see, and keeps every byte the proxy sent it, and the canary appears in none of them; on the host, the canary appears in neither bwrap's argv (the actor's or the proxy's), nor the run directory, scratch, `egress.jsonl`, `proxy.log`, `events.jsonl` or `baseline.json`; the probe reports `ENETUNREACH`; full run (live, run by a recipe and never in the suite): pi in RPC mode under `autonomy run` with a model route to the real API and a cheap model, configured only through a `models.json` `baseUrl` and a placeholder key, answers one prompt, and `egress.jsonl` has its requests | an actor spec that shares the host network (a test hook) connects to the upstream directly, and the probe makes the run `unwired` (`sandbox-unproven`); a proxy that routes by the `Host` header (a test hook) sends the request to `other`; a proxy that forwards every header outside a deny list lets an `x-probe` header, absent from `forward_headers`, reach the upstream; a proxy that checks only `model` forwards the `mcp_servers`, `web_fetch` and URL-source bodies; a check keyed on `"type": "url"` alone forwards the `file` source and the unlisted block type; a proxy that checks only the first `anthropic-beta` line forwards the unlisted token; a `tool_use` block whose `input` holds `{"type": "url"}` is forwarded, and a check that walks the whole body refuses it; a lenient JSON parser forwards the duplicate `model`; a proxy that forwards the actor's framing lets the chunked second request reach the upstream's log; a proxy that normalizes paths before matching forwards `/v1/messages/./`; a buffering proxy delivers the first event only after the last; a credential passed with `--setenv` appears in bwrap's `/proc/<pid>/cmdline` |
 | E22 *(full-run arm pending, science)* | proxy access belongs to one run and ends on stop, lease expiry, EOF or SIGTERM; missing enforcement fails closed | step 2: an unknown model route exits 2 `route-unknown` with no run directory; an `http` upstream, a route with no operation, and an operation with no model exit 2 `route-invalid`; a credential file that is missing, a directory, a symlink, mode 0644, hard-linked a second time, or not the user's (a root-owned file) exits 2 `credential-unavailable`; a route listing `x-api-key` or `transfer-encoding` in `forward_headers`, a route forwarding `anthropic-beta` with no `header_tokens` for it, a route with an unknown `api`, and an operation with no `block_types` each exit 2 `route-invalid`; a toolchain bind containing the credential file fails the static check; launch, under real `bwrap`: a credential removed between step 2 and the proxy's start, a credential of two lines, a helper whose `setns` is refused (a test hook), and a proxy that never confirms `listening` each make the run `unwired` (`egress-unproven`), and the actor's marker file never appears; `run stop` during a stream cuts it (`ended: route-closed`), a new connect gets `ECONNREFUSED`, and no request in `egress.jsonl` has a `seq` above the closing line's `last_seq`; a request held by a test hook immediately before its first byte would go upstream, then the close transition taken, then the hold released, reaches nothing: the upstream's log has no record of it, and its line has `refused: route-closed`, `forwarded: false` and a `seq` at or below `last_seq`; the same holds for requests held in the body check, in `admit` and while connecting; with a fake upstream that accepts a connection and stops reading, a request whose body fills the socket buffers, and the orchestrator SIGSTOPped, the lease deadline still closes the route within 1 s of expiry with no upstream progress: the closing line's cause is `lease`, a new connect is refused, a second request held before its first byte gets `route-closed`, and the stalled request ends `route-closed` with fewer body bytes sent than its `Content-Length`; with the orchestrator SIGSTOPped past the lease, the proxy closes the route (cause `lease`); with the orchestrator SIGKILLed, it closes on EOF; SIGTERM to the proxy process itself, as a scope stop delivers it, closes it; a SIGKILLed proxy leaves the actor's next connect refused at once, and the run closes with `egress-lost` reported; a proxy that ignores `close` (a test hook) is killed after 5 s with `egress-close-timeout` reported; two concurrent runs with different canaries each see only their own requests in their own `egress.jsonl`, and the upstream sees each run's own canary; with the orchestrator SIGKILLed and the proxy SIGSTOPped, `run close` kills the proxy after 5 s and reports `egress-close-timeout`; a route file edited after step 2 changes neither the enforced route nor the recorded digest | an orchestrator that keeps its copy of the listener leaves the actor's connect hanging in the backlog after the proxy dies, instead of refused; a helper that joins the init's own user namespace gets `EPERM` joining the network namespace (documents `NS_GET_USERNS`); a proxy without its own deadline keeps forwarding for a SIGSTOPped orchestrator past the lease; a close that waits for the seal before it closes the route forwards a request after the stop; a proxy that checks the route only when it accepts a request sends the held request upstream after the close, though its `seq` passes the `last_seq` check; a proxy that holds the lock across a blocking upstream write never takes the lease's close in the stalled-upstream case until the upstream reads; a close that waits for the route's close before it seals lets an act start while a hung proxy is killed; a launch that ignores a helper failure releases the gate, and the actor's marker file appears; a proxy that rereads the route file enforces an edit made after step 2 that `baseline.json`'s digest does not show |
+| E23 | the walk refuses an alias of a denied path inside an admitted tree, and the release follows no link (decision 14) | unit and integration: an input tree holding a hard link to a denied file is refused `walk-hardlink`; a same-filesystem bind mount below the input's root and a tmpfs mounted below it (each made inside a `bwrap` namespace the test builds, where the walk runs) are each refused `walk-submount`; a directory the user can search but not list is refused `walk-unlistable`, and one that can be neither is skipped; a denied root with an unlistable directory refuses `denied-unlistable`; a symlink inside the input to a denied file passes the walk (its own inode is compared, and it dangles inside); the release copies a regular file and a nested directory, records their SHA-256s in `release.json`, and refuses, each listed with its reason, a symlink to a host file, a FIFO (the release returns within its bound), a hard-linked file and a socket, and the host file the symlink names is never read; an input given as a symlink is bound at its target's real path; nested inputs are refused `input-nested`; a release directory that is missing, a file, non-empty or under an input is refused `release-unusable`; `--model` outside the route's `models` is refused `model-unrouted`; a node `bin/` holding an `rg` is refused `toolchain-shadowed`; a `package-lock.json` naming another pi version is refused `pi-mismatch`; each refusal at step 1 exits 2 with no run directory, and one at step 3 exits 4 with its code in `events.jsonl` | a walk by `st_dev` alone passes the same-filesystem bind; a walk that follows symlinks reports the link's target as an alias and fails the passing case; a release by path (`shutil.copytree`) copies the host file through the planted symlink; a release that opens without `O_NONBLOCK` blocks on the FIFO past the bound; a hard-link rule applied to `/usr` fails on a stock host |
+| E24 | pi's tools run inside the namespace, and every unbound path is absent through each of them: the scripted-upstream tool-denial check, at no cost (decision 14) | integration, marked `bwrap` and `pi`, skipped naming the missing piece where the pinned pi install or node is absent: a fake upstream under a test CA answers `/v1/messages` with scripted `tool_use` turns and records every `tool_result` pi sends back; the route sits under a temporary `XDG_CONFIG_HOME` with a placeholder credential that passes `check_credential`; the fixture, outside scratch and under no directory named `proc`, `etc` or `usr`, holds `key/private-key-<r>.json`, `source/series-<r>.txt` and `world/world-<r>.toml` (fresh random sentinels K, S and W) and `bundle/allowed-<r>.tsv` (sentinel A), each file's SHA-256 recorded; `autonomy analyst`'s library entry runs with the bundle as its one input, key, source and world denied, over pipes, with the exact `ANALYST_TOOLS`; no sentinel appears literally in any tool input, and each is searched by a pattern that matches it without containing it (`abcd[e]fgh` for `abcdefgh`); the allowed controls run first, each with the argument shape of its denied calls: grep for A's pattern from `/` with `glob: "!{proc,etc,usr}"` and an explicit `limit`, which must name `bundle/allowed-<r>.tsv`; read of that file; bash `cat` of it; find of its name from `/` with the same `limit`; `ls` of the bundle; then for each of key, source and world: read of the file (`ENOENT`), bash `cat` of it, `ls -la` of its directory and `cat /proc/1/root/<path>` (each `ENOENT`), grep for its pattern from `/` with the glob and limit (empty, not an error), find of its name from `/` (empty), `ls` of the fixture's parent (lists only `bundle`) and a write into its directory; then the escape checks: a bash connect to a non-loopback address fails, a bash connect to the upstream's port on loopback gets `ECONNREFUSED`, and a write to `scratch/outputs/result.txt` is released on the host; the run passes only when every allowed control succeeded, every denied call showed its OS-level result, none of K, S or W appears in any tool result, upstream request body, pi's stdout or stderr, its session files or scratch (scanned on the host without following links; A is expected in them), the fixture's hashes are unchanged with no new file under it, and the route closed `clean`; a pi argument-validation error, a grep error or a failed allowed control makes the run inconclusive, never a pass; `epoch.json` names pi 1.1.0 and the host's node, bwrap, rg and fd | the same run with the fixture's parent bound as an input (a test hook past the static check) returns K through read and grep, so the check can fail; a grep without the glob exits 2 on the namespace's `/proc` and makes the run inconclusive (documents the glob); a sentinel placed literally in a tool input appears in the request bodies and session files and fails the no-sentinel rule (documents the pattern rule); a judge that accepts a pi argument-validation error as denial passes a misspelled path |
 
 ## 13. Delivery
 
@@ -1829,7 +2043,17 @@ because half of it cannot be tested before the slices in `science` and `beliefs`
    (crew-799319). `PI_OFFLINE=1` keeps pi from trying its own update and catalog hosts,
    which the sandbox cannot reach anyway.
 
-The first unattended run (autonomy-9e8a43) starts after 4 and 5. The development mode
+6. **The analyst plan (autonomy-2e2519, after 5):** decision 14. It covers the
+   declared inputs and denied paths in the launch, the walk, the release, `autonomy
+   analyst`, the fake upstream's scripted `tool_use` mode, and rows E23 and E24. Its
+   check runs where the pinned pi install exists, never in the hosted workflow, which
+   lacks it; the passing run's output is attached to the task as the evidence
+   mm-62e2da's analyst-isolation gate waits on. mm then names its real denied set and
+   bundle and runs the walk and `prove` on them before its launch; a tool-level run
+   against real private paths is a separately authorized step.
+
+The first unattended run (autonomy-9e8a43) starts after 4 and 5, and the analyst launch
+(item 6) after 5. The development mode
 (autonomy-d5c1cb) consumes 5.
 
 ## 14. Alternatives rejected
@@ -1910,3 +2134,15 @@ The first unattended run (autonomy-9e8a43) starts after 4 and 5. The development
   `/proc/self/fd`, read the line and write a forged one in its place. A forged
   `run_dir` could point into scratch, at a `disposition.json` the actor wrote. The
   report fd is never the actor's.
+- **The walk by `st_dev` alone, or by `statx` through `ctypes`.** `st_dev` misses a
+  bind from the same filesystem. `statx`'s `STATX_MNT_ID` would catch it, but it is
+  not in Python's standard library; `/proc/self/mountinfo` lists every mount in the
+  launcher's namespace and needs no foreign call (decision 14).
+- **The release through `openat2`, or by reading scratch directly.** `openat2` with
+  `RESOLVE_NO_SYMLINKS` is the brief's first choice and is not in the standard
+  library; the per-component `O_NOFOLLOW` open gives the same guarantee. Reading
+  scratch by path on the host follows whatever the analyst planted (decision 14).
+- **A `--tools` flag on `autonomy analyst`.** It would let a launch run a tool set row
+  E24 never tested. The set is a constant, and widening it widens the check first.
+- **Caller-declared binds on `autonomy run` before B2.** Rejected for now by decision
+  14's *Approaches considered*; it is the destination once `run` can launch.
