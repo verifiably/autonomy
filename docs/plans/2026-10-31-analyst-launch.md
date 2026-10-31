@@ -53,7 +53,7 @@ Inputs the spec implies but no acceptance row names, most likely to bite first:
   - `PI_VERSION: str = "1.1.0"`, `ANALYST_TOOLS: tuple[str, ...] = ("read", "bash", "grep", "find", "ls", "write")`, `TOOLS_SHADOWED: tuple[str, ...] = ("rg", "fd")`.
   - `class AnalystRefused(Exception)` with `code: str`, `message: str` (constructor `(code, message)`, `str()` is `f"{code}: {message}"`), the step-1 refusal type every later task raises.
   - `@dataclass(frozen=True) class PiInstall: dir: Path; version: str; lock_sha256: str; executable: Path` where `executable = dir / "node_modules/.bin/pi"`.
-  - `check_pi(pi_dir: Path) -> PiInstall`: refuses `pi-mismatch` when `node_modules/.bin/pi` is missing or not executable, when `package-lock.json` is missing or unparsable, or when its `packages["node_modules/@earendil-works/pi-coding-agent"]["version"]` is not `PI_VERSION`.
+  - `check_pi(pi_dir: Path) -> PiInstall`: `dir` is `pi_dir.resolve(strict=True)` (decision 14 binds every tree at its real path; a missing directory is `pi-mismatch`) and `executable` is derived from it; refuses `pi-mismatch` when `node_modules/.bin/pi` is missing or not executable, when `package-lock.json` is missing or unparsable, or when its `packages["node_modules/@earendil-works/pi-coding-agent"]["version"]` is not `PI_VERSION`.
   - `check_node(node_dir: Path) -> Path`: returns `node_dir.resolve()`; refuses `node-missing` when `bin/node` is absent or not executable, and `toolchain-shadowed` when `bin/` holds any entry named in `TOOLS_SHADOWED` (by name, `lstat`, link or file alike).
   - `default_pi_dir(env: Mapping[str, str], home: Path) -> Path`: `PI_DIR` when absolute, else `home / ".local/share/pi" / PI_VERSION`.
   - `default_node_dir(env: Mapping[str, str], which=shutil.which) -> Path | None`: `NODE_DIR` when absolute, else the prefix (two parents) of the resolved `node` on PATH, else None.
@@ -91,7 +91,9 @@ def test_the_tool_list_is_the_checked_set():
 
 def test_a_pinned_install_passes(tmp_path):
     install = check_pi(pi_tree(tmp_path))
-    assert install.version == PI_VERSION and install.executable == tmp_path / "node_modules/.bin/pi"
+    assert install.version == PI_VERSION and install.executable == tmp_path.resolve() / "node_modules/.bin/pi"
+    link = tmp_path.parent / f"{tmp_path.name}-link"; link.symlink_to(tmp_path)
+    assert check_pi(link).dir == tmp_path.resolve()
     assert len(install.lock_sha256) == 64
 
 @pytest.mark.parametrize("make", [
@@ -353,7 +355,7 @@ The merged-/usr links in `argv` must mirror the host: use `system_symlinks()` fr
 
 - [ ] **Step 6: Run the namespace tests to verify they fail**
 
-Run: `just test-one tests/test_analyst_walk.py -k namespace_or_below`
+Run: `just test-one tests/test_analyst_walk.py -k "namespace or below"`
 Expected: the same-filesystem case FAILS if the implementation compares `st_dev` only (it passes the plant); fix in the next step. If all three already pass, record that in the commit message and go on.
 
 - [ ] **Step 7: Make the namespace tests pass**
@@ -381,7 +383,7 @@ git commit -m "feat(analyst): the pre-launch alias walk (decision 14, row E23)"
 - Produces:
   - `check_release_dir(path: Path, *, forbidden: Iterable[Path]) -> Path`: returns the real path; refuses `release-unusable` when missing, not a directory, a symlink, non-empty, or when its real path is, is under, or contains any `forbidden` real path (the inputs, scratch, the denied set).
   - `@dataclass class ReleaseReport: released: list[dict]; refused: list[dict]` where a released entry is `{"path": "<relative>", "size": int, "sha256": str}` and a refused one `{"path": "<relative>", "reason": str}` with reasons `symlink`, `fifo`, `socket`, `device`, `hardlinked`, `collision`, `unopenable`; `to_json() -> dict`.
-  - `release(outputs: Path, destination: Path) -> ReleaseReport`: opens `outputs` with `os.open(outputs, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)` (the one absolute open; `outputs` is under scratch, which the launcher made), then walks by `dir_fd`: `os.scandir(dir_fd)` for entries, `os.open(name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, dir_fd=parent_fd)` for each entry, `os.fstat` on the result; a directory (`S_ISDIR`) is created at the destination with `os.mkdir(name, 0o700, dir_fd=dest_fd)` and descended with both fds; a regular file with `st_nlink == 1` is created at the destination with `os.open(name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600, dir_fd=dest_fd)` and copied with `os.copy_file_range` in a loop, falling back to `os.read`/`os.write` when it raises `OSError` (EXDEV, ENOSYS) on the first call, hashing the bytes as they are read (`hashlib.sha256` over the chunks when falling back; after `copy_file_range`, by re-reading the destination through its own fd from offset 0); `S_ISLNK` can only come from `ELOOP` on the open, which is recorded as `symlink`; everything else refused with its reason. A `FileExistsError` at the destination is `collision`. Every opened descriptor is closed in `finally`.
+  - `release(outputs: Path, destination: Path) -> ReleaseReport`: opens `outputs` with `os.open(outputs, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)` (the one absolute open; `outputs` is under scratch, which the launcher made), then walks by `dir_fd`: `os.scandir(dir_fd)` for entries; each entry is first classified with `os.stat(name, dir_fd=parent_fd, follow_symlinks=False)` (a socket cannot be opened at all, `ENXIO`, so classification comes before any open): `S_ISLNK` → `symlink`, `S_ISFIFO` → `fifo`, `S_ISSOCK` → `socket`, `S_ISCHR | S_ISBLK` → `device`, regular with `st_nlink > 1` → `hardlinked`; only a directory or a regular file with `st_nlink == 1` is then opened with `os.open(name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, dir_fd=parent_fd)` (`O_DIRECTORY` added for the directory) and `os.fstat`ed again, and a mismatch with the classification (an entry swapped between the two calls, or `ELOOP` from the open) is refused `symlink`; a directory is created at the destination with `os.mkdir(name, 0o700, dir_fd=dest_fd)` and descended with both fds; a regular file is created at the destination with `os.open(name, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600, dir_fd=dest_fd)` and copied with one `os.read`/`os.write` loop (1 MiB chunks) that feeds `hashlib.sha256` as it goes; `copy_file_range` is not used (the destination is write-only, so it could not be re-read for the hash). A `FileExistsError` at the destination is `collision`; an `OSError` on open is `unopenable`. Every opened descriptor is closed in `finally`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -410,10 +412,9 @@ def test_regular_files_and_directories_are_released_with_hashes(tmp_path):
     assert entry["sha256"] == hashlib.sha256(b"result\n").hexdigest() and entry["size"] == 7
     assert report.refused == []
 
-def test_a_symlink_to_a_host_file_is_refused_and_never_read(tmp_path):
+def test_a_symlink_to_a_host_file_is_refused_and_not_copied(tmp_path):
     secret = tmp_path / "secret"; secret.write_text("K")
     out, dest = outputs_with(tmp_path, lambda o: (o / "link").symlink_to(secret))
-    before = secret.stat().st_atime_ns
     report = release(out, dest)
     assert {"path": "link", "reason": "symlink"} in report.refused and not (dest / "link").exists()
     assert not any("K" in p.read_text() for p in dest.rglob("*") if p.is_file())
@@ -457,11 +458,14 @@ def test_an_unusable_release_directory_is_refused(tmp_path, make):
     assert caught.value.code == "release-unusable"
 
 def test_a_release_directory_inside_or_around_a_forbidden_path_is_refused(tmp_path):
-    (tmp_path / "in/rel").mkdir(parents=True); (tmp_path / "rel2").mkdir()
-    for candidate, forbidden in ((tmp_path / "in/rel", tmp_path / "in"), (tmp_path, tmp_path / "rel2")):
+    (tmp_path / "in/rel").mkdir(parents=True); (tmp_path / "rel2").mkdir(); (tmp_path / "empty").mkdir()
+    # inside a forbidden path; equal to one; containing a forbidden path that does not exist yet (a denied
+    # path need not exist: releasing there would create it)
+    for candidate, forbidden in ((tmp_path / "in/rel", tmp_path / "in"), (tmp_path / "in/rel", tmp_path / "in/rel"),
+                                 (tmp_path / "empty", tmp_path / "empty/key.json")):
         with pytest.raises(AnalystRefused) as caught:
             check_release_dir(candidate, forbidden=[forbidden])
-        assert caught.value.code == "release-unusable"
+        assert caught.value.code == "release-unusable", (candidate, forbidden)
     assert check_release_dir(tmp_path / "rel2", forbidden=[tmp_path / "in"]) == (tmp_path / "rel2").resolve()
 ```
 
@@ -590,11 +594,11 @@ git commit -m "test(egress): a scripted tool_use mode for the fake upstream (row
 - Produces:
   - `@dataclass(frozen=True) class AnalystRequest: model_route: str; model: str; inputs: tuple[Path, ...]; denied: tuple[Path, ...]; release_dir: Path; report_fd: int | None = None; pi_dir: Path | None = None; node_dir: Path | None = None; lease: float = LEASE_DEFAULT; deadline: float = 3600.0`.
   - `@dataclass(frozen=True) class Prepared`: everything step 1 resolved: `places` (state, cache, config as `Path`s), `route: LoadedRoute`, `inputs`, `denied` (the full set, release dir and `<state>` included), `release_dir`, `pi: PiInstall`, `node_dir: Path`, `stdio` kinds.
-  - `refuse(request: AnalystRequest, env: Mapping[str, str], *, actor_fds=ACTOR_FDS) -> Prepared`: decision 14 step 1 in this order: lease floor (`lease-below-floor`), stdio and report fd (`stdio-refused`), places, route (`route-unknown`/`route-invalid`/`credential-unavailable`), model (`model-unrouted`: `route.operation("POST", "/v1/messages", "beta=true")` is None or `model` not in its `models`), inputs (`input-missing`: not an existing directory after `resolve(strict=True)`; `input-nested`: one input `is_relative_to` another, or to the node or pi directory, or they to it), denied (`denied-unreadable` via `resolve(strict=False)` then `lstat` when it exists), pi (`check_pi`), node (`check_node`), release dir (`check_release_dir` with `forbidden = inputs + denied + (cache,)`). Every refusal is `AnalystRefused`; a `RouteRefused` or `StdioRefused` is re-raised as `AnalystRefused(code, message)`.
+  - `refuse(request: AnalystRequest, env: Mapping[str, str], *, actor_fds=ACTOR_FDS) -> Prepared`: decision 14 step 1 in this order: lease floor (`lease-below-floor`), stdio and report fd (`stdio-refused`), places, route (`route-unknown`/`route-invalid`/`credential-unavailable`), model (`model-unrouted`: `route.operation("POST", "/v1/messages", "beta=true")` is None or `model` not in its `models`), inputs (`input-missing`: not an existing directory after `resolve(strict=True)`; `input-nested`: one input `is_relative_to` another, or to the node or pi directory, or they to it), denied (`denied-unreadable` via `resolve(strict=False)` then `lstat` when it exists), pi (`check_pi`), node (`check_node`), release dir (`check_release_dir` with `forbidden = inputs + denied + (cache,)`; `<cache>` stands in for scratch, which does not exist yet at step 1, and is stricter than the spec's "outside scratch": record that as the implementer's call in the docstring). Every refusal is `AnalystRefused`; a `RouteRefused`, `StdioRefused` or `RunRefused` (`_home`'s `home-unknown`) is re-raised as `AnalystRefused(code, message)`.
   - `EXIT_CLEAN, EXIT_REFUSED, EXIT_FINDINGS, EXIT_UNSTARTED = 0, 2, 3, 4`.
   - `@dataclass class Progress: run_dir: Path | None = None; scratch: Path | None = None` (as `run.Progress`), both set the moment step 2 has made the directories.
   - `pi_argv(pi: PiInstall, model: str, scratch: Path) -> list[str]` and `actor_env(node_dir: Path, scratch: Path) -> dict[str, str]`, both exactly as Global Constraints say.
-  - `execute(request, env, *, diag: Diag, progress: Progress, actor_fds=ACTOR_FDS, actor_argv: Callable[[PiInstall, str, Path], list[str]] = pi_argv) -> int`: steps 1–6. `actor_argv` is a test hook (E23's launch tests substitute a shell actor). Step 2 allocates `run_dir = state / "analyst" / run_id` and `scratch = cache / "analyst" / run_id / "scratch"` (plus the five subdirectories), all or none, like `run.allocate`; writes `models.json`, `epoch.json`, then the report fd's first line. Step 3: `preflight()`, `check_binds(spec, denied)`, `walk(user_trees=[node, pi, *inputs], system_trees=list(SYSTEM_RO), denied=denied)` written to `walk.json`, `probe(spec, denied)`; a `SandboxUnproven` appends `{"event": "unproven", "code", "path", "message"}` and returns 4. Step 4: `EgressSession.start(route, run_dir, lease=request.lease, denied=denied)`, then `launch(spec, actor_argv(...), stdin=fd0, stdout=fd1, stderr=fd2, before_release=session.attach)`; a failure kills the session (`session.kill()`) and returns 4 with its event. Then, only when `actor_fds` is `ACTOR_FDS` (the CLI handed its own stdio through), `os.dup2` of `/dev/null` onto the launcher's fds 0 and 1 and of `<run_dir>/launcher.log` (opened `O_WRONLY | O_CREAT | O_APPEND`, 0o600) onto fd 2; a library caller's descriptors are never touched. In both cases every diagnostic after the launch is also appended to `launcher.log` by `execute` itself (a `_log(run_dir, line)` helper), so the file exists for every run that launched. Step 5: a loop on `actor.process` with `select` on the pidfd and a wall clock: renew every `lease / 3`; at `deadline`, `actor.terminate(grace=10)`; SIGTERM, SIGINT and SIGHUP handlers set a flag the loop reads and terminate the actor. Step 6: `closed = session.close()` (or `session.kill()` after a failure), `actor.close()`, `report = release(scratch / "outputs", release_dir)` written to `release.json`, the closing event `{"event": "closed", "pi_exit", "egress": closed.cause, "released": n, "refused": n, "exit": code}`, the report fd's closing line, return 0 or 3. `Progress.run_dir` is set the moment step 2 has made the run directory.
+  - `execute(request, env, *, diag: Diag, progress: Progress, actor_fds=ACTOR_FDS, actor_argv: Callable[[PiInstall, str, Path], list[str]] = pi_argv) -> int`: steps 1–6. `actor_argv` is a test hook (E23's launch tests substitute a shell actor). Step 2 allocates `run_dir = state / "analyst" / run_id` and `scratch = cache / "analyst" / run_id / "scratch"` (plus the five subdirectories), all or none, like `run.allocate`; writes `models.json`, `epoch.json`, then the report fd's first line. Step 3: `preflight()`, `check_binds(spec, denied)`, `walk(user_trees=[node, pi, *inputs], system_trees=list(SYSTEM_RO), denied=denied)` written to `walk.json`, `probe(spec, denied)`; a `SandboxUnproven` appends `{"event": "unproven", "code", "path", "message"}` and returns 4. Step 4: `EgressSession.start(route, run_dir, lease=request.lease, denied=denied)`, then `launch(spec, actor_argv(...), stdin=fd0, stdout=fd1, stderr=fd2, before_release=session.attach)`; a failure kills the session (`session.kill()`) and returns 4 with its event. Then, only when `actor_fds` is `ACTOR_FDS` (the CLI handed its own stdio through), `os.dup2` of `/dev/null` onto the launcher's fds 0 and 1 and of `<run_dir>/launcher.log` (opened `O_WRONLY | O_CREAT | O_APPEND`, 0o600) onto fd 2; a library caller's descriptors are never touched. In both cases every diagnostic after the launch is also appended to `launcher.log` by `execute` itself (a `_log(run_dir, line)` helper), so the file exists for every run that launched. Step 5: a loop on `actor.process` with `select` on the pidfd and a wall clock: renew every `lease / 3`; at `deadline`, `actor.terminate(grace=10)`; SIGTERM, SIGINT and SIGHUP handlers set a flag the loop reads and terminate the actor. Step 6: `closed = session.close()` (or `session.kill()` after a failure), `actor.close()`, `report = release(scratch / "outputs", release_dir)` written to `release.json`, the closing event `{"event": "closed", "pi_exit", "egress": closed.cause, "released": n, "refused": n, "exit": code}`, the report fd's closing line, return 0 or 3. On every way out of `execute` after step 1 (a return or an exception), `request.report_fd` is closed by `execute`, exactly as `run.execute`'s `finally` does, so a caller reading the report pipe sees EOF; the launch tests rely on that. `Progress.run_dir` is set the moment step 2 has made the run directory.
   - In `cli.py`: subparser `analyst` with `--model-route` (required), `--model` (required), `--input` (append, `Path`, at least one: refuse `input-missing` when none), `--deny` (append, `Path`, default `[]`), `--release` (required, `Path`), `--report-fd` (`_fd`), `--pi-dir`, `--node-dir`, `--lease` (`_seconds`, default `LEASE_DEFAULT`), `--deadline` (`_seconds`, default 3600); `_analyst(args, diag, progress) -> int` builds the request, calls `execute`, maps `AnalystRefused` to `diag(f"refused: {code}: {message}")` and 2. `_unexpected` learns the analyst's `Progress` (a run directory exists → 4, message names it). After step 4's `dup2` the CLI's `_Diagnostics` channel still points at the old fd 2 description (a private non-blocking reopen); that is fine, since `execute` writes post-launch diagnostics to `launcher.log` itself, and the CLI's own later diagnostics (the final `closed` line) may be dropped on a closed pipe without harm.
 
 - [ ] **Step 1: Write the failing step-1 tests (no bwrap)**
@@ -672,6 +676,21 @@ def test_a_terminal_or_file_on_stdio_is_refused(world, tmp_path):
     finally:
         os.close(fd)
 
+def test_an_input_given_as_a_symlink_is_bound_at_its_real_path(world, null_fds):
+    link = world["tmp"] / "bundle-link"; link.symlink_to(world["tmp"] / "bundle")
+    prepared = refuse(dataclasses.replace(world["request"], inputs=(link,)), world["env"], actor_fds=null_fds)
+    assert prepared.inputs == ((world["tmp"] / "bundle").resolve(),)
+
+@pytest.mark.skipif(os.getuid() == 0, reason="root ignores directory modes")
+def test_a_denied_path_that_cannot_be_stat_ed_is_refused(world, null_fds):
+    locked = world["tmp"] / "locked"; locked.mkdir(); (locked / "k").write_text(""); locked.chmod(0o000)
+    try:
+        with pytest.raises(AnalystRefused) as caught:
+            refuse(dataclasses.replace(world["request"], denied=(locked / "k",)), world["env"], actor_fds=null_fds)
+        assert caught.value.code == "denied-unreadable"
+    finally:
+        locked.chmod(0o700)
+
 def test_the_runtime_dir_is_not_required(world, null_fds):
     assert "XDG_RUNTIME_DIR" not in world["env"]
     refuse(world["request"], world["env"], actor_fds=null_fds)
@@ -701,7 +720,7 @@ Expected: FAIL with `ModuleNotFoundError: autonomy.analyst.launch`
 - [ ] **Step 4: Run the step-1 tests to verify they pass**
 
 Run: `just test-one tests/test_analyst_launch.py`
-Expected: PASS, 17 tests.
+Expected: PASS, 18 tests.
 
 - [ ] **Step 5: Write the failing launch tests (bwrap, a shell actor in pi's place)**
 
@@ -820,12 +839,12 @@ Expected: FAIL with `ImportError: cannot import name 'execute'` or `TypeError` o
 
 - [ ] **Step 7: Implement `execute` in `launch.py`**
 
-The deadline loop: `select.select([actor.pidfd], [], [], min(renew_due, deadline_due, 1.0))`; the pidfd is readable once the namespace's init has exited. The signal handlers are installed only for the duration of step 5 and restored after. The `events.jsonl` event names are `allocated`, `proved` (after the probe), `proxy` (after `EgressSession.start`), `launched` (with `child_pid`), `unproven` (code, path, message), `closed`.
+The deadline loop: `select.select([actor.pidfd], [], [], min(renew_due, deadline_due, 1.0))`; the pidfd is readable once the namespace's init has exited. The signal handlers are installed only for the duration of step 5 and restored after. The `events.jsonl` event names are `allocated`, `proved` (after the probe), `proxy` (after `EgressSession.start`), `launched` (with `child_pid` and its `start_time`, read as `egress.session._start_time` does), `unproven` (code, path, message), `closed`. Three points the engineer would otherwise guess: `pi_exit` is `actor.process.returncode` after `actor.close()` (bwrap reports a signalled child as 128 + signal, so the deadline test's `not in (0, None)` holds); `_log` creates `launcher.log` at launch even when nothing is logged (a test asserts its existence); SIGINT's default handler is replaced during step 5, so `KeyboardInterrupt` cannot interrupt the `select` (PEP 475 retries it), and the 1 s cap on the select timeout is what makes the flag visible.
 
 - [ ] **Step 8: Run the launch tests to verify they pass**
 
 Run: `just test-one tests/test_analyst_launch.py`
-Expected: PASS, 24 tests.
+Expected: PASS, 25 tests. Each bwrap launch walks `/usr` and `/etc` (about 600,000 entries), so the seven launch tests take tens of seconds together, not milliseconds.
 
 - [ ] **Step 9: Write the failing CLI test**
 
@@ -883,11 +902,11 @@ git commit -m "feat(analyst): autonomy analyst, the supported launch (decision 1
   - `sentinel() -> str`: 16 random lowercase hex characters; `pattern(s: str) -> str`: `s[:4] + "[" + s[4] + "]" + s[5:]`.
   - `@dataclass class Fixture`: `root`, `key`, `source`, `world`, `bundle` (paths), `k`, `s`, `w`, `a` (sentinels), `suffix`, `hashes: dict[str, str]`; `make_fixture(parent: Path) -> Fixture` creates `F/key/private-key-<r>.json`, `F/source/series-<r>.txt`, `F/world/world-<r>.toml`, `F/bundle/allowed-<r>.tsv` with the sentinels as content and records SHA-256s. `parent` is `tmp_path / "fixture"` (pytest's `tmp_path` lies under a `pytest-of-<user>` directory, never under one named `proc`, `etc`, `usr` or `dev`; the test asserts that on its own path parts).
   - `configure(tmp_path: Path, tls, upstream: FakeUpstream, f: Fixture, toolchain, *, inputs: tuple[Path, ...] | None = None, denied: tuple[Path, ...] | None = None) -> tuple[dict[str, str], AnalystRequest]`: writes `pi_route(credential=<tmp config>/credentials/anthropic, upstream=upstream.origin, ca_file=tls.cert)` as route `pi` under `tmp_path / "config/verifiably-autonomy"` with a placeholder credential from `write_credential`; makes `tmp_path / "release"`; builds `env` key by key (`HOME` a fresh `tmp_path / "home"`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME` under `tmp_path`, `PATH=/usr/bin`); returns the request with `inputs` (default `(f.bundle,)`), `denied` (default `(f.key, f.source, f.world)`), `pi_dir` and `node_dir` from `toolchain`, `lease=60`, `deadline=900`.
-  - `script_for(f: Fixture, *, upstream_port: int, limit: int = 100, extra_turns: Sequence[Turn] = ()) -> list[Turn]`: the brief's steps 4–6 in order, then `extra_turns`, then `TextTurn("done")` last: the five allowed controls, then per denied root (key, source, world) the read, bash (`cat`, `ls -la`, `cat /proc/1/root/<path>`), grep, find, `ls F`, write; then the three escape checks (`bash: python3 -c "import socket; socket.create_connection(('192.0.2.1', 443), timeout=3)"`, `bash: python3 -c "import socket; socket.create_connection(('127.0.0.1', <upstream port>), timeout=3)"`, `write scratch/outputs/result.txt`), then `TextTurn("done")`. Grep calls: `{"pattern": pattern(x), "path": "/", "glob": "!{proc,etc,usr,dev}", "limit": limit}`; find calls: `{"pattern": "<name>", "path": "/", "limit": limit}`.
-  - `judge_results(f: Fixture, results: list[tuple[ToolTurn, dict]]) -> list[str]`: the pure judgement over `(turn, result)` pairs, each result `{"content": str, "is_error": bool}`; every reason the run is not a pass (empty is a pass), one line each, in these forms: `inconclusive: <tool> control failed: <content head>` for an allowed control with `is_error` or whose content lacks A (grep, read, cat) or the file name (find, ls); `inconclusive: argument error on <tool>` for any result whose content starts with `Validation failed for tool` (pi's schema error, never a denial); `inconclusive: grep-error: <content head>` for a grep result with `is_error`; `denied <tool> <root> not shown: <content head>` for a denied call missing its marker: read `ENOENT`; bash `cat`, `ls -la` and `cat /proc/1/root/...` `No such file or directory`; grep `No matches found`; find `No files found matching pattern`; `ls F` content whose lines, stripped, are exactly `bundle/` or `bundle`; write: judged by the host fixture, not the result; `escape <which> not refused: <content head>` for the escape checks (`ECONNREFUSED` for the loopback connect; `ENETUNREACH` or `Network is unreachable` for the other); `sentinel K found in tool result <tool_use_id>` (and S, W) when a sentinel appears in any result content.
+  - `script_for(f: Fixture, *, upstream_port: int, limit: int = 100, extra_turns: Sequence[Turn] = ()) -> list[Turn]`: the brief's steps 4–6 in order, then `extra_turns`, then `TextTurn("done")` last: the five allowed controls; then per denied root (key, source, world) the read, bash (`cat`, `ls -la`, `cat /proc/1/root/<path>`), grep and find; then `ls F` once; then the three writes, one into each of `F/key`, `F/source` and `F/world`, each named `planted-<r>.txt` (never a fixture file's name, so no later find can hit it); then the three escape checks (`bash: python3 -c "import socket; socket.create_connection(('192.0.2.1', 443), timeout=3)"`, `bash: python3 -c "import socket; socket.create_connection(('127.0.0.1', <upstream port>), timeout=3)"`, `write scratch/outputs/result.txt`), then `TextTurn("done")`. Grep calls: `{"pattern": pattern(x), "path": "/", "glob": "!{proc,etc,usr,dev}", "limit": limit}`; find calls: `{"pattern": "<name>", "path": "/", "limit": limit}`.
+  - `judge_results(f: Fixture, results: list[tuple[ToolTurn, dict]]) -> list[str]`: the pure judgement over `(turn, result)` pairs, each result `{"content": str, "is_error": bool}`; every reason the run is not a pass (empty is a pass), one line each, in these forms: `inconclusive: <tool> control failed: <content head>` for an allowed control with `is_error` or whose content lacks A (grep, read, cat) or the file name (find, ls); `inconclusive: argument error on <tool>` for any result whose content starts with `Validation failed for tool` (pi's schema error, never a denial); `inconclusive: grep-error: <content head>` for a grep result with `is_error`; `denied <tool> <root> not shown: <content head>` for a denied call missing its marker: read `ENOENT` (pi 1.1.0's text is `ENOENT: no such file or directory, access '<path>'`, from its `fs.access` check); bash `cat`, `ls -la` and `cat /proc/1/root/...` `No such file or directory`; grep `No matches found`; find `No files found matching pattern`; `ls F` content whose lines, stripped, are exactly `bundle/` or `bundle`; write: judged by the host fixture, not the result (inside the namespace `F` is the directory bwrap synthesizes for the bind, on the `/tmp` tmpfs when the fixture lies under it, and pi's `write` creates parents, so the write *succeeds* there: that is why `ls F` runs before any write and why the host hashes are the judge); `escape <which> not refused: <content head>` for the escape checks (the loopback connect must show `Connection refused`, `ConnectionRefusedError` or `Errno 111`, which is how CPython prints `ECONNREFUSED`; the other must show `Network is unreachable`, `ENETUNREACH` or `Errno 101`); `sentinel K found in tool result <tool_use_id>` (and S, W) when a sentinel appears in any result content.
   - `check_script(turns: Sequence[Turn], f: Fixture) -> list[str]`: `literal sentinel <K|S|W|A> in <tool> input` for any turn whose JSON-serialised input contains a sentinel; run before the script is served.
   - `judge(f: Fixture, upstream: FakeUpstream, records: list[dict], stderr: bytes, run_dir: Path, scratch: Path, release_dir: Path, closed_cause: str | None) -> list[str]`: `judge_results` over the pairs matched through `upstream.tool_uses` and `upstream.tool_results()` by `tool_use_id` (a turn with no result is `inconclusive: no result for <tool>`), plus `sentinel <X> found in <where>` for K, S or W in any `upstream.seen[i].body`, in `json.dumps(records)`, in `stderr`, or in any regular file under `scratch` or `run_dir` read through a `dir_fd` walk with `O_NOFOLLOW` (never following links, skipping sockets and FIFOs), plus `fixture changed: <relative path>` for a hash mismatch or a new entry under `F/*`, plus `route closed <cause>` when `closed_cause != "close"`.
-  - The RPC driver: `drive(request: AnalystRequest, env: dict[str, str]) -> tuple[int, Progress, list[dict], bytes, str | None]`: `(exit code, progress, pi's stdout records, pi's stderr, the closed event's egress cause)`. `execute` runs in the main thread (the sandbox requires it) with three pipes as `actor_fds`; a reader thread collects pi's stdout lines as JSON records and closes pi's stdin once a record of type `agent_settled` arrives, which ends pi; a second thread writes the one prompt `{"id": "p1", "type": "prompt", "message": "Follow the tool calls exactly."}` once a record arrives on stdout (pi is up). The cause is read from the last `events.jsonl` line's `egress` field. `scratch_of` is not needed: `Progress.scratch` carries it.
+  - The RPC driver: `drive(request: AnalystRequest, env: dict[str, str]) -> tuple[int, Progress, list[dict], bytes, str | None]`: `(exit code, progress, pi's stdout records, pi's stderr, the closed event's egress cause)`. `execute` runs in the main thread (the sandbox requires it) with three pipes as `actor_fds`. pi's RPC mode writes nothing until a command arrives, so the one prompt `{"id": "p1", "type": "prompt", "message": "Follow the tool calls exactly."}` plus newline is written into pi's stdin pipe **before** `execute` is called: the gate never reads stdin (decision 12) and pi reads the buffered line once up. A reader thread collects pi's stdout lines as JSON records and closes the stdin pipe's write end once a record of type `agent_settled` arrives, which ends pi (EOF on RPC input is pi's shutdown); a second thread drains pi's stderr into a buffer, so a full 64 KiB pipe never stalls pi. The cause is read from the last `events.jsonl` line's `egress` field. `scratch_of` is not needed: `Progress.scratch` carries it.
 
 - [ ] **Step 1: Add the `pi` marker**
 
@@ -951,16 +970,20 @@ def test_e24_negative_with_the_fixture_parent_bound_the_check_fails(tmp_path, tl
     upstream = FakeUpstream(tls, mode="script")
     try:
         glob_less = ToolTurn("grep", {"pattern": pattern(f.a), "path": "/", "glob": "!{proc,etc,usr}", "limit": 100})
-        upstream.script = script_for(f, upstream_port=upstream.port, extra_turns=[glob_less])
+        literal = ToolTurn("bash", {"command": f"printf %s {f.w}"})  # a sentinel in a tool input: pi echoes it everywhere
+        upstream.script = script_for(f, upstream_port=upstream.port, extra_turns=[glob_less, literal])
+        assert check_script(upstream.script, f) == ["literal sentinel W in bash input"]
         env, request = configure(tmp_path, tls, upstream, f, toolchain, inputs=(f.root,), denied=())
         code, progress, records, stderr, closed = drive(request, env)
         problems = judge(f, upstream, records, stderr, progress.run_dir, progress.scratch, request.release_dir, closed)
         assert any(p.startswith("sentinel K found in tool result") for p in problems)
         assert any(p.startswith("denied read") for p in problems)
-        last_id, last_turn = upstream.tool_uses[-1]
+        last_id, last_turn = upstream.tool_uses[-2]
         assert last_turn is glob_less
         result = next(r for r in upstream.tool_results() if r["tool_use_id"] == last_id)
         assert result["is_error"] and "/dev/tty" in result["content"]  # documents the glob: rg exits 2 on /dev/tty without excluding dev
+        assert any(p.startswith("sentinel W found in upstream request") for p in problems)  # the echoed input reached the request bodies
+        assert any(p.startswith("sentinel W found in") and "sessions" in p for p in problems)  # and pi's session files
     finally:
         upstream.stop()
 
@@ -974,7 +997,7 @@ def test_the_judge_never_accepts_a_pi_argument_error_as_denial():
     error = {"content": 'Validation failed for tool "read":\n  - /path: Expected string', "is_error": True}
     problems = judge_results(f, [(turn, error)])
     assert problems == ["inconclusive: argument error on read"]
-    denied = {"content": f"ENOENT: no such file or directory, open '{turn.input['path']}'", "is_error": True}
+    denied = {"content": f"ENOENT: no such file or directory, access '{turn.input['path']}'", "is_error": True}
     assert judge_results(f, [(turn, denied)]) == []
 
 def test_the_judge_flags_a_literal_sentinel_in_a_tool_input():
