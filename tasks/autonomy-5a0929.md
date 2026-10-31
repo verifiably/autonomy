@@ -7,8 +7,8 @@ size: m
 complexity: high
 process: planned
 created: 2026-10-31T23:48:00Z
-updated: 2026-10-31T23:48:00Z
-depends: []
+updated: 2026-10-31T23:48:01Z
+depends: [autonomy-f6efe8]
 tags: [sandbox]
 source: autonomy-2e2519
 agent: claude-code/claude-fable-5-1
