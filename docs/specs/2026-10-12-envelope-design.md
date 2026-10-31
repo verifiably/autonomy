@@ -1132,8 +1132,9 @@ while drafting, and the review may overturn them.
       symlink between steps is refused by the kernel (`ELOOP`); each file is opened
       with `O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC` and then `fstat`ed, so a
       planted FIFO cannot stall the release; a regular file with `st_nlink == 1` is
-      copied by descriptor (`copy_file_range`, falling back to `read` and `write`) to
-      the same relative name under the release directory, mode 0600, directories 0700;
+      copied by descriptor with one `read` and `write` loop that feeds its SHA-256 as it
+      goes (`copy_file_range` would leave nothing to hash) to the same relative name
+      under the release directory, mode 0600, directories 0700;
       a directory is recreated and descended. Anything else (a symlink, a FIFO, a
       socket, a device, a hard-linked file) is refused and listed with its reason.
       `openat2` with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS` is the brief's first-named
