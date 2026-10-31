@@ -1,0 +1,758 @@
+test	UNKNOWN STEP	﻿2026-10-30T17:46:22.9231933Z Current runner version: '2.338.0'
+test	UNKNOWN STEP	2026-10-30T17:46:22.9266380Z ##[group]Runner Image Provisioner
+test	UNKNOWN STEP	2026-10-30T17:46:22.9267848Z Hosted Compute Agent
+test	UNKNOWN STEP	2026-10-30T17:46:22.9268757Z Version: 20261021.618
+test	UNKNOWN STEP	2026-10-30T17:46:22.9269812Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+test	UNKNOWN STEP	2026-10-30T17:46:22.9271053Z Build Date: 2026-10-21T00:45:21Z
+test	UNKNOWN STEP	2026-10-30T17:46:22.9272117Z Worker ID: {a9f55014-ab88-422d-8cd7-6bae1ded34b4}
+test	UNKNOWN STEP	2026-10-30T17:46:22.9273447Z Region: eastus
+test	UNKNOWN STEP	2026-10-30T17:46:22.9274404Z Cloud: Azure
+test	UNKNOWN STEP	2026-10-30T17:46:22.9275380Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:22.9278193Z ##[group]Operating System
+test	UNKNOWN STEP	2026-10-30T17:46:22.9279291Z Ubuntu
+test	UNKNOWN STEP	2026-10-30T17:46:22.9280198Z 24.04.5
+test	UNKNOWN STEP	2026-10-30T17:46:22.9281049Z LTS
+test	UNKNOWN STEP	2026-10-30T17:46:22.9281993Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:22.9282886Z ##[group]Runner Image
+test	UNKNOWN STEP	2026-10-30T17:46:22.9283814Z Image: ubuntu-24.04
+test	UNKNOWN STEP	2026-10-30T17:46:22.9284885Z Version: 20261025.353.1
+test	UNKNOWN STEP	2026-10-30T17:46:22.9287417Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+test	UNKNOWN STEP	2026-10-30T17:46:22.9290165Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+test	UNKNOWN STEP	2026-10-30T17:46:22.9291912Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:22.9293770Z ##[group]GITHUB_TOKEN Permissions
+test	UNKNOWN STEP	2026-10-30T17:46:22.9296917Z Contents: read
+test	UNKNOWN STEP	2026-10-30T17:46:22.9297839Z Metadata: read
+test	UNKNOWN STEP	2026-10-30T17:46:22.9298861Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:22.9301871Z Secret source: Actions
+test	UNKNOWN STEP	2026-10-30T17:46:22.9303519Z Cache mode: write
+test	UNKNOWN STEP	2026-10-30T17:46:22.9305120Z Prepare workflow directory
+test	UNKNOWN STEP	2026-10-30T17:46:22.9876727Z Prepare all required actions
+test	UNKNOWN STEP	2026-10-30T17:46:22.9950339Z Getting action download info
+test	UNKNOWN STEP	2026-10-30T17:46:23.2058064Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+test	UNKNOWN STEP	2026-10-30T17:46:23.3171198Z Download action repository 'extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3' (SHA:53165ef7e734c5c07cb06b3c8e7b647c5aa16db3)
+test	UNKNOWN STEP	2026-10-30T17:46:23.4150630Z Download action repository 'astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2' (SHA:68559e99cc807c1eb7e9238fd43a15bba460eec2)
+test	UNKNOWN STEP	2026-10-30T17:46:23.6752758Z Getting action download info
+test	UNKNOWN STEP	2026-10-30T17:46:23.7487643Z Download action repository 'extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d' (SHA:0551596312d4008a6dfbc4d3c38fa20eaef46d2d)
+test	UNKNOWN STEP	2026-10-30T17:46:23.8685524Z Complete job name: test
+test	UNKNOWN STEP	2026-10-30T17:46:23.9455520Z ##[group]Run mkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"
+test	UNKNOWN STEP	2026-10-30T17:46:23.9456953Z ^[[36;1mmkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9457777Z ^[[36;1m{^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9458289Z ^[[36;1m  echo "GIT_CONFIG_GLOBAL=$RUNNER_TEMP/gitconfig"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9458996Z ^[[36;1m  echo "XDG_CONFIG_HOME=$RUNNER_TEMP/xdg/config"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9459672Z ^[[36;1m  echo "XDG_DATA_HOME=$RUNNER_TEMP/xdg/data"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9460346Z ^[[36;1m  echo "XDG_STATE_HOME=$RUNNER_TEMP/xdg/state"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9460969Z ^[[36;1m} >> "$GITHUB_ENV"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:23.9485375Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:46:23.9486628Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:23.9487047Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9487476Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9487965Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:23.9488477Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:23.9488992Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9489426Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:23.9489883Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:23.9839911Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9840682Z with:
+test	UNKNOWN STEP	2026-10-30T17:46:23.9841109Z   persist-credentials: false
+test	UNKNOWN STEP	2026-10-30T17:46:23.9841644Z   repository: verifiably/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:23.9845182Z   token: ***
+test	UNKNOWN STEP	2026-10-30T17:46:23.9845608Z   ssh-strict: true
+test	UNKNOWN STEP	2026-10-30T17:46:23.9846286Z   ssh-user: git
+test	UNKNOWN STEP	2026-10-30T17:46:23.9846718Z   clean: true
+test	UNKNOWN STEP	2026-10-30T17:46:23.9847167Z   sparse-checkout-cone-mode: true
+test	UNKNOWN STEP	2026-10-30T17:46:23.9847946Z   fetch-depth: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9848381Z   fetch-tags: false
+test	UNKNOWN STEP	2026-10-30T17:46:23.9848826Z   show-progress: true
+test	UNKNOWN STEP	2026-10-30T17:46:23.9849274Z   lfs: false
+test	UNKNOWN STEP	2026-10-30T17:46:23.9849686Z   submodules: false
+test	UNKNOWN STEP	2026-10-30T17:46:23.9850125Z   set-safe-directory: true
+test	UNKNOWN STEP	2026-10-30T17:46:23.9850625Z   allow-unsafe-pr-checkout: false
+test	UNKNOWN STEP	2026-10-30T17:46:23.9851252Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:23.9851654Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9852081Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9852587Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:23.9853098Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:23.9853578Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:23.9854004Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:23.9854540Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:23.9855224Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:23.9856039Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:23.9856693Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:23.9857279Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.2378754Z Syncing repository: verifiably/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:24.2381170Z ##[group]Getting Git version info
+test	UNKNOWN STEP	2026-10-30T17:46:24.2381919Z Working directory is '<RUNNER_HOME>/work/autonomy/autonomy'
+test	UNKNOWN STEP	2026-10-30T17:46:24.2383085Z [command]/usr/bin/git version
+test	UNKNOWN STEP	2026-10-30T17:46:24.2445269Z git version 2.56.0
+test	UNKNOWN STEP	2026-10-30T17:46:24.2472499Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.2492736Z Temporarily overriding HOME='<RUNNER_HOME>/work/_temp/8f533ce4-215f-4639-bb29-9a2691feff03' before making global git config changes
+test	UNKNOWN STEP	2026-10-30T17:46:24.2495129Z Adding repository directory to the temporary git global config as a safe directory
+test	UNKNOWN STEP	2026-10-30T17:46:24.2500575Z [command]/usr/bin/git config --global --add safe.directory <RUNNER_HOME>/work/autonomy/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:24.2556831Z Deleting the contents of '<RUNNER_HOME>/work/autonomy/autonomy'
+test	UNKNOWN STEP	2026-10-30T17:46:24.2560010Z ##[group]Determining repository object format
+test	UNKNOWN STEP	2026-10-30T17:46:24.2562109Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.2563469Z ##[group]Initializing the repository
+test	UNKNOWN STEP	2026-10-30T17:46:24.2566924Z [command]/usr/bin/git init <RUNNER_HOME>/work/autonomy/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:24.2677269Z hint: Using 'master' as the name for the initial branch. This default branch name
+test	UNKNOWN STEP	2026-10-30T17:46:24.2679083Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test	UNKNOWN STEP	2026-10-30T17:46:24.2680704Z hint: to use in all of your new repositories, which will suppress this warning,
+test	UNKNOWN STEP	2026-10-30T17:46:24.2681983Z hint: call:
+test	UNKNOWN STEP	2026-10-30T17:46:24.2682718Z hint:
+test	UNKNOWN STEP	2026-10-30T17:46:24.2683829Z hint: 	git config --global init.defaultBranch <name>
+test	UNKNOWN STEP	2026-10-30T17:46:24.2685268Z hint:
+test	UNKNOWN STEP	2026-10-30T17:46:24.2686847Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test	UNKNOWN STEP	2026-10-30T17:46:24.2688804Z hint: 'development'. The just-created branch can be renamed via this command:
+test	UNKNOWN STEP	2026-10-30T17:46:24.2690316Z hint:
+test	UNKNOWN STEP	2026-10-30T17:46:24.2691118Z hint: 	git branch -m <name>
+test	UNKNOWN STEP	2026-10-30T17:46:24.2692048Z hint:
+test	UNKNOWN STEP	2026-10-30T17:46:24.2693280Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test	UNKNOWN STEP	2026-10-30T17:46:24.2707717Z Initialized empty Git repository in <RUNNER_HOME>/work/autonomy/autonomy/.git/
+test	UNKNOWN STEP	2026-10-30T17:46:24.2718195Z [command]/usr/bin/git remote add origin https://github.com/verifiably/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:24.2769540Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.2770947Z ##[group]Disabling automatic garbage collection
+test	UNKNOWN STEP	2026-10-30T17:46:24.2773284Z [command]/usr/bin/git config --local gc.auto 0
+test	UNKNOWN STEP	2026-10-30T17:46:24.2811156Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.2812552Z ##[group]Setting up auth
+test	UNKNOWN STEP	2026-10-30T17:46:24.2813565Z Removing SSH command configuration
+test	UNKNOWN STEP	2026-10-30T17:46:24.2817665Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	UNKNOWN STEP	2026-10-30T17:46:24.2857448Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	UNKNOWN STEP	2026-10-30T17:46:24.3252954Z Removing HTTP extra header
+test	UNKNOWN STEP	2026-10-30T17:46:24.3259742Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	UNKNOWN STEP	2026-10-30T17:46:24.3307206Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	UNKNOWN STEP	2026-10-30T17:46:24.3547778Z Removing includeIf entries pointing to credentials config files
+test	UNKNOWN STEP	2026-10-30T17:46:24.3553625Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	UNKNOWN STEP	2026-10-30T17:46:24.3599794Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	UNKNOWN STEP	2026-10-30T17:46:24.3843462Z [command]/usr/bin/git config --file <RUNNER_HOME>/work/_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test	UNKNOWN STEP	2026-10-30T17:46:24.3894234Z [command]/usr/bin/git config --local includeIf.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path <RUNNER_HOME>/work/_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.3937269Z [command]/usr/bin/git config --local includeIf.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path <RUNNER_HOME>/work/_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.3981077Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.4040298Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.4088210Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.4089112Z ##[group]Fetching the repository
+test	UNKNOWN STEP	2026-10-30T17:46:24.4090648Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +26c8a0e26e63aa9424463cee0fbf82cd6e831379:refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7247424Z From https://github.com/verifiably/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7249491Z  * [new ref]         26c8a0e26e63aa9424463cee0fbf82cd6e831379 -> origin/design/autonomy-23aeff-test-policy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7260488Z [command]/usr/bin/git branch --list --remote origin/design/autonomy-23aeff-test-policy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7301042Z   origin/design/autonomy-23aeff-test-policy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7310930Z [command]/usr/bin/git rev-parse refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7348512Z 26c8a0e26e63aa9424463cee0fbf82cd6e831379
+test	UNKNOWN STEP	2026-10-30T17:46:24.7353785Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.7354832Z ##[group]Determining the checkout info
+test	UNKNOWN STEP	2026-10-30T17:46:24.7356544Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.7360368Z [command]/usr/bin/git sparse-checkout disable
+test	UNKNOWN STEP	2026-10-30T17:46:24.7425564Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test	UNKNOWN STEP	2026-10-30T17:46:24.7470218Z ##[group]Checking out the ref
+test	UNKNOWN STEP	2026-10-30T17:46:24.7474790Z [command]/usr/bin/git checkout --progress --force -B design/autonomy-23aeff-test-policy refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	UNKNOWN STEP	2026-10-30T17:46:24.7680484Z Switched to a new branch 'design/autonomy-23aeff-test-policy'
+test	UNKNOWN STEP	2026-10-30T17:46:24.7689361Z branch 'design/autonomy-23aeff-test-policy' set up to track 'origin/design/autonomy-23aeff-test-policy'.
+test	UNKNOWN STEP	2026-10-30T17:46:24.7696718Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.7752714Z [command]/usr/bin/git log -1 --format=%H
+test	UNKNOWN STEP	2026-10-30T17:46:24.7790859Z 26c8a0e26e63aa9424463cee0fbf82cd6e831379
+test	UNKNOWN STEP	2026-10-30T17:46:24.7801450Z ##[group]Removing auth
+test	UNKNOWN STEP	2026-10-30T17:46:24.7802264Z Removing SSH command configuration
+test	UNKNOWN STEP	2026-10-30T17:46:24.7806242Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	UNKNOWN STEP	2026-10-30T17:46:24.7853027Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	UNKNOWN STEP	2026-10-30T17:46:24.8094079Z Removing HTTP extra header
+test	UNKNOWN STEP	2026-10-30T17:46:24.8098374Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	UNKNOWN STEP	2026-10-30T17:46:24.8143042Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	UNKNOWN STEP	2026-10-30T17:46:24.8382599Z Removing includeIf entries pointing to credentials config files
+test	UNKNOWN STEP	2026-10-30T17:46:24.8385633Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	UNKNOWN STEP	2026-10-30T17:46:24.8431921Z includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8434376Z includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8437435Z includeif.gitdir:/github/workspace/.git.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8439270Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8452220Z [command]/usr/bin/git config --local --get-all includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8496355Z <RUNNER_HOME>/work/_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8511069Z [command]/usr/bin/git config --local --unset includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-6225b1d5\-aa55\-490e\-96cd\-5490c65b15fa\.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8570742Z [command]/usr/bin/git config --local --get-all includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8610297Z <RUNNER_HOME>/work/_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8621561Z [command]/usr/bin/git config --local --unset includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-6225b1d5\-aa55\-490e\-96cd\-5490c65b15fa\.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8668129Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8708025Z /github/runner_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8714340Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-6225b1d5\-aa55\-490e\-96cd\-5490c65b15fa\.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8761995Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+test	UNKNOWN STEP	2026-10-30T17:46:24.8797279Z /github/runner_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8805567Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-6225b1d5\-aa55\-490e\-96cd\-5490c65b15fa\.config
+test	UNKNOWN STEP	2026-10-30T17:46:24.8858570Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	UNKNOWN STEP	2026-10-30T17:46:24.9113358Z Removing credentials config '<RUNNER_HOME>/work/_temp/git-credentials-6225b1d5-aa55-490e-96cd-5490c65b15fa.config'
+test	UNKNOWN STEP	2026-10-30T17:46:24.9122890Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.9316661Z ##[group]Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3
+test	UNKNOWN STEP	2026-10-30T17:46:24.9317516Z with:
+test	UNKNOWN STEP	2026-10-30T17:46:24.9317957Z   just-version: 1.59.0
+test	UNKNOWN STEP	2026-10-30T17:46:24.9322584Z   github-token: ***
+test	UNKNOWN STEP	2026-10-30T17:46:24.9323097Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:24.9323530Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:24.9323992Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:24.9324523Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:24.9325062Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:24.9325589Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:24.9326333Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:24.9326941Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:24.9327703Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:24.9328420Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:24.9329443Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:24.9330057Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:24.9416369Z ##[start-action display=Run extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d;id=__extractions_setup-just.__extractions_setup-crate]
+test	UNKNOWN STEP	2026-10-30T17:46:24.9505322Z ##[group]Run extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d
+test	UNKNOWN STEP	2026-10-30T17:46:24.9506502Z with:
+test	UNKNOWN STEP	2026-10-30T17:46:24.9506973Z   repo: casey/just
+test	UNKNOWN STEP	2026-10-30T17:46:24.9507455Z   version: 1.59.0
+test	UNKNOWN STEP	2026-10-30T17:46:24.9512019Z   github-token: ***
+test	UNKNOWN STEP	2026-10-30T17:46:24.9512544Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:24.9512946Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:24.9513405Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:24.9513946Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:24.9514495Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:24.9515009Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:24.9515477Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:24.9516329Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:24.9517128Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:24.9517869Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:24.9518604Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:24.9519225Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:25.8962105Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C <RUNNER_HOME>/work/_temp/c59fcdeb-c5b8-45e6-b9ab-2472fd05a5b3 -f <RUNNER_HOME>/work/_temp/13a0d871-1673-4f1f-a037-cc352991817a
+test	UNKNOWN STEP	2026-10-30T17:46:25.9573176Z Successfully setup just v1.59.0
+test	UNKNOWN STEP	2026-10-30T17:46:25.9690161Z ##[end-action id=__extractions_setup-just.__extractions_setup-crate;outcome=success;conclusion=success;duration_ms=1027]
+test	UNKNOWN STEP	2026-10-30T17:46:25.9842825Z ##[group]Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+test	UNKNOWN STEP	2026-10-30T17:46:25.9843303Z with:
+test	UNKNOWN STEP	2026-10-30T17:46:25.9843537Z   version: 0.13.6
+test	UNKNOWN STEP	2026-10-30T17:46:25.9843798Z   enable-cache: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9844073Z   activate-environment: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9844384Z   no-project: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9844710Z   working-directory: <RUNNER_HOME>/work/autonomy/autonomy
+test	UNKNOWN STEP	2026-10-30T17:46:25.9847479Z   github-token: ***
+test	UNKNOWN STEP	2026-10-30T17:46:25.9848131Z   cache-dependency-glob: **/*requirements*.txt
+test	UNKNOWN STEP	**/*requirements*.in
+test	UNKNOWN STEP	**/*constraints*.txt
+test	UNKNOWN STEP	**/*constraints*.in
+test	UNKNOWN STEP	**/pyproject.toml
+test	UNKNOWN STEP	**/uv.lock
+test	UNKNOWN STEP	**/*.py.lock
+test	UNKNOWN STEP	
+test	UNKNOWN STEP	2026-10-30T17:46:25.9848818Z   restore-cache: true
+test	UNKNOWN STEP	2026-10-30T17:46:25.9849082Z   save-cache: auto
+test	UNKNOWN STEP	2026-10-30T17:46:25.9849341Z   prune-cache: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9849620Z   cache-python: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9849891Z   ignore-nothing-to-cache: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9850199Z   ignore-empty-workdir: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9850549Z   download-from-astral-mirror: true
+test	UNKNOWN STEP	2026-10-30T17:46:25.9850877Z   add-problem-matchers: true
+test	UNKNOWN STEP	2026-10-30T17:46:25.9851155Z   quiet: false
+test	UNKNOWN STEP	2026-10-30T17:46:25.9851405Z   resolution-strategy: highest
+test	UNKNOWN STEP	2026-10-30T17:46:25.9851701Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:25.9851922Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:25.9852159Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:25.9852452Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:25.9852749Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:25.9853023Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:25.9853266Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:25.9853604Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:25.9854028Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:25.9854408Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:25.9854786Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:25.9855133Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:26.2906989Z Fetching manifest data from https://releases.astral.sh/github/versions/main/v1/uv.ndjson ...
+test	UNKNOWN STEP	2026-10-30T17:46:26.2908597Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.13.6/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test	UNKNOWN STEP	2026-10-30T17:46:26.4438930Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C <RUNNER_HOME>/work/_temp/5782fee9-5702-48a2-8e11-c4f5456c03ca -f <RUNNER_HOME>/work/_temp/0425f540-4007-47cf-8a25-86e50fcc8bd8
+test	UNKNOWN STEP	2026-10-30T17:46:26.7662592Z Added <RUNNER_HOME>/work/_temp/xdg/data/../bin to the path
+test	UNKNOWN STEP	2026-10-30T17:46:26.7667933Z Added /opt/hostedtoolcache/uv/0.13.6/x86_64 to the path
+test	UNKNOWN STEP	2026-10-30T17:46:26.7669820Z Set UV_PYTHON_INSTALL_DIR to <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:46:26.7670575Z Added <RUNNER_HOME>/work/_temp/uv-python-dir to the path
+test	UNKNOWN STEP	2026-10-30T17:46:26.7694072Z Successfully installed uv version 0.13.6
+test	UNKNOWN STEP	2026-10-30T17:46:26.9461453Z ##[group]Run sudo apt-get update
+test	UNKNOWN STEP	2026-10-30T17:46:26.9461822Z ^[[36;1msudo apt-get update^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:26.9462260Z ^[[36;1msudo apt-get install --no-install-recommends -y bubblewrap openssl bash dash zsh^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:26.9483228Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:46:26.9483492Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:26.9483672Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:26.9483877Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:26.9484123Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:26.9484377Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:26.9484617Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:26.9484815Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:26.9485092Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:26.9485457Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:26.9486098Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:26.9486445Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:26.9486845Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:46:26.9487181Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:27.0287384Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	UNKNOWN STEP	2026-10-30T17:46:27.0547462Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test	UNKNOWN STEP	2026-10-30T17:46:27.1356370Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test	UNKNOWN STEP	2026-10-30T17:46:27.1377548Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.1424904Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.1496831Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [682 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.1513984Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.1716200Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [617 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.2799609Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1408 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.2893560Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [311 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.2902470Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1708 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.2986506Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [343 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.3010971Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1813 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.3100835Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [412 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.3128261Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [14.3 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.4147440Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1146 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.4184825Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [231 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.4218877Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1223 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:27.4727251Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [246 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:30.3008420Z Fetched 10.5 MB in 1s (9432 kB/s)
+test	UNKNOWN STEP	2026-10-30T17:46:31.4526241Z Reading package lists...
+test	UNKNOWN STEP	2026-10-30T17:46:31.4918175Z Reading package lists...
+test	UNKNOWN STEP	2026-10-30T17:46:31.7044995Z Building dependency tree...
+test	UNKNOWN STEP	2026-10-30T17:46:31.7052780Z Reading state information...
+test	UNKNOWN STEP	2026-10-30T17:46:31.8470258Z openssl is already the newest version (3.0.13-0ubuntu3.16).
+test	UNKNOWN STEP	2026-10-30T17:46:31.8471119Z bash is already the newest version (5.2.21-2ubuntu4).
+test	UNKNOWN STEP	2026-10-30T17:46:31.8471903Z dash is already the newest version (0.5.12-6ubuntu5).
+test	UNKNOWN STEP	2026-10-30T17:46:31.8472648Z The following additional packages will be installed:
+test	UNKNOWN STEP	2026-10-30T17:46:31.8473557Z   zsh-common
+test	UNKNOWN STEP	2026-10-30T17:46:31.8475443Z Suggested packages:
+test	UNKNOWN STEP	2026-10-30T17:46:31.8476119Z   zsh-doc
+test	UNKNOWN STEP	2026-10-30T17:46:31.8648461Z The following NEW packages will be installed:
+test	UNKNOWN STEP	2026-10-30T17:46:31.8654126Z   bubblewrap zsh zsh-common
+test	UNKNOWN STEP	2026-10-30T17:46:31.8852312Z 0 upgraded, 3 newly installed, 0 to remove and 6 not upgraded.
+test	UNKNOWN STEP	2026-10-30T17:46:31.8852918Z Need to get 5036 kB of archives.
+test	UNKNOWN STEP	2026-10-30T17:46:31.8853479Z After this operation, 19.3 MB of additional disk space will be used.
+test	UNKNOWN STEP	2026-10-30T17:46:31.8854128Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	UNKNOWN STEP	2026-10-30T17:46:31.9178151Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 bubblewrap amd64 0.9.0-1ubuntu0.3 [50.4 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:31.9338855Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 zsh-common all 5.9-6ubuntu2 [4173 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:31.9789331Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 zsh amd64 5.9-6ubuntu2 [812 kB]
+test	UNKNOWN STEP	2026-10-30T17:46:32.2542184Z Fetched 5036 kB in 0s (45.3 MB/s)
+test	UNKNOWN STEP	2026-10-30T17:46:32.2774889Z Selecting previously unselected package bubblewrap.
+test	UNKNOWN STEP	2026-10-30T17:46:32.3032386Z (Reading database ... 
+test	UNKNOWN STEP	2026-10-30T17:46:32.3032997Z (Reading database ... 5%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3033363Z (Reading database ... 10%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3033710Z (Reading database ... 15%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3034043Z (Reading database ... 20%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3034477Z (Reading database ... 25%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3035181Z (Reading database ... 30%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3036158Z (Reading database ... 35%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3036705Z (Reading database ... 40%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3037141Z (Reading database ... 45%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3037524Z (Reading database ... 50%
+test	UNKNOWN STEP	2026-10-30T17:46:32.3077364Z (Reading database ... 55%
+test	UNKNOWN STEP	2026-10-30T17:46:32.4507325Z (Reading database ... 60%
+test	UNKNOWN STEP	2026-10-30T17:46:32.6593477Z (Reading database ... 65%
+test	UNKNOWN STEP	2026-10-30T17:46:32.8473731Z (Reading database ... 70%
+test	UNKNOWN STEP	2026-10-30T17:46:33.0552335Z (Reading database ... 75%
+test	UNKNOWN STEP	2026-10-30T17:46:33.2394948Z (Reading database ... 80%
+test	UNKNOWN STEP	2026-10-30T17:46:33.3530494Z (Reading database ... 85%
+test	UNKNOWN STEP	2026-10-30T17:46:33.4943601Z (Reading database ... 90%
+test	UNKNOWN STEP	2026-10-30T17:46:33.6994998Z (Reading database ... 95%
+test	UNKNOWN STEP	2026-10-30T17:46:33.6995402Z (Reading database ... 100%
+test	UNKNOWN STEP	2026-10-30T17:46:33.6996226Z (Reading database ... 215504 files and directories currently installed.)
+test	UNKNOWN STEP	2026-10-30T17:46:33.7037916Z Preparing to unpack .../bubblewrap_0.9.0-1ubuntu0.3_amd64.deb ...
+test	UNKNOWN STEP	2026-10-30T17:46:33.7064069Z Unpacking bubblewrap (0.9.0-1ubuntu0.3) ...
+test	UNKNOWN STEP	2026-10-30T17:46:33.7379825Z Selecting previously unselected package zsh-common.
+test	UNKNOWN STEP	2026-10-30T17:46:33.7517248Z Preparing to unpack .../zsh-common_5.9-6ubuntu2_all.deb ...
+test	UNKNOWN STEP	2026-10-30T17:46:33.7590818Z Unpacking zsh-common (5.9-6ubuntu2) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.0446470Z Selecting previously unselected package zsh.
+test	UNKNOWN STEP	2026-10-30T17:46:34.0590100Z Preparing to unpack .../zsh_5.9-6ubuntu2_amd64.deb ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.0664319Z Unpacking zsh (5.9-6ubuntu2) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.1246853Z Setting up bubblewrap (0.9.0-1ubuntu0.3) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.1299619Z Setting up zsh-common (5.9-6ubuntu2) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.1486863Z Setting up zsh (5.9-6ubuntu2) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.1592079Z Processing triggers for debianutils (5.17build1) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.2377221Z Processing triggers for man-db (2.12.0-4build2) ...
+test	UNKNOWN STEP	2026-10-30T17:46:34.2398605Z Not building database; man-db/auto-update is not 'true'.
+test	UNKNOWN STEP	2026-10-30T17:46:34.8905094Z 
+test	UNKNOWN STEP	2026-10-30T17:46:34.8905641Z Running kernel seems to be up-to-date.
+test	UNKNOWN STEP	2026-10-30T17:46:34.8906265Z 
+test	UNKNOWN STEP	2026-10-30T17:46:34.8906436Z No services need to be restarted.
+test	UNKNOWN STEP	2026-10-30T17:46:34.8906640Z 
+test	UNKNOWN STEP	2026-10-30T17:46:34.8906749Z No containers need to be restarted.
+test	UNKNOWN STEP	2026-10-30T17:46:34.8907239Z 
+test	UNKNOWN STEP	2026-10-30T17:46:34.8907366Z No user sessions are running outdated binaries.
+test	UNKNOWN STEP	2026-10-30T17:46:34.8907595Z 
+test	UNKNOWN STEP	2026-10-30T17:46:34.8907806Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test	UNKNOWN STEP	2026-10-30T17:46:35.7519645Z ##[group]Run /usr/bin/python3 -I -c '
+test	UNKNOWN STEP	2026-10-30T17:46:35.7520006Z ^[[36;1m/usr/bin/python3 -I -c '^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7520271Z ^[[36;1mimport os, signal, sys^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7520601Z ^[[36;1massert sys.version_info >= (3, 12), sys.version^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7521014Z ^[[36;1mneeded = ("os.setns", "os.pidfd_open", "signal.pidfd_send_signal")^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7521617Z ^[[36;1mmissing = [n for n in needed if not hasattr({"os": os, "signal": signal}[n.split(".")[0]], n.split(".")[1])]^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7522122Z ^[[36;1massert not missing, missing^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7522386Z ^[[36;1mprint(sys.version)^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7522608Z ^[[36;1m'^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7523161Z ^[[36;1mecho "kernel.apparmor_restrict_unprivileged_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7544017Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:46:35.7544256Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:35.7544434Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7544664Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7544896Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:35.7545147Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:35.7545373Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7545567Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:35.7546112Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:35.7546466Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:35.7546789Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:35.7547110Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:35.7547477Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:46:35.7547802Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:35.7744067Z 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+test	UNKNOWN STEP	2026-10-30T17:46:35.7790657Z kernel.apparmor_restrict_unprivileged_userns=1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7820052Z ##[group]Run git clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"
+test	UNKNOWN STEP	2026-10-30T17:46:35.7820626Z ^[[36;1mgit clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7821189Z ^[[36;1mgit -C "$RUNNER_TEMP/tasks" checkout --detach 43b6eee5ae6c95ba83ac77e6108915ec9557f2b5^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7821705Z ^[[36;1mrustup toolchain install 1.99.1 --profile minimal^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7822200Z ^[[36;1mcargo +1.99.1 build --locked --release --manifest-path "$RUNNER_TEMP/tasks/Cargo.toml"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7822724Z ^[[36;1mecho "$RUNNER_TEMP/tasks/target/release" >> "$GITHUB_PATH"^[[0m
+test	UNKNOWN STEP	2026-10-30T17:46:35.7841621Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:46:35.7841868Z env:
+test	UNKNOWN STEP	2026-10-30T17:46:35.7842046Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7842245Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7842479Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:46:35.7842730Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:46:35.7842980Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:46:35.7843196Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:46:35.7843464Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:46:35.7843820Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:46:35.7844143Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:46:35.7844465Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:46:35.7844834Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:46:35.7845171Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:46:35.7897206Z Cloning into '<RUNNER_HOME>/work/_temp/tasks'...
+test	UNKNOWN STEP	2026-10-30T17:46:37.0194188Z HEAD is now at 43b6eee5 chore(tasks): note tasks-b4df1e
+test	UNKNOWN STEP	2026-10-30T17:46:37.0743168Z info: syncing channel updates for 1.99.1-x86_64-unknown-linux-gnu
+test	UNKNOWN STEP	2026-10-30T17:46:37.1943308Z info: latest update on 2026-10-15 for version 1.99.1 (58cf8f9c3 2026-10-13)
+test	UNKNOWN STEP	2026-10-30T17:46:37.1945551Z info: downloading 3 components
+test	UNKNOWN STEP	2026-10-30T17:46:45.0671055Z 
+test	UNKNOWN STEP	2026-10-30T17:46:45.0738273Z   1.99.1-x86_64-unknown-linux-gnu installed - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+test	UNKNOWN STEP	2026-10-30T17:46:45.0738789Z 
+test	UNKNOWN STEP	2026-10-30T17:46:45.1247950Z     Updating crates.io index
+test	UNKNOWN STEP	2026-10-30T17:46:45.4881234Z  Downloading crates ...
+test	UNKNOWN STEP	2026-10-30T17:46:45.5762707Z   Downloaded smallvec v1.16.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.5940735Z   Downloaded hashbrown v0.17.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.5992957Z   Downloaded console v0.16.6
+test	UNKNOWN STEP	2026-10-30T17:46:45.6014271Z   Downloaded anstyle v1.0.14
+test	UNKNOWN STEP	2026-10-30T17:46:45.6030487Z   Downloaded clap_builder v4.6.6
+test	UNKNOWN STEP	2026-10-30T17:46:45.6101249Z   Downloaded indexmap v2.14.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.6148953Z   Downloaded anstream v1.0.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.6167352Z   Downloaded anstyle-query v1.1.5
+test	UNKNOWN STEP	2026-10-30T17:46:45.6181201Z   Downloaded serde v1.0.229
+test	UNKNOWN STEP	2026-10-30T17:46:45.6228467Z   Downloaded cpufeatures v0.2.17
+test	UNKNOWN STEP	2026-10-30T17:46:45.6246968Z   Downloaded shlex v2.0.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.6264206Z   Downloaded deranged v0.5.8
+test	UNKNOWN STEP	2026-10-30T17:46:45.6285988Z   Downloaded is_terminal_polyfill v1.70.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.6299317Z   Downloaded ansi-str v0.9.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.6316494Z   Downloaded num-conv v0.2.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.6324978Z   Downloaded clap_complete v4.6.9
+test	UNKNOWN STEP	2026-10-30T17:46:45.6362490Z   Downloaded colorchoice v1.0.5
+test	UNKNOWN STEP	2026-10-30T17:46:45.6377253Z   Downloaded thiserror-impl v2.0.20
+test	UNKNOWN STEP	2026-10-30T17:46:45.6390686Z   Downloaded minimal-lexical v0.2.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.6443073Z   Downloaded ansitok v0.3.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.6463639Z   Downloaded quote v1.0.47
+test	UNKNOWN STEP	2026-10-30T17:46:45.6488989Z   Downloaded serde_spanned v1.1.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.6499904Z   Downloaded equivalent v1.0.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.6509752Z   Downloaded utf8parse v0.2.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.6518576Z   Downloaded anstyle-parse v1.0.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.6533852Z   Downloaded cfg-if v1.0.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.6546792Z   Downloaded block-buffer v0.10.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.6556080Z   Downloaded sha2 v0.10.9
+test	UNKNOWN STEP	2026-10-30T17:46:45.6580327Z   Downloaded toml_datetime v1.1.1+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.6592658Z   Downloaded parking_lot_core v0.9.12
+test	UNKNOWN STEP	2026-10-30T17:46:45.6612987Z   Downloaded rustix v1.1.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.6867256Z   Downloaded generic-array v0.14.7
+test	UNKNOWN STEP	2026-10-30T17:46:45.6880738Z   Downloaded time-core v0.1.9
+test	UNKNOWN STEP	2026-10-30T17:46:45.6891906Z   Downloaded xterm-color v1.0.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.6900503Z   Downloaded crypto-common v0.1.7
+test	UNKNOWN STEP	2026-10-30T17:46:45.6909198Z   Downloaded document-features v0.2.12
+test	UNKNOWN STEP	2026-10-30T17:46:45.6921077Z   Downloaded unicode-ident v1.0.24
+test	UNKNOWN STEP	2026-10-30T17:46:45.6947301Z   Downloaded serde_derive v1.0.229
+test	UNKNOWN STEP	2026-10-30T17:46:45.6975954Z   Downloaded winnow v1.0.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.7069257Z   Downloaded toml_parser v1.1.3+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7090727Z   Downloaded clap v4.6.6
+test	UNKNOWN STEP	2026-10-30T17:46:45.7181620Z   Downloaded heck v0.5.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7193928Z   Downloaded unicase v2.10.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7207032Z   Downloaded arrayvec v0.7.8
+test	UNKNOWN STEP	2026-10-30T17:46:45.7226070Z   Downloaded clap_lex v1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7236426Z   Downloaded powerfmt v0.2.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7247217Z   Downloaded zmij v1.0.23
+test	UNKNOWN STEP	2026-10-30T17:46:45.7263844Z   Downloaded toml v1.1.4+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7302649Z   Downloaded is_executable v1.0.6
+test	UNKNOWN STEP	2026-10-30T17:46:45.7315720Z   Downloaded scopeguard v1.2.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7327345Z   Downloaded vte v0.14.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.7346984Z   Downloaded strsim v0.11.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.7359157Z   Downloaded itoa v1.0.18
+test	UNKNOWN STEP	2026-10-30T17:46:45.7372317Z   Downloaded memchr v2.8.3
+test	UNKNOWN STEP	2026-10-30T17:46:45.7423747Z   Downloaded thiserror v2.0.20
+test	UNKNOWN STEP	2026-10-30T17:46:45.7483952Z   Downloaded errno v0.3.14
+test	UNKNOWN STEP	2026-10-30T17:46:45.7498464Z   Downloaded litrs v1.0.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7526205Z   Downloaded parking_lot v0.12.5
+test	UNKNOWN STEP	2026-10-30T17:46:45.7550178Z   Downloaded serde_json v1.0.151
+test	UNKNOWN STEP	2026-10-30T17:46:45.7618872Z   Downloaded bitflags v2.13.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.7662580Z   Downloaded fastrand v2.5.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7675750Z   Downloaded lock_api v0.4.14
+test	UNKNOWN STEP	2026-10-30T17:46:45.7688451Z   Downloaded proc-macro2 v1.0.107
+test	UNKNOWN STEP	2026-10-30T17:46:45.7715938Z   Downloaded time-macros v0.2.32
+test	UNKNOWN STEP	2026-10-30T17:46:45.7739570Z   Downloaded toml_writer v1.1.2+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.7752868Z   Downloaded digest v0.10.7
+test	UNKNOWN STEP	2026-10-30T17:46:45.7770159Z   Downloaded typenum v1.20.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.7803505Z   Downloaded terminal-trx v0.2.6
+test	UNKNOWN STEP	2026-10-30T17:46:45.7818260Z   Downloaded time v0.3.55
+test	UNKNOWN STEP	2026-10-30T17:46:45.7955514Z   Downloaded unicode-segmentation v1.13.3
+test	UNKNOWN STEP	2026-10-30T17:46:45.7983799Z   Downloaded clap_derive v4.6.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.8006207Z   Downloaded comfy-table v8.0.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.8059991Z   Downloaded serde_core v1.0.229
+test	UNKNOWN STEP	2026-10-30T17:46:45.8085575Z   Downloaded crossterm v0.29.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.8150711Z   Downloaded nom v7.1.3
+test	UNKNOWN STEP	2026-10-30T17:46:45.8198712Z   Downloaded syn v3.0.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.8300402Z   Downloaded pulldown-cmark v0.13.4
+test	UNKNOWN STEP	2026-10-30T17:46:45.8348476Z   Downloaded toml_edit v0.25.13+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:45.8385618Z   Downloaded unicode-width v0.2.2
+test	UNKNOWN STEP	2026-10-30T17:46:45.8442028Z   Downloaded version_check v0.9.5
+test	UNKNOWN STEP	2026-10-30T17:46:45.8454279Z   Downloaded libc v0.2.189
+test	UNKNOWN STEP	2026-10-30T17:46:45.8864361Z   Downloaded linux-raw-sys v0.12.1
+test	UNKNOWN STEP	2026-10-30T17:46:45.9706424Z    Compiling proc-macro2 v1.0.107
+test	UNKNOWN STEP	2026-10-30T17:46:45.9707175Z    Compiling quote v1.0.47
+test	UNKNOWN STEP	2026-10-30T17:46:45.9707865Z    Compiling unicode-ident v1.0.24
+test	UNKNOWN STEP	2026-10-30T17:46:45.9708523Z    Compiling libc v0.2.189
+test	UNKNOWN STEP	2026-10-30T17:46:46.0386887Z    Compiling serde_core v1.0.229
+test	UNKNOWN STEP	2026-10-30T17:46:46.1336898Z    Compiling memchr v2.8.3
+test	UNKNOWN STEP	2026-10-30T17:46:46.1717503Z    Compiling version_check v0.9.5
+test	UNKNOWN STEP	2026-10-30T17:46:46.3736994Z    Compiling generic-array v0.14.7
+test	UNKNOWN STEP	2026-10-30T17:46:46.9537160Z    Compiling syn v3.0.4
+test	UNKNOWN STEP	2026-10-30T17:46:47.4187037Z    Compiling cfg-if v1.0.4
+test	UNKNOWN STEP	2026-10-30T17:46:47.4696987Z    Compiling typenum v1.20.1
+test	UNKNOWN STEP	2026-10-30T17:46:47.5616979Z    Compiling parking_lot_core v0.9.12
+test	UNKNOWN STEP	2026-10-30T17:46:47.6642818Z    Compiling utf8parse v0.2.2
+test	UNKNOWN STEP	2026-10-30T17:46:47.7073003Z    Compiling anstyle-parse v1.0.0
+test	UNKNOWN STEP	2026-10-30T17:46:47.8746992Z    Compiling rustix v1.1.4
+test	UNKNOWN STEP	2026-10-30T17:46:48.0676842Z    Compiling smallvec v1.16.2
+test	UNKNOWN STEP	2026-10-30T17:46:48.2578562Z    Compiling arrayvec v0.7.8
+test	UNKNOWN STEP	2026-10-30T17:46:48.4487340Z    Compiling bitflags v2.13.1
+test	UNKNOWN STEP	2026-10-30T17:46:48.7816895Z    Compiling scopeguard v1.2.0
+test	UNKNOWN STEP	2026-10-30T17:46:48.8267191Z    Compiling is_terminal_polyfill v1.70.2
+test	UNKNOWN STEP	2026-10-30T17:46:48.8709408Z    Compiling colorchoice v1.0.5
+test	UNKNOWN STEP	2026-10-30T17:46:48.8771762Z    Compiling anstyle-query v1.1.5
+test	UNKNOWN STEP	2026-10-30T17:46:48.9116733Z    Compiling minimal-lexical v0.2.1
+test	UNKNOWN STEP	2026-10-30T17:46:48.9176732Z    Compiling anstyle v1.0.14
+test	UNKNOWN STEP	2026-10-30T17:46:48.9206489Z    Compiling lock_api v0.4.14
+test	UNKNOWN STEP	2026-10-30T17:46:49.1276906Z    Compiling nom v7.1.3
+test	UNKNOWN STEP	2026-10-30T17:46:49.1336910Z    Compiling anstream v1.0.0
+test	UNKNOWN STEP	2026-10-30T17:46:49.1746986Z    Compiling vte v0.14.1
+test	UNKNOWN STEP	2026-10-30T17:46:49.5817110Z    Compiling heck v0.5.0
+test	UNKNOWN STEP	2026-10-30T17:46:49.6347049Z    Compiling winnow v1.0.4
+test	UNKNOWN STEP	2026-10-30T17:46:49.7146970Z    Compiling litrs v1.0.0
+test	UNKNOWN STEP	2026-10-30T17:46:50.1537169Z    Compiling zmij v1.0.23
+test	UNKNOWN STEP	2026-10-30T17:46:50.2877681Z    Compiling strsim v0.11.1
+test	UNKNOWN STEP	2026-10-30T17:46:50.8007160Z    Compiling clap_lex v1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:51.0707536Z    Compiling linux-raw-sys v0.12.1
+test	UNKNOWN STEP	2026-10-30T17:46:51.1627342Z    Compiling ansitok v0.3.0
+test	UNKNOWN STEP	2026-10-30T17:46:51.2717477Z    Compiling toml_parser v1.1.3+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:51.3487211Z    Compiling clap_builder v4.6.6
+test	UNKNOWN STEP	2026-10-30T17:46:52.6937082Z    Compiling clap_derive v4.6.4
+test	UNKNOWN STEP	2026-10-30T17:46:52.7676954Z    Compiling document-features v0.2.12
+test	UNKNOWN STEP	2026-10-30T17:46:53.1397035Z    Compiling parking_lot v0.12.5
+test	UNKNOWN STEP	2026-10-30T17:46:53.2123711Z    Compiling crypto-common v0.1.7
+test	UNKNOWN STEP	2026-10-30T17:46:53.2767220Z    Compiling block-buffer v0.10.4
+test	UNKNOWN STEP	2026-10-30T17:46:53.3777259Z    Compiling toml_datetime v1.1.1+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:53.7476919Z    Compiling pulldown-cmark v0.13.4
+test	UNKNOWN STEP	2026-10-30T17:46:53.8256932Z    Compiling equivalent v1.0.2
+test	UNKNOWN STEP	2026-10-30T17:46:53.8577982Z    Compiling hashbrown v0.17.1
+test	UNKNOWN STEP	2026-10-30T17:46:54.0366713Z    Compiling serde v1.0.229
+test	UNKNOWN STEP	2026-10-30T17:46:54.2016965Z    Compiling toml_writer v1.1.2+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:46:54.3266904Z    Compiling unicode-width v0.2.2
+test	UNKNOWN STEP	2026-10-30T17:46:54.3817010Z    Compiling thiserror v2.0.20
+test	UNKNOWN STEP	2026-10-30T17:46:54.5527016Z    Compiling serde_json v1.0.151
+test	UNKNOWN STEP	2026-10-30T17:46:54.5847086Z    Compiling indexmap v2.14.1
+test	UNKNOWN STEP	2026-10-30T17:46:54.5951276Z    Compiling console v0.16.6
+test	UNKNOWN STEP	2026-10-30T17:46:54.6406606Z    Compiling clap v4.6.6
+test	UNKNOWN STEP	2026-10-30T17:46:54.7003954Z    Compiling digest v0.10.7
+test	UNKNOWN STEP	2026-10-30T17:46:54.8587031Z    Compiling crossterm v0.29.0
+test	UNKNOWN STEP	2026-10-30T17:46:55.7246936Z    Compiling ansi-str v0.9.0
+test	UNKNOWN STEP	2026-10-30T17:46:55.8216854Z    Compiling serde_derive v1.0.229
+test	UNKNOWN STEP	2026-10-30T17:46:56.0419901Z    Compiling thiserror-impl v2.0.20
+test	UNKNOWN STEP	2026-10-30T17:46:56.7117731Z    Compiling serde_spanned v1.1.1
+test	UNKNOWN STEP	2026-10-30T17:46:56.7827006Z    Compiling unicase v2.10.0
+test	UNKNOWN STEP	2026-10-30T17:46:57.0057393Z    Compiling is_executable v1.0.6
+test	UNKNOWN STEP	2026-10-30T17:46:57.0617706Z    Compiling unicode-segmentation v1.13.3
+test	UNKNOWN STEP	2026-10-30T17:46:57.1126840Z    Compiling shlex v2.0.1
+test	UNKNOWN STEP	2026-10-30T17:46:57.3567163Z    Compiling itoa v1.0.18
+test	UNKNOWN STEP	2026-10-30T17:46:57.5546957Z    Compiling cpufeatures v0.2.17
+test	UNKNOWN STEP	2026-10-30T17:46:57.5906866Z    Compiling time-core v0.1.9
+test	UNKNOWN STEP	2026-10-30T17:46:57.6379050Z    Compiling powerfmt v0.2.0
+test	UNKNOWN STEP	2026-10-30T17:46:57.7549987Z    Compiling num-conv v0.2.2
+test	UNKNOWN STEP	2026-10-30T17:46:57.8397075Z    Compiling deranged v0.5.8
+test	UNKNOWN STEP	2026-10-30T17:46:57.8727306Z    Compiling sha2 v0.10.9
+test	UNKNOWN STEP	2026-10-30T17:46:59.1839869Z    Compiling time v0.3.55
+test	UNKNOWN STEP	2026-10-30T17:46:59.8959663Z    Compiling comfy-table v8.0.1
+test	UNKNOWN STEP	2026-10-30T17:47:02.2227464Z    Compiling clap_complete v4.6.9
+test	UNKNOWN STEP	2026-10-30T17:47:02.8848424Z    Compiling toml v1.1.4+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:47:03.8047107Z    Compiling toml_edit v0.25.13+spec-1.1.0
+test	UNKNOWN STEP	2026-10-30T17:47:07.8246925Z    Compiling terminal-trx v0.2.6
+test	UNKNOWN STEP	2026-10-30T17:47:07.9107208Z    Compiling xterm-color v1.0.2
+test	UNKNOWN STEP	2026-10-30T17:47:08.0686922Z    Compiling fastrand v2.5.0
+test	UNKNOWN STEP	2026-10-30T17:47:08.6059978Z    Compiling tasks v0.4.0 (<RUNNER_HOME>/work/_temp/tasks)
+test	UNKNOWN STEP	2026-10-30T17:47:37.6244266Z     Finished `release` profile [optimized] target(s) in 52.52s
+test	UNKNOWN STEP	2026-10-30T17:47:37.6639153Z ##[group]Run just setup
+test	UNKNOWN STEP	2026-10-30T17:47:37.6639452Z ^[[36;1mjust setup^[[0m
+test	UNKNOWN STEP	2026-10-30T17:47:37.6659861Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:47:37.6660112Z env:
+test	UNKNOWN STEP	2026-10-30T17:47:37.6660292Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:47:37.6660494Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:47:37.6660735Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:47:37.6660981Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:47:37.6661205Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:47:37.6661400Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:47:37.6661671Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:47:37.6662031Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:47:37.6662369Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:47:37.6662692Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:47:37.6663068Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:47:37.6663404Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:47:37.9049347Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:47:37.9050216Z Creating virtual environment at: .venv
+test	UNKNOWN STEP	2026-10-30T17:47:37.9088660Z    Building verifiably-autonomy @ file://<RUNNER_HOME>/work/autonomy/autonomy/python
+test	UNKNOWN STEP	2026-10-30T17:47:37.9586881Z Downloading pygments (1.2MiB)
+test	UNKNOWN STEP	2026-10-30T17:47:38.0116009Z  Downloaded pygments
+test	UNKNOWN STEP	2026-10-30T17:47:38.3819833Z       Built verifiably-autonomy @ file://<RUNNER_HOME>/work/autonomy/autonomy/python
+test	UNKNOWN STEP	2026-10-30T17:47:38.3830645Z Prepared 8 packages in 476ms
+test	UNKNOWN STEP	2026-10-30T17:47:38.3919959Z Installed 8 packages in 8ms
+test	UNKNOWN STEP	2026-10-30T17:47:38.3920422Z  + coverage==7.16.2
+test	UNKNOWN STEP	2026-10-30T17:47:38.3920779Z  + iniconfig==2.3.1
+test	UNKNOWN STEP	2026-10-30T17:47:38.3921139Z  + packaging==26.3
+test	UNKNOWN STEP	2026-10-30T17:47:38.3921504Z  + pluggy==1.6.0
+test	UNKNOWN STEP	2026-10-30T17:47:38.3921852Z  + pygments==2.21.0
+test	UNKNOWN STEP	2026-10-30T17:47:38.3922206Z  + pytest==9.1.1
+test	UNKNOWN STEP	2026-10-30T17:47:38.3922558Z  + pytest-testmon==2.2.0
+test	UNKNOWN STEP	2026-10-30T17:47:38.3923393Z  + verifiably-autonomy==0.1.0 (from file://<RUNNER_HOME>/work/autonomy/autonomy/python)
+test	UNKNOWN STEP	2026-10-30T17:47:38.4175102Z ##[group]Run sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+test	UNKNOWN STEP	2026-10-30T17:47:38.4176612Z ^[[36;1msudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0^[[0m
+test	UNKNOWN STEP	2026-10-30T17:47:38.4208142Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:47:38.4208586Z env:
+test	UNKNOWN STEP	2026-10-30T17:47:38.4208910Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:47:38.4209273Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:47:38.4209777Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:47:38.4210311Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:47:38.4210791Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:47:38.4211154Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:47:38.4211667Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:47:38.4212313Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:47:38.4212979Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:47:38.4213598Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:47:38.4214326Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:47:38.4214950Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:47:38.4338640Z kernel.apparmor_restrict_unprivileged_userns = 0
+test	UNKNOWN STEP	2026-10-30T17:47:38.4378322Z ##[group]Run just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
+test	UNKNOWN STEP	2026-10-30T17:47:38.4379378Z ^[[36;1mjust test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py^[[0m
+test	UNKNOWN STEP	2026-10-30T17:47:38.4399340Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:47:38.4399707Z env:
+test	UNKNOWN STEP	2026-10-30T17:47:38.4400109Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:47:38.4400422Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:47:38.4400747Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:47:38.4401204Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:47:38.4401534Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:47:38.4401859Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:47:38.4402246Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:47:38.4402708Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:47:38.4403226Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:47:38.4403716Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:47:38.4404290Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:47:38.4404769Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:47:39.2235625Z ============================= test session starts ==============================
+test	UNKNOWN STEP	2026-10-30T17:47:39.2237097Z platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+test	UNKNOWN STEP	2026-10-30T17:47:39.2238101Z rootdir: <RUNNER_HOME>/work/autonomy/autonomy/python
+test	UNKNOWN STEP	2026-10-30T17:47:39.2238822Z configfile: pyproject.toml
+test	UNKNOWN STEP	2026-10-30T17:47:39.2239513Z plugins: testmon-2.2.0
+test	UNKNOWN STEP	2026-10-30T17:47:39.2240190Z collected 45 items
+test	UNKNOWN STEP	2026-10-30T17:47:39.2240557Z 
+test	UNKNOWN STEP	2026-10-30T17:47:44.4414149Z tests/test_sandbox_probe.py ................                             [ 35%]
+test	UNKNOWN STEP	2026-10-30T17:47:45.3204927Z tests/test_egress_helper.py .....                                        [ 46%]
+test	UNKNOWN STEP	2026-10-30T17:47:51.8889756Z tests/test_egress_upstream.py ........................                   [100%]
+test	UNKNOWN STEP	2026-10-30T17:47:51.8890566Z 
+test	UNKNOWN STEP	2026-10-30T17:47:51.8890911Z ============================= 45 passed in 12.74s ==============================
+test	UNKNOWN STEP	2026-10-30T17:47:51.9337527Z ##[group]Run just check-hygiene
+test	UNKNOWN STEP	2026-10-30T17:47:51.9338022Z ^[[36;1mjust check-hygiene^[[0m
+test	UNKNOWN STEP	2026-10-30T17:47:51.9358712Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:47:51.9359087Z env:
+test	UNKNOWN STEP	2026-10-30T17:47:51.9359368Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:47:51.9359718Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:47:51.9360092Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:47:51.9360426Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:47:51.9360811Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:47:51.9361104Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:47:51.9361487Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:47:51.9362022Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:47:51.9362429Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:47:51.9362902Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:47:51.9363368Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:47:51.9364045Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:47:52.1981975Z {"errors":[],"warnings":[{"id":"autonomy-0b4c52","file":"tasks/autonomy-0b4c52.md","kind":"unreachable_dep","detail":"depends on unreachable ops-e5b39c"},{"id":"autonomy-23aeff","file":"tasks/autonomy-23aeff.md","kind":"unreachable_dep","detail":"depends on unreachable ops-68729d"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"unreachable_dep","detail":"depends on unreachable ops-fbc3d9"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"unreachable_dep","detail":"depends on unreachable sci-bef251"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"unreachable_dep","detail":"depends on unreachable sci-a45f10"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"unreachable_dep","detail":"depends on unreachable beliefs-7a56ef"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"unreachable_dep","detail":"depends on unreachable sci-a1d45f"},{"id":"autonomy-0b4c52","file":"tasks/autonomy-0b4c52.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-e5b39c"},{"id":"autonomy-23aeff","file":"tasks/autonomy-23aeff.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-68729d"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable beliefs-7a56ef"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-fbc3d9"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a1d45f"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a45f10"},{"id":"autonomy-9e8a43","file":"tasks/autonomy-9e8a43.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-bef251"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable beliefs-7a56ef"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable ops-fbc3d9"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a1d45f"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a45f10"},{"id":"autonomy-bf446b","file":"tasks/autonomy-bf446b.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-bef251"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable beliefs-7a56ef"},{"id":"autonomy-f6efe8","file":"tasks/autonomy-f6efe8.md","kind":"cycle_unverifiable","detail":"cannot verify acyclicity through unreachable sci-a1d45f"},{"id":null,"file":"docs/plans/2026-10-29-closed-messages-policy.md","kind":"unlinked_step","detail":"heading \"Task 1: Close the route vocabulary\" has no task"},{"id":null,"file":"docs/plans/2026-10-29-closed-messages-policy.md","kind":"unlinked_step","detail":"heading \"Task 2: Enforce control shapes and prove compatibility\" has no task"}]}
+test	UNKNOWN STEP	2026-10-30T17:47:52.2118404Z ##[group]Run just test-full
+test	UNKNOWN STEP	2026-10-30T17:47:52.2118714Z ^[[36;1mjust test-full^[[0m
+test	UNKNOWN STEP	2026-10-30T17:47:52.2138400Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-10-30T17:47:52.2138649Z env:
+test	UNKNOWN STEP	2026-10-30T17:47:52.2138830Z   TT_FORCE: 1
+test	UNKNOWN STEP	2026-10-30T17:47:52.2139041Z   GIT_CONFIG_NOSYSTEM: 1
+test	UNKNOWN STEP	2026-10-30T17:47:52.2139273Z   UV_PYTHON: /usr/bin/python3
+test	UNKNOWN STEP	2026-10-30T17:47:52.2139530Z   UV_PYTHON_DOWNLOADS: never
+test	UNKNOWN STEP	2026-10-30T17:47:52.2139750Z   UV_FROZEN: 1
+test	UNKNOWN STEP	2026-10-30T17:47:52.2139939Z   PYTEST_ADDOPTS: -rs
+test	UNKNOWN STEP	2026-10-30T17:47:52.2140203Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	UNKNOWN STEP	2026-10-30T17:47:52.2140730Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	UNKNOWN STEP	2026-10-30T17:47:52.2141063Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	UNKNOWN STEP	2026-10-30T17:47:52.2141381Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	UNKNOWN STEP	2026-10-30T17:47:52.2141745Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:47:52.2142077Z ##[endgroup]
+test	UNKNOWN STEP	2026-10-30T17:47:53.1654905Z ============================= test session starts ==============================
+test	UNKNOWN STEP	2026-10-30T17:47:53.1656067Z platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+test	UNKNOWN STEP	2026-10-30T17:47:53.1656804Z rootdir: <RUNNER_HOME>/work/autonomy/autonomy/python
+test	UNKNOWN STEP	2026-10-30T17:47:53.1657377Z configfile: pyproject.toml
+test	UNKNOWN STEP	2026-10-30T17:47:53.1657841Z testpaths: tests
+test	UNKNOWN STEP	2026-10-30T17:47:53.1658231Z plugins: testmon-2.2.0
+test	UNKNOWN STEP	2026-10-30T17:47:53.1658678Z collected 1395 items
+test	UNKNOWN STEP	2026-10-30T17:47:53.1658925Z 
+test	UNKNOWN STEP	2026-10-30T17:47:57.3860840Z tests/test_channel.py ....................                               [  1%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.2801956Z tests/test_cli.py ...................................................    [  5%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.3119163Z tests/test_closing.py .................................................. [  8%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.3630069Z ........................................................................ [ 13%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.4111153Z ........................................................................ [ 18%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.4462522Z ....................................................                     [ 22%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.4817498Z tests/test_egress_dialect.py ........................................... [ 25%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.5431566Z ........................................................................ [ 30%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.6020195Z ........................................................................ [ 36%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.6527720Z ........................................................................ [ 41%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.7032477Z ........................................................................ [ 46%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.7525137Z ........................................................................ [ 51%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.8035570Z ........................................................................ [ 56%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.8504007Z ........................................................................ [ 61%]
+test	UNKNOWN STEP	2026-10-30T17:48:07.8653176Z ......................                                                   [ 63%]
+test	UNKNOWN STEP	2026-10-30T17:48:08.7373025Z tests/test_egress_helper.py .....                                        [ 63%]
+test	UNKNOWN STEP	2026-10-30T17:48:08.7477518Z tests/test_egress_live.py ............                                   [ 64%]
+test	UNKNOWN STEP	2026-10-30T17:48:18.0206554Z tests/test_egress_proxy.py ...................                           [ 66%]
+test	UNKNOWN STEP	2026-10-30T17:48:18.0423860Z tests/test_egress_request.py ............................                [ 68%]
+test	UNKNOWN STEP	2026-10-30T17:48:18.1145222Z tests/test_egress_route.py ............................................. [ 71%]
+test	UNKNOWN STEP	2026-10-30T17:48:18.1546189Z .......................                                                  [ 72%]
+test	UNKNOWN STEP	2026-10-30T17:48:21.0789017Z tests/test_egress_server.py ............................................ [ 76%]
+test	UNKNOWN STEP	2026-10-30T17:48:35.5813426Z ............................................                             [ 79%]
+test	UNKNOWN STEP	2026-10-30T17:49:19.8467932Z tests/test_egress_session.py .............................               [ 81%]
+test	UNKNOWN STEP	2026-10-30T17:49:26.3863391Z tests/test_egress_upstream.py ........................                   [ 83%]
+test	UNKNOWN STEP	2026-10-30T17:49:29.1482467Z tests/test_front_door.py ......................                          [ 84%]
+test	UNKNOWN STEP	2026-10-30T17:49:29.1652931Z tests/test_ledger.py .....................                               [ 86%]
+test	UNKNOWN STEP	2026-10-30T17:49:29.1803628Z tests/test_membership.py ........................                        [ 87%]
+test	UNKNOWN STEP	2026-10-30T17:49:29.4788766Z tests/test_run.py .....................................                  [ 90%]
+test	UNKNOWN STEP	2026-10-30T17:49:34.3277495Z tests/test_sandbox_launch.py ..............................              [ 92%]
+test	UNKNOWN STEP	2026-10-30T17:49:39.5383730Z tests/test_sandbox_probe.py ................                             [ 93%]
+test	UNKNOWN STEP	2026-10-30T17:49:39.5942503Z tests/test_sandbox_static.py ..........................                  [ 95%]
+test	UNKNOWN STEP	2026-10-30T17:49:39.7163502Z tests/test_stdio.py ...................................                  [ 98%]
+test	UNKNOWN STEP	2026-10-30T17:49:39.7810713Z tests/test_tiers.py .........................                            [100%]
+test	UNKNOWN STEP	2026-10-30T17:49:39.7811345Z 
+test	UNKNOWN STEP	2026-10-30T17:49:39.7811565Z ======================= 1395 passed in 107.25s (0:01:47) =======================
+test	UNKNOWN STEP	2026-10-30T17:49:39.8869476Z Post job cleanup.
+test	UNKNOWN STEP	2026-10-30T17:49:40.0127141Z UV_PYTHON_INSTALL_DIR is already set to <RUNNER_HOME>/work/_temp/uv-python-dir
+test	UNKNOWN STEP	2026-10-30T17:49:40.0234734Z Post job cleanup.
+test	UNKNOWN STEP	2026-10-30T17:49:40.1190498Z [command]/usr/bin/git version
+test	UNKNOWN STEP	2026-10-30T17:49:40.1236637Z git version 2.56.0
+test	UNKNOWN STEP	2026-10-30T17:49:40.1309903Z Temporarily overriding HOME='<RUNNER_HOME>/work/_temp/9ace7516-6eec-4e49-acbf-8083ba9c1c09' before making global git config changes
+test	UNKNOWN STEP	2026-10-30T17:49:40.1311521Z Adding repository directory to the temporary git global config as a safe directory
+test	UNKNOWN STEP	2026-10-30T17:49:40.1316128Z [command]/usr/bin/git config --global --add safe.directory <RUNNER_HOME>/work/autonomy/autonomy
+test	UNKNOWN STEP	2026-10-30T17:49:40.1367192Z Removing SSH command configuration
+test	UNKNOWN STEP	2026-10-30T17:49:40.1378061Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	UNKNOWN STEP	2026-10-30T17:49:40.1441624Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	UNKNOWN STEP	2026-10-30T17:49:40.1717671Z Removing HTTP extra header
+test	UNKNOWN STEP	2026-10-30T17:49:40.1723801Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	UNKNOWN STEP	2026-10-30T17:49:40.1785134Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	UNKNOWN STEP	2026-10-30T17:49:40.2056933Z Removing includeIf entries pointing to credentials config files
+test	UNKNOWN STEP	2026-10-30T17:49:40.2058150Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	UNKNOWN STEP	2026-10-30T17:49:40.2100674Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	UNKNOWN STEP	2026-10-30T17:49:40.2650796Z Cleaning up orphan processes
