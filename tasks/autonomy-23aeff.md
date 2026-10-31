@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-31T00:08:32Z
+updated: 2026-10-31T00:08:33Z
 started: 2026-10-30T14:13:58Z
 completed: 2026-10-30T23:01:46Z
 closed: 2026-10-30T23:01:46Z
@@ -162,3 +162,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-31T00:08:29Z (main): attached: hosted-run-41089297381-portable.log (129433 bytes): Portable derivative of hosted-run-41089297381.log; runner home replaced by <RUNNER_HOME>. Exact raw hash/path and mapping in this task, custody autonomy-30c717.
 - 2026-10-31T00:08:31Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-e51da5/hosted-portable-repair/hosted-run-41090873620.log", "state": "kept", "verification": "verified", "purpose": "Exact raw hosted-run log underlying portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-30c717", "cleanup_trigger": "After a published compatible tasks CLI is pinned and normal hosted hygiene accepts raw attachments, verify preservation and reassess disposition; no deletion authorized by task closure", "sha256": "df301f8680780d66f6ac5a6c7717d63d73843eeb7ffe68cdfc4a83ff45d01c5c"}
 - 2026-10-31T00:08:32Z (main): detached: hosted-run-41090873620.log: Replace runner-home-bearing attachment with portable derivative; exact raw preserved with SHA-256 under retained evidence records, custody autonomy-30c717.
+- 2026-10-31T00:08:33Z (main): attached: hosted-run-41090873620-portable.log (131426 bytes): Portable derivative of hosted-run-41090873620.log; runner home replaced by <RUNNER_HOME>. Exact raw hash/path and mapping in this task, custody autonomy-30c717.
