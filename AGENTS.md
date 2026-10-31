@@ -14,7 +14,7 @@ Member of the verifiably family (https://github.com/verifiably/docs/blob/main/ov
 The pre-commit hook runs the same hygiene. The suite is pytest under `python/`: `just setup`
 once per worktree (frozen `uv sync`), then `just test-one <path | path::test | -k expr>`
 on the affected tests while working and again before committing; the hooks run the
-hygiene. Tests marked `bwrap` need bubblewrap and unprivileged user namespaces. On a
+hygiene. Tests marked `bwrap` need bubblewrap and unprivileged user namespaces. Tests marked `pi` also need hq's pinned pi install (`PI_DIR`, default `~/.local/share/pi/1.1.0`) and node, and are skipped naming the missing piece otherwise (a system node under `/usr` is refused for shadowing `rg`: point `NODE_DIR` at a node prefix); the hosted workflow has neither, so row E24's evidence is a local run attached to its task. On a
 fresh clone, `git config core.hooksPath .githooks`.
 
 Test execution policy is `.tt.toml` at this checkout's Git top level (each worktree
