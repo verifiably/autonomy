@@ -8,7 +8,7 @@ complexity: mid
 process: planned
 owner: main
 created: 2026-10-29T13:45:42Z
-updated: 2026-10-31T00:08:27Z
+updated: 2026-10-31T00:08:29Z
 started: 2026-10-30T14:13:58Z
 completed: 2026-10-30T23:01:46Z
 closed: 2026-10-30T23:01:46Z
@@ -159,3 +159,4 @@ After approved activation, commit .tt.toml with real broad target names, verify 
 - 2026-10-31T00:05:43Z (main): retained: {"host": "titan", "kind": "scratch", "path": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5", "state": "kept", "verification": "verified", "purpose": "Exact raw logs and portable derivatives for hosted hygiene repair; active attachments verified by reversible byte comparison", "next_owner": "task:autonomy-30c717", "cleanup_trigger": "After a published compatible tasks CLI is pinned and the executing checker accepts raw attachments normally, verify preservation and reassess each copy; no deletion is authorized by task closure", "manifest": "$WORK_ROOT/autonomy/autonomy-23aeff/portable-log-repair-e51da5/sha256-manifest.txt", "sha256": "b76d9f381a26f681158afcdbe3d2e5165a5c46565232c174b44779b66ad1d209"}
 - 2026-10-31T00:08:26Z (main): retained: {"host": "titan", "kind": "evidence", "path": "$WORK_ROOT/autonomy/autonomy-e51da5/hosted-portable-repair/hosted-run-41089297381.log", "state": "kept", "verification": "verified", "purpose": "Exact raw hosted-run log underlying portable attachment on autonomy-23aeff", "next_owner": "task:autonomy-30c717", "cleanup_trigger": "After a published compatible tasks CLI is pinned and normal hosted hygiene accepts raw attachments, verify preservation and reassess disposition; no deletion authorized by task closure", "sha256": "36c6aac4df0da602d817ec1d1dd07b651cab0ea1b83eb434ca2c1b197e574c4b"}
 - 2026-10-31T00:08:27Z (main): detached: hosted-run-41089297381.log: Replace runner-home-bearing attachment with portable derivative; exact raw preserved with SHA-256 under retained evidence records, custody autonomy-30c717.
+- 2026-10-31T00:08:29Z (main): attached: hosted-run-41089297381-portable.log (129433 bytes): Portable derivative of hosted-run-41089297381.log; runner home replaced by <RUNNER_HOME>. Exact raw hash/path and mapping in this task, custody autonomy-30c717.

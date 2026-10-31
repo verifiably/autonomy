@@ -1,0 +1,1076 @@
+test	Set up job	﻿2026-10-30T16:22:35.7998122Z Current runner version: '2.338.0'
+test	Set up job	2026-10-30T16:22:35.8020790Z ##[group]Runner Image Provisioner
+test	Set up job	2026-10-30T16:22:35.8021540Z Hosted Compute Agent
+test	Set up job	2026-10-30T16:22:35.8022145Z Version: 20261021.618
+test	Set up job	2026-10-30T16:22:35.8022677Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+test	Set up job	2026-10-30T16:22:35.8023322Z Build Date: 2026-10-21T00:45:21Z
+test	Set up job	2026-10-30T16:22:35.8023965Z Worker ID: {4f88ca2f-47f1-4c03-a805-5728545afc60}
+test	Set up job	2026-10-30T16:22:35.8024562Z Region: westus3
+test	Set up job	2026-10-30T16:22:35.8025067Z Cloud: Azure
+test	Set up job	2026-10-30T16:22:35.8025532Z ##[endgroup]
+test	Set up job	2026-10-30T16:22:35.8026694Z ##[group]Operating System
+test	Set up job	2026-10-30T16:22:35.8027319Z Ubuntu
+test	Set up job	2026-10-30T16:22:35.8027772Z 24.04.5
+test	Set up job	2026-10-30T16:22:35.8028297Z LTS
+test	Set up job	2026-10-30T16:22:35.8028767Z ##[endgroup]
+test	Set up job	2026-10-30T16:22:35.8029282Z ##[group]Runner Image
+test	Set up job	2026-10-30T16:22:35.8029893Z Image: ubuntu-24.04
+test	Set up job	2026-10-30T16:22:35.8030647Z Version: 20261025.353.1
+test	Set up job	2026-10-30T16:22:35.8031555Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+test	Set up job	2026-10-30T16:22:35.8033011Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+test	Set up job	2026-10-30T16:22:35.8033895Z ##[endgroup]
+test	Set up job	2026-10-30T16:22:35.8034840Z ##[group]GITHUB_TOKEN Permissions
+test	Set up job	2026-10-30T16:22:35.8036425Z Contents: read
+test	Set up job	2026-10-30T16:22:35.8036963Z Metadata: read
+test	Set up job	2026-10-30T16:22:35.8037531Z ##[endgroup]
+test	Set up job	2026-10-30T16:22:35.8039298Z Secret source: Actions
+test	Set up job	2026-10-30T16:22:35.8040428Z Cache mode: write
+test	Set up job	2026-10-30T16:22:35.8041044Z Prepare workflow directory
+test	Set up job	2026-10-30T16:22:35.8358654Z Prepare all required actions
+test	Set up job	2026-10-30T16:22:35.8398220Z Getting action download info
+test	Set up job	2026-10-30T16:22:36.1791377Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+test	Set up job	2026-10-30T16:22:36.2908889Z Download action repository 'extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3' (SHA:53165ef7e734c5c07cb06b3c8e7b647c5aa16db3)
+test	Set up job	2026-10-30T16:22:36.5387975Z Download action repository 'astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2' (SHA:68559e99cc807c1eb7e9238fd43a15bba460eec2)
+test	Set up job	2026-10-30T16:22:37.2988052Z Getting action download info
+test	Set up job	2026-10-30T16:22:37.4387379Z Download action repository 'extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d' (SHA:0551596312d4008a6dfbc4d3c38fa20eaef46d2d)
+test	Set up job	2026-10-30T16:22:37.8863294Z Complete job name: test
+test	Isolate Git configuration and tool state	﻿2026-10-30T16:22:37.9519675Z ##[group]Run mkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9521579Z ^[[36;1mmkdir -p "$RUNNER_TEMP/xdg/config" "$RUNNER_TEMP/xdg/data" "$RUNNER_TEMP/xdg/state"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9522622Z ^[[36;1m{^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9523161Z ^[[36;1m  echo "GIT_CONFIG_GLOBAL=$RUNNER_TEMP/gitconfig"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9524033Z ^[[36;1m  echo "XDG_CONFIG_HOME=$RUNNER_TEMP/xdg/config"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9524876Z ^[[36;1m  echo "XDG_DATA_HOME=$RUNNER_TEMP/xdg/data"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9525691Z ^[[36;1m  echo "XDG_STATE_HOME=$RUNNER_TEMP/xdg/state"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9526439Z ^[[36;1m} >> "$GITHUB_ENV"^[[0m
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9547362Z shell: /usr/bin/bash -e {0}
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9548077Z env:
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9548469Z   TT_FORCE: 1
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9548902Z   GIT_CONFIG_NOSYSTEM: 1
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9549442Z   UV_PYTHON: /usr/bin/python3
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9550140Z   UV_PYTHON_DOWNLOADS: never
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9550663Z   UV_FROZEN: 1
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9551171Z   PYTEST_ADDOPTS: -rs
+test	Isolate Git configuration and tool state	2026-10-30T16:22:37.9551628Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	﻿2026-10-30T16:22:37.9879165Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9880254Z with:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9880682Z   persist-credentials: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9881247Z   repository: verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9887118Z   token: ***
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9887544Z   ssh-strict: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9887982Z   ssh-user: git
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9888391Z   clean: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9888843Z   sparse-checkout-cone-mode: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9889687Z   fetch-depth: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9890244Z   fetch-tags: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9890694Z   show-progress: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9891136Z   lfs: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9891536Z   submodules: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9891981Z   set-safe-directory: true
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9892647Z   allow-unsafe-pr-checkout: false
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9893186Z env:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9893551Z   TT_FORCE: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9893956Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9894460Z   UV_PYTHON: /usr/bin/python3
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9895037Z   UV_PYTHON_DOWNLOADS: never
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9895530Z   UV_FROZEN: 1
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9895951Z   PYTEST_ADDOPTS: -rs
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9896508Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9897288Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9898025Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9898756Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:37.9899418Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3206708Z Syncing repository: verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3209685Z ##[group]Getting Git version info
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3211312Z Working directory is '<RUNNER_HOME>/work/autonomy/autonomy'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3213289Z [command]/usr/bin/git version
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3262321Z git version 2.56.0
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3278879Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3298606Z Temporarily overriding HOME='<RUNNER_HOME>/work/_temp/5512d067-d1bb-485e-8aa1-4bbd117e88e7' before making global git config changes
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3302327Z Adding repository directory to the temporary git global config as a safe directory
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3311614Z [command]/usr/bin/git config --global --add safe.directory <RUNNER_HOME>/work/autonomy/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3357990Z Deleting the contents of '<RUNNER_HOME>/work/autonomy/autonomy'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3361405Z ##[group]Determining repository object format
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3363739Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3365718Z ##[group]Initializing the repository
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3367524Z [command]/usr/bin/git init <RUNNER_HOME>/work/autonomy/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3459133Z hint: Using 'master' as the name for the initial branch. This default branch name
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3461916Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3464474Z hint: to use in all of your new repositories, which will suppress this warning,
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3466610Z hint: call:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3467628Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3468697Z hint: 	git config --global init.defaultBranch <name>
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3470423Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3471515Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3473161Z hint: 'development'. The just-created branch can be renamed via this command:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3474630Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3475700Z hint: 	git branch -m <name>
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3476849Z hint:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3478061Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3479808Z Initialized empty Git repository in <RUNNER_HOME>/work/autonomy/autonomy/.git/
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3483014Z [command]/usr/bin/git remote add origin https://github.com/verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3528813Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3530989Z ##[group]Disabling automatic garbage collection
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3532737Z [command]/usr/bin/git config --local gc.auto 0
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3565411Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3567984Z ##[group]Setting up auth
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3569318Z Removing SSH command configuration
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3571128Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3607327Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3925964Z Removing HTTP extra header
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3931286Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.3978501Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4192347Z Removing includeIf entries pointing to credentials config files
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4196295Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4239012Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4456475Z [command]/usr/bin/git config --file <RUNNER_HOME>/work/_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4501360Z [command]/usr/bin/git config --local includeIf.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path <RUNNER_HOME>/work/_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4540547Z [command]/usr/bin/git config --local includeIf.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path <RUNNER_HOME>/work/_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4579633Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4618915Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4656017Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4682214Z ##[group]Fetching the repository
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:38.4685417Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +2f261d76d7850d31bb96e2d995961a382ca368dc:refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2154538Z From https://github.com/verifiably/autonomy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2155514Z  * [new ref]         2f261d76d7850d31bb96e2d995961a382ca368dc -> origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2165380Z [command]/usr/bin/git branch --list --remote origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2198853Z   origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2236403Z [command]/usr/bin/git rev-parse refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2239886Z 2f261d76d7850d31bb96e2d995961a382ca368dc
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2249513Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2252302Z ##[group]Determining the checkout info
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2253352Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2253961Z [command]/usr/bin/git sparse-checkout disable
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2456376Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2503442Z ##[group]Checking out the ref
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.2504161Z [command]/usr/bin/git checkout --progress --force -B design/autonomy-23aeff-test-policy refs/remotes/origin/design/autonomy-23aeff-test-policy
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3081733Z Switched to a new branch 'design/autonomy-23aeff-test-policy'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3085289Z branch 'design/autonomy-23aeff-test-policy' set up to track 'origin/design/autonomy-23aeff-test-policy'.
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3091836Z ##[endgroup]
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3144741Z [command]/usr/bin/git log -1 --format=%H
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3180252Z 2f261d76d7850d31bb96e2d995961a382ca368dc
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3192173Z ##[group]Removing auth
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3192545Z Removing SSH command configuration
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3193718Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3234724Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3467203Z Removing HTTP extra header
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3471040Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3511420Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3722166Z Removing includeIf entries pointing to credentials config files
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3727237Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3766409Z includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3767121Z includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3767566Z includeif.gitdir:/github/workspace/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3767943Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3782312Z [command]/usr/bin/git config --local --get-all includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3815189Z <RUNNER_HOME>/work/_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3824845Z [command]/usr/bin/git config --local --unset includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-78ca87b0\-c4e8\-4955\-8191\-2647775157c4\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3869491Z [command]/usr/bin/git config --local --get-all includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3900956Z <RUNNER_HOME>/work/_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3909184Z [command]/usr/bin/git config --local --unset includeif.gitdir:<RUNNER_HOME>/work/autonomy/autonomy/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-78ca87b0\-c4e8\-4955\-8191\-2647775157c4\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3954279Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3986936Z /github/runner_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.3994749Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-78ca87b0\-c4e8\-4955\-8191\-2647775157c4\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.4035709Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.4066945Z /github/runner_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.4075579Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-78ca87b0\-c4e8\-4955\-8191\-2647775157c4\.config
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.4122771Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.4330954Z Removing credentials config '<RUNNER_HOME>/work/_temp/git-credentials-78ca87b0-c4e8-4955-8191-2647775157c4.config'
+test	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:22:40.4341050Z ##[endgroup]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	﻿2026-10-30T16:22:40.4497653Z ##[group]Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4498019Z with:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4498203Z   just-version: 1.59.0
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4500279Z   github-token: ***
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4500479Z env:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4500640Z   TT_FORCE: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4500820Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4501025Z   UV_PYTHON: /usr/bin/python3
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4501243Z   UV_PYTHON_DOWNLOADS: never
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4501433Z   UV_FROZEN: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4501614Z   PYTEST_ADDOPTS: -rs
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4501842Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4502132Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4502407Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4502848Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4503097Z ##[endgroup]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4549703Z ##[start-action display=Run extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d;id=__extractions_setup-just.__extractions_setup-crate]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4596364Z ##[group]Run extractions/setup-crate@0551596312d4008a6dfbc4d3c38fa20eaef46d2d
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4596718Z with:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4596894Z   repo: casey/just
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4597078Z   version: 1.59.0
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4599009Z   github-token: ***
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4599203Z env:
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4599373Z   TT_FORCE: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4599551Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4599759Z   UV_PYTHON: /usr/bin/python3
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4600107Z   UV_PYTHON_DOWNLOADS: never
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4600309Z   UV_FROZEN: 1
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4600487Z   PYTEST_ADDOPTS: -rs
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4600718Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4601038Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4601314Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4601587Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:40.4601849Z ##[endgroup]
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:42.0889378Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C <RUNNER_HOME>/work/_temp/47f991e9-23c9-4fb5-852a-0ad23ae94bcb -f <RUNNER_HOME>/work/_temp/3f8f1575-0283-4a5e-a92a-58e39c49db58
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:42.3449690Z Successfully setup just v1.59.0
+test	Run extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3	2026-10-30T16:22:42.3558245Z ##[end-action id=__extractions_setup-just.__extractions_setup-crate;outcome=success;conclusion=success;duration_ms=1900]
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	﻿2026-10-30T16:22:42.3635547Z ##[group]Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3635870Z with:
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3636034Z   version: 0.13.6
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3636217Z   enable-cache: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3636406Z   activate-environment: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3636627Z   no-project: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3636847Z   working-directory: <RUNNER_HOME>/work/autonomy/autonomy
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3638700Z   github-token: ***
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3639142Z   cache-dependency-glob: **/*requirements*.txt
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*requirements*.in
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*constraints*.txt
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*constraints*.in
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/pyproject.toml
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/uv.lock
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	**/*.py.lock
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3639624Z   restore-cache: true
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3639801Z   save-cache: auto
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3640092Z   prune-cache: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3640272Z   cache-python: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3640458Z   ignore-nothing-to-cache: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3640672Z   ignore-empty-workdir: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3640890Z   download-from-astral-mirror: true
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3641155Z   add-problem-matchers: true
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3641345Z   quiet: false
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3641518Z   resolution-strategy: highest
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3641712Z env:
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3641864Z   TT_FORCE: 1
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3642030Z   GIT_CONFIG_NOSYSTEM: 1
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3642251Z   UV_PYTHON: /usr/bin/python3
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3642451Z   UV_PYTHON_DOWNLOADS: never
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3642644Z   UV_FROZEN: 1
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3642811Z   PYTEST_ADDOPTS: -rs
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3643029Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3643313Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3643577Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3643837Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.3644070Z ##[endgroup]
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.5944561Z Fetching manifest data from https://releases.astral.sh/github/versions/main/v1/uv.ndjson ...
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.7804871Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.13.6/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:42.9690380Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C <RUNNER_HOME>/work/_temp/498910e5-a65c-49bc-b57e-6c7c49e37d91 -f <RUNNER_HOME>/work/_temp/6c8be322-0ea6-4f09-abdd-ea678c1d4f5f
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:43.3799863Z Added <RUNNER_HOME>/work/_temp/xdg/data/../bin to the path
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:43.3803143Z Added /opt/hostedtoolcache/uv/0.13.6/x86_64 to the path
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:43.3804268Z Set UV_PYTHON_INSTALL_DIR to <RUNNER_HOME>/work/_temp/uv-python-dir
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:43.3804825Z Added <RUNNER_HOME>/work/_temp/uv-python-dir to the path
+test	Run astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2	2026-10-30T16:22:43.3829041Z Successfully installed uv version 0.13.6
+test	Install sandbox and shell capabilities	﻿2026-10-30T16:22:43.5474172Z ##[group]Run sudo apt-get update
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5474473Z ^[[36;1msudo apt-get update^[[0m
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5474815Z ^[[36;1msudo apt-get install --no-install-recommends -y bubblewrap openssl bash dash zsh^[[0m
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5493454Z shell: /usr/bin/bash -e {0}
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5493663Z env:
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5493828Z   TT_FORCE: 1
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5493996Z   GIT_CONFIG_NOSYSTEM: 1
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5494193Z   UV_PYTHON: /usr/bin/python3
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5494397Z   UV_PYTHON_DOWNLOADS: never
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5494604Z   UV_FROZEN: 1
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5494773Z   PYTEST_ADDOPTS: -rs
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5494993Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5495277Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5495549Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5495813Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5496126Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.5496429Z ##[endgroup]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.8681409Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.8965291Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.8969721Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.8993773Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.9035018Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:43.9042936Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0129636Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [682 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0290625Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [617 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0573828Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1408 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0634385Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [311 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0656155Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1708 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0726415Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [343 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0748949Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1813 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0828092Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [412 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.0855593Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [14.3 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.1531509Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1146 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.1582294Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [231 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.1603226Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1223 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:44.2084184Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [246 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:48.3023399Z Fetched 10.5 MB in 1s (11.6 MB/s)
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.2257399Z Reading package lists...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.2759780Z Reading package lists...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.5284694Z Building dependency tree...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.5291323Z Reading state information...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6869244Z openssl is already the newest version (3.0.13-0ubuntu3.16).
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6869873Z bash is already the newest version (5.2.21-2ubuntu4).
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6870526Z dash is already the newest version (0.5.12-6ubuntu5).
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6870979Z The following additional packages will be installed:
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6871502Z   zsh-common
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6874190Z Suggested packages:
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.6874426Z   zsh-doc
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7064917Z The following NEW packages will be installed:
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7074983Z   bubblewrap zsh zsh-common
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7259005Z 0 upgraded, 3 newly installed, 0 to remove and 6 not upgraded.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7259562Z Need to get 5036 kB of archives.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7260159Z After this operation, 19.3 MB of additional disk space will be used.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7260699Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.7873890Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 bubblewrap amd64 0.9.0-1ubuntu0.3 [50.4 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:49.8351805Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 zsh-common all 5.9-6ubuntu2 [4173 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:50.4375837Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 zsh amd64 5.9-6ubuntu2 [812 kB]
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.2351737Z Fetched 5036 kB in 1s (6103 kB/s)
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3270941Z Selecting previously unselected package bubblewrap.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3479309Z (Reading database ... 
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3479574Z (Reading database ... 5%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3479819Z (Reading database ... 10%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3480197Z (Reading database ... 15%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3480501Z (Reading database ... 20%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3480709Z (Reading database ... 25%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3480890Z (Reading database ... 30%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3481077Z (Reading database ... 35%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3481255Z (Reading database ... 40%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3481443Z (Reading database ... 45%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3481616Z (Reading database ... 50%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.3538997Z (Reading database ... 55%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.5359062Z (Reading database ... 60%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:51.8539237Z (Reading database ... 65%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:52.1275841Z (Reading database ... 70%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:52.2864808Z (Reading database ... 75%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:52.4871708Z (Reading database ... 80%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:52.8634472Z (Reading database ... 85%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.5069518Z (Reading database ... 90%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.6500844Z (Reading database ... 95%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.6501198Z (Reading database ... 100%
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.6501494Z (Reading database ... 215504 files and directories currently installed.)
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.6546165Z Preparing to unpack .../bubblewrap_0.9.0-1ubuntu0.3_amd64.deb ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.6632115Z Unpacking bubblewrap (0.9.0-1ubuntu0.3) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.6930254Z Selecting previously unselected package zsh-common.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.7056019Z Preparing to unpack .../zsh-common_5.9-6ubuntu2_all.deb ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:53.7126963Z Unpacking zsh-common (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.0375366Z Selecting previously unselected package zsh.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.0509925Z Preparing to unpack .../zsh_5.9-6ubuntu2_amd64.deb ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.0584828Z Unpacking zsh (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.2512997Z Setting up bubblewrap (0.9.0-1ubuntu0.3) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.2553382Z Setting up zsh-common (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.2702596Z Setting up zsh (5.9-6ubuntu2) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.2793644Z Processing triggers for debianutils (5.17build1) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.4737692Z Processing triggers for man-db (2.12.0-4build2) ...
+test	Install sandbox and shell capabilities	2026-10-30T16:22:54.4755413Z Not building database; man-db/auto-update is not 'true'.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6553812Z 
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6554418Z Running kernel seems to be up-to-date.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6554725Z 
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6554867Z No services need to be restarted.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6555040Z 
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6555127Z No containers need to be restarted.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6555601Z 
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6555702Z No user sessions are running outdated binaries.
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6555877Z 
+test	Install sandbox and shell capabilities	2026-10-30T16:22:55.6556030Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test	Check the system interpreter	﻿2026-10-30T16:22:56.7077528Z ##[group]Run /usr/bin/python3 -I -c '
+test	Check the system interpreter	2026-10-30T16:22:56.7077844Z ^[[36;1m/usr/bin/python3 -I -c '^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7078076Z ^[[36;1mimport os, signal, sys^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7078322Z ^[[36;1massert sys.version_info >= (3, 12), sys.version^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7078652Z ^[[36;1mneeded = ("os.setns", "os.pidfd_open", "signal.pidfd_send_signal")^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7079119Z ^[[36;1mmissing = [n for n in needed if not hasattr({"os": os, "signal": signal}[n.split(".")[0]], n.split(".")[1])]^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7079505Z ^[[36;1massert not missing, missing^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7079729Z ^[[36;1mprint(sys.version)^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7079921Z ^[[36;1m'^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7080569Z ^[[36;1mecho "kernel.apparmor_restrict_unprivileged_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"^[[0m
+test	Check the system interpreter	2026-10-30T16:22:56.7100178Z shell: /usr/bin/bash -e {0}
+test	Check the system interpreter	2026-10-30T16:22:56.7100417Z env:
+test	Check the system interpreter	2026-10-30T16:22:56.7100584Z   TT_FORCE: 1
+test	Check the system interpreter	2026-10-30T16:22:56.7100770Z   GIT_CONFIG_NOSYSTEM: 1
+test	Check the system interpreter	2026-10-30T16:22:56.7101019Z   UV_PYTHON: /usr/bin/python3
+test	Check the system interpreter	2026-10-30T16:22:56.7101227Z   UV_PYTHON_DOWNLOADS: never
+test	Check the system interpreter	2026-10-30T16:22:56.7101417Z   UV_FROZEN: 1
+test	Check the system interpreter	2026-10-30T16:22:56.7101586Z   PYTEST_ADDOPTS: -rs
+test	Check the system interpreter	2026-10-30T16:22:56.7101808Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Check the system interpreter	2026-10-30T16:22:56.7102095Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Check the system interpreter	2026-10-30T16:22:56.7102356Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Check the system interpreter	2026-10-30T16:22:56.7102612Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Check the system interpreter	2026-10-30T16:22:56.7102914Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	Check the system interpreter	2026-10-30T16:22:56.7103181Z ##[endgroup]
+test	Check the system interpreter	2026-10-30T16:22:56.7271891Z 3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]
+test	Check the system interpreter	2026-10-30T16:22:56.7315189Z kernel.apparmor_restrict_unprivileged_userns=1
+test	Build the pinned tasks CLI	﻿2026-10-30T16:22:56.7343180Z ##[group]Run git clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7343630Z ^[[36;1mgit clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"^[[0m
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7344065Z ^[[36;1mgit -C "$RUNNER_TEMP/tasks" checkout --detach 43b6eee5ae6c95ba83ac77e6108915ec9557f2b5^[[0m
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7344458Z ^[[36;1mrustup toolchain install 1.99.1 --profile minimal^[[0m
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7344854Z ^[[36;1mcargo +1.99.1 build --locked --release --manifest-path "$RUNNER_TEMP/tasks/Cargo.toml"^[[0m
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7345254Z ^[[36;1mecho "$RUNNER_TEMP/tasks/target/release" >> "$GITHUB_PATH"^[[0m
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7363037Z shell: /usr/bin/bash -e {0}
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7363252Z env:
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7363408Z   TT_FORCE: 1
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7363574Z   GIT_CONFIG_NOSYSTEM: 1
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7363771Z   UV_PYTHON: /usr/bin/python3
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7363982Z   UV_PYTHON_DOWNLOADS: never
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7364193Z   UV_FROZEN: 1
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7364358Z   PYTEST_ADDOPTS: -rs
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7364616Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7364902Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7365165Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7365423Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7365720Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7365983Z ##[endgroup]
+test	Build the pinned tasks CLI	2026-10-30T16:22:56.7413341Z Cloning into '<RUNNER_HOME>/work/_temp/tasks'...
+test	Build the pinned tasks CLI	2026-10-30T16:22:58.6525450Z HEAD is now at 43b6eee5 chore(tasks): note tasks-b4df1e
+test	Build the pinned tasks CLI	2026-10-30T16:22:58.6852154Z info: syncing channel updates for 1.99.1-x86_64-unknown-linux-gnu
+test	Build the pinned tasks CLI	2026-10-30T16:22:58.9496219Z info: latest update on 2026-10-15 for version 1.99.1 (58cf8f9c3 2026-10-13)
+test	Build the pinned tasks CLI	2026-10-30T16:22:58.9497495Z info: downloading 3 components
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.0991621Z 
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.1058713Z   1.99.1-x86_64-unknown-linux-gnu installed - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.1059249Z 
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.1593551Z     Updating crates.io index
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.3926801Z  Downloading crates ...
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4633889Z   Downloaded ansi-str v0.9.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4648257Z   Downloaded ansitok v0.3.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4663544Z   Downloaded anstyle v1.0.14
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4675291Z   Downloaded anstream v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4691042Z   Downloaded is_terminal_polyfill v1.70.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4698385Z   Downloaded anstyle-parse v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4711121Z   Downloaded cpufeatures v0.2.17
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4721614Z   Downloaded errno v0.3.14
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4733222Z   Downloaded clap_derive v4.6.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4750179Z   Downloaded clap_lex v1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4758812Z   Downloaded heck v0.5.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4769138Z   Downloaded lock_api v0.4.14
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4778765Z   Downloaded smallvec v1.16.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4789953Z   Downloaded cfg-if v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4799444Z   Downloaded equivalent v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4807226Z   Downloaded serde_spanned v1.1.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4816090Z   Downloaded block-buffer v0.10.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4824176Z   Downloaded crypto-common v0.1.7
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4830548Z   Downloaded itoa v1.0.18
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4842191Z   Downloaded anstyle-query v1.1.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4851528Z   Downloaded document-features v0.2.12
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4861674Z   Downloaded num-conv v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4867813Z   Downloaded is_executable v1.0.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4879026Z   Downloaded generic-array v0.14.7
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4890428Z   Downloaded digest v0.10.7
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4904959Z   Downloaded version_check v0.9.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4913891Z   Downloaded strsim v0.11.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4924866Z   Downloaded scopeguard v1.2.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4934393Z   Downloaded colorchoice v1.0.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4942309Z   Downloaded powerfmt v0.2.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4951645Z   Downloaded utf8parse v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4961315Z   Downloaded shlex v2.0.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4972524Z   Downloaded thiserror-impl v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4983734Z   Downloaded xterm-color v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.4989472Z   Downloaded fastrand v2.5.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5003276Z   Downloaded sha2 v0.10.9
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5027923Z   Downloaded toml_datetime v1.1.1+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5042301Z   Downloaded toml_writer v1.1.2+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5063609Z   Downloaded time-core v0.1.9
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5076261Z   Downloaded arrayvec v0.7.8
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5109891Z   Downloaded console v0.16.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5134729Z   Downloaded deranged v0.5.8
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5149448Z   Downloaded terminal-trx v0.2.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5162980Z   Downloaded litrs v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5185204Z   Downloaded thiserror v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5233105Z   Downloaded unicase v2.10.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5244031Z   Downloaded zmij v1.0.23
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5257343Z   Downloaded quote v1.0.47
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5278091Z   Downloaded clap_complete v4.6.9
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5301877Z   Downloaded toml_parser v1.1.3+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5319254Z   Downloaded time-macros v0.2.32
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5338253Z   Downloaded unicode-ident v1.0.24
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5360765Z   Downloaded clap v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5436850Z   Downloaded comfy-table v8.0.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5480902Z   Downloaded parking_lot v0.12.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5499638Z   Downloaded bitflags v2.13.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5534096Z   Downloaded parking_lot_core v0.9.12
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5550511Z   Downloaded serde v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5577542Z   Downloaded serde_derive v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5601305Z   Downloaded vte v0.14.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5617634Z   Downloaded proc-macro2 v1.0.107
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5640490Z   Downloaded serde_core v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5661632Z   Downloaded toml_edit v0.25.13+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5691969Z   Downloaded indexmap v2.14.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5725254Z   Downloaded minimal-lexical v0.2.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5760499Z   Downloaded toml v1.1.4+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5792365Z   Downloaded memchr v2.8.3
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5834992Z   Downloaded nom v7.1.3
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5875170Z   Downloaded unicode-segmentation v1.13.3
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5899059Z   Downloaded crossterm v0.29.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5952099Z   Downloaded typenum v1.20.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.5980232Z   Downloaded hashbrown v0.17.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6022020Z   Downloaded clap_builder v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6072495Z   Downloaded pulldown-cmark v0.13.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6112714Z   Downloaded serde_json v1.0.151
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6170429Z   Downloaded winnow v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6246985Z   Downloaded time v0.3.55
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6361049Z   Downloaded unicode-width v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6408435Z   Downloaded syn v3.0.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6493920Z   Downloaded rustix v1.1.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.6702403Z   Downloaded libc v0.2.189
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.7042577Z   Downloaded linux-raw-sys v0.12.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.7968593Z    Compiling proc-macro2 v1.0.107
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.7969194Z    Compiling unicode-ident v1.0.24
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.7969805Z    Compiling quote v1.0.47
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.7986929Z    Compiling serde_core v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.8501741Z    Compiling libc v0.2.189
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.9591415Z    Compiling version_check v0.9.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:06.9651045Z    Compiling memchr v2.8.3
+test	Build the pinned tasks CLI	2026-10-30T16:23:07.1311435Z    Compiling generic-array v0.14.7
+test	Build the pinned tasks CLI	2026-10-30T16:23:07.6301055Z    Compiling syn v3.0.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:07.9141635Z    Compiling cfg-if v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:07.9611258Z    Compiling parking_lot_core v0.9.12
+test	Build the pinned tasks CLI	2026-10-30T16:23:07.9791314Z    Compiling typenum v1.20.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.0432248Z    Compiling utf8parse v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.0833515Z    Compiling anstyle-parse v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.2011191Z    Compiling arrayvec v0.7.8
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.3571402Z    Compiling bitflags v2.13.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.6351210Z    Compiling scopeguard v1.2.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.6741226Z    Compiling is_terminal_polyfill v1.70.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.7091453Z    Compiling colorchoice v1.0.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.7521672Z    Compiling anstyle-query v1.1.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.7890839Z    Compiling rustix v1.1.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:08.9481907Z    Compiling minimal-lexical v0.2.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.1651029Z    Compiling smallvec v1.16.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.1679363Z    Compiling anstyle v1.0.14
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.3341541Z    Compiling anstream v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.3961291Z    Compiling nom v7.1.3
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.6103661Z    Compiling lock_api v0.4.14
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.7081715Z    Compiling vte v0.14.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.7734273Z    Compiling litrs v1.0.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:09.8401260Z    Compiling winnow v1.0.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:10.1501509Z    Compiling strsim v0.11.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:10.8601228Z    Compiling clap_lex v1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:10.8751249Z    Compiling linux-raw-sys v0.12.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:11.0941104Z    Compiling zmij v1.0.23
+test	Build the pinned tasks CLI	2026-10-30T16:23:11.1761428Z    Compiling heck v0.5.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:11.2141852Z    Compiling ansitok v0.3.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:11.2681228Z    Compiling toml_parser v1.1.3+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:11.2881710Z    Compiling clap_derive v4.6.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.2701310Z    Compiling clap_builder v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.3791399Z    Compiling document-features v0.2.12
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.6769224Z    Compiling parking_lot v0.12.5
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.6842934Z    Compiling toml_datetime v1.1.1+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.7974558Z    Compiling block-buffer v0.10.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.8661235Z    Compiling crypto-common v0.1.7
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.9121374Z    Compiling equivalent v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.9516980Z    Compiling hashbrown v0.17.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:12.9604937Z    Compiling serde v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.0695482Z    Compiling unicode-width v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.2651342Z    Compiling serde_json v1.0.151
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.3421862Z    Compiling thiserror v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.3546368Z    Compiling toml_writer v1.1.2+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.4741709Z    Compiling pulldown-cmark v0.13.4
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.5356424Z    Compiling indexmap v2.14.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.5584251Z    Compiling console v0.16.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.5763298Z    Compiling digest v0.10.7
+test	Build the pinned tasks CLI	2026-10-30T16:23:13.7101018Z    Compiling crossterm v0.29.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:14.2403409Z    Compiling ansi-str v0.9.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:14.3862524Z    Compiling clap v4.6.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:14.6748251Z    Compiling serde_derive v1.0.229
+test	Build the pinned tasks CLI	2026-10-30T16:23:14.6951599Z    Compiling thiserror-impl v2.0.20
+test	Build the pinned tasks CLI	2026-10-30T16:23:14.9804990Z    Compiling serde_spanned v1.1.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.0409216Z    Compiling itoa v1.0.18
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.1911261Z    Compiling cpufeatures v0.2.17
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.2231053Z    Compiling time-core v0.1.9
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.3708436Z    Compiling shlex v2.0.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.5391209Z    Compiling powerfmt v0.2.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.5478189Z    Compiling num-conv v0.2.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.6385008Z    Compiling deranged v0.5.8
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.6940975Z    Compiling unicase v2.10.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:15.8587063Z    Compiling unicode-segmentation v1.13.3
+test	Build the pinned tasks CLI	2026-10-30T16:23:16.3271243Z    Compiling is_executable v1.0.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:16.3771328Z    Compiling clap_complete v4.6.9
+test	Build the pinned tasks CLI	2026-10-30T16:23:16.6430969Z    Compiling time v0.3.55
+test	Build the pinned tasks CLI	2026-10-30T16:23:17.5630987Z    Compiling comfy-table v8.0.1
+test	Build the pinned tasks CLI	2026-10-30T16:23:19.8631245Z    Compiling sha2 v0.10.9
+test	Build the pinned tasks CLI	2026-10-30T16:23:21.6161083Z    Compiling toml v1.1.4+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:21.7681218Z    Compiling toml_edit v0.25.13+spec-1.1.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:23.4211052Z    Compiling terminal-trx v0.2.6
+test	Build the pinned tasks CLI	2026-10-30T16:23:23.5451283Z    Compiling xterm-color v1.0.2
+test	Build the pinned tasks CLI	2026-10-30T16:23:23.6123575Z    Compiling fastrand v2.5.0
+test	Build the pinned tasks CLI	2026-10-30T16:23:24.7318083Z    Compiling tasks v0.4.0 (<RUNNER_HOME>/work/_temp/tasks)
+test	Build the pinned tasks CLI	2026-10-30T16:23:49.1234953Z     Finished `release` profile [optimized] target(s) in 42.99s
+test	Setup	﻿2026-10-30T16:23:49.1673505Z ##[group]Run just setup
+test	Setup	2026-10-30T16:23:49.1673876Z ^[[36;1mjust setup^[[0m
+test	Setup	2026-10-30T16:23:49.1697265Z shell: /usr/bin/bash -e {0}
+test	Setup	2026-10-30T16:23:49.1697487Z env:
+test	Setup	2026-10-30T16:23:49.1697656Z   TT_FORCE: 1
+test	Setup	2026-10-30T16:23:49.1697837Z   GIT_CONFIG_NOSYSTEM: 1
+test	Setup	2026-10-30T16:23:49.1698048Z   UV_PYTHON: /usr/bin/python3
+test	Setup	2026-10-30T16:23:49.1698260Z   UV_PYTHON_DOWNLOADS: never
+test	Setup	2026-10-30T16:23:49.1698465Z   UV_FROZEN: 1
+test	Setup	2026-10-30T16:23:49.1698636Z   PYTEST_ADDOPTS: -rs
+test	Setup	2026-10-30T16:23:49.1698859Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Setup	2026-10-30T16:23:49.1699142Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Setup	2026-10-30T16:23:49.1699429Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Setup	2026-10-30T16:23:49.1699701Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Setup	2026-10-30T16:23:49.1700194Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	Setup	2026-10-30T16:23:49.1700620Z ##[endgroup]
+test	Setup	2026-10-30T16:23:49.3653333Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test	Setup	2026-10-30T16:23:49.3653885Z Creating virtual environment at: .venv
+test	Setup	2026-10-30T16:23:49.3687079Z    Building verifiably-autonomy @ file://<RUNNER_HOME>/work/autonomy/autonomy/python
+test	Setup	2026-10-30T16:23:49.4500769Z Downloading pygments (1.2MiB)
+test	Setup	2026-10-30T16:23:49.6179762Z  Downloaded pygments
+test	Setup	2026-10-30T16:23:49.8445265Z       Built verifiably-autonomy @ file://<RUNNER_HOME>/work/autonomy/autonomy/python
+test	Setup	2026-10-30T16:23:49.8454324Z Prepared 8 packages in 478ms
+test	Setup	2026-10-30T16:23:49.8541801Z Installed 8 packages in 8ms
+test	Setup	2026-10-30T16:23:49.8542132Z  + coverage==7.16.2
+test	Setup	2026-10-30T16:23:49.8542377Z  + iniconfig==2.3.1
+test	Setup	2026-10-30T16:23:49.8542621Z  + packaging==26.3
+test	Setup	2026-10-30T16:23:49.8542844Z  + pluggy==1.6.0
+test	Setup	2026-10-30T16:23:49.8543067Z  + pygments==2.21.0
+test	Setup	2026-10-30T16:23:49.8546862Z  + pytest==9.1.1
+test	Setup	2026-10-30T16:23:49.8547163Z  + pytest-testmon==2.2.0
+test	Setup	2026-10-30T16:23:49.8547675Z  + verifiably-autonomy==0.1.0 (from file://<RUNNER_HOME>/work/autonomy/autonomy/python)
+test	Namespace and TLS egress proof	﻿2026-10-30T16:23:49.8780514Z ##[group]Run just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8781340Z ^[[36;1mjust test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py^[[0m
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8799706Z shell: /usr/bin/bash -e {0}
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8799916Z env:
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8800262Z   TT_FORCE: 1
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8800439Z   GIT_CONFIG_NOSYSTEM: 1
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8800633Z   UV_PYTHON: /usr/bin/python3
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8800836Z   UV_PYTHON_DOWNLOADS: never
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8801026Z   UV_FROZEN: 1
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8801193Z   PYTEST_ADDOPTS: -rs
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8801407Z   GIT_CONFIG_GLOBAL: <RUNNER_HOME>/work/_temp/gitconfig
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8801694Z   XDG_CONFIG_HOME: <RUNNER_HOME>/work/_temp/xdg/config
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8801966Z   XDG_DATA_HOME: <RUNNER_HOME>/work/_temp/xdg/data
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8802235Z   XDG_STATE_HOME: <RUNNER_HOME>/work/_temp/xdg/state
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8802530Z   UV_PYTHON_INSTALL_DIR: <RUNNER_HOME>/work/_temp/uv-python-dir
+test	Namespace and TLS egress proof	2026-10-30T16:23:49.8802875Z ##[endgroup]
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7196102Z ============================= test session starts ==============================
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7196796Z platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7197293Z rootdir: <RUNNER_HOME>/work/autonomy/autonomy/python
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7197734Z configfile: pyproject.toml
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7198059Z plugins: testmon-2.2.0
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7198340Z collected 44 items
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.7198489Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:50.8410338Z tests/test_sandbox_probe.py ...FFFFFF..F.FF                              [ 34%]
+test	Namespace and TLS egress proof	2026-10-30T16:23:51.7339505Z tests/test_egress_helper.py FF.F.                                        [ 45%]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2557115Z tests/test_egress_upstream.py ........................                   [100%]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2557613Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2557793Z =================================== FAILURES ===================================
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2558256Z ______________________ test_preflight_passes_on_this_host ______________________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2558489Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2558574Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2558832Z     def test_preflight_passes_on_this_host():
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2559192Z >       preflight()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2559349Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2559487Z tests/test_sandbox_probe.py:51: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2559881Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2560324Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2560462Z which = <function which at 0x7f7f0b424b80>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2560719Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2561013Z     def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2561522Z         if which("bwrap") is None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2562008Z             raise SandboxUnproven("bwrap-missing", "bwrap", "bubblewrap is not on PATH")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2562523Z         trial = [
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2562928Z             "bwrap", "--unshare-all", "--die-with-parent", "--ro-bind", "/usr", "/usr",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2563589Z             *[arg for target, link in SYSTEM_SYMLINKS for arg in ("--symlink", target, link)],
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2564091Z             "--", "/usr/bin/true",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2564391Z         ]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2564621Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2565147Z             result = subprocess.run(trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2565801Z         except subprocess.TimeoutExpired:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2566456Z             raise SandboxUnproven("userns-unavailable", "bwrap", "the trial sandbox did not exit in 30 s") from None
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2567096Z         if result.returncode != 0:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2567723Z >           raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2568801Z E           autonomy.sandbox.static.SandboxUnproven: userns-unavailable: bwrap: bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2569742Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2569853Z src/autonomy/sandbox/bwrap.py:59: SandboxUnproven
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2570400Z ______________ test_the_probe_passes_when_nothing_denied_is_bound ______________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2570634Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2571229Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_probe_passes_when_not0/corpus root'), 'ops': PosixPath('...e_probe_passes_when_not0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_probe_passes_when_not0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2571910Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2571998Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2572247Z     def test_the_probe_passes_when_nothing_denied_is_bound(layout):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2572632Z >       prove(SandboxSpec(scratch=layout["scratch"]), (layout["corpus"], layout["ops"]))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2572885Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2572972Z tests/test_sandbox_probe.py:56: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2573221Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2573519Z src/autonomy/sandbox/bwrap.py:120: in prove
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2573744Z     preflight(which)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2573958Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2574130Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2574228Z which = <function which at 0x7f7f0b424b80>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2574380Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2574538Z     def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2574839Z         if which("bwrap") is None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2575150Z             raise SandboxUnproven("bwrap-missing", "bwrap", "bubblewrap is not on PATH")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2575459Z         trial = [
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2575722Z             "bwrap", "--unshare-all", "--die-with-parent", "--ro-bind", "/usr", "/usr",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2576121Z             *[arg for target, link in SYSTEM_SYMLINKS for arg in ("--symlink", target, link)],
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2576436Z             "--", "/usr/bin/true",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2576649Z         ]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2576797Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2577119Z             result = subprocess.run(trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2577509Z         except subprocess.TimeoutExpired:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2577898Z             raise SandboxUnproven("userns-unavailable", "bwrap", "the trial sandbox did not exit in 30 s") from None
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2578277Z         if result.returncode != 0:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2578650Z >           raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2579285Z E           autonomy.sandbox.static.SandboxUnproven: userns-unavailable: bwrap: bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2579696Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2579806Z src/autonomy/sandbox/bwrap.py:59: SandboxUnproven
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2580263Z _____________________ test_a_planted_bind_fails_the_probe ______________________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2580484Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2581069Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_planted_bind_fails_the_0/corpus root'), 'ops': PosixPath('...planted_bind_fails_the_0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_planted_bind_fails_the_0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2581687Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2581762Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2581985Z     def test_a_planted_bind_fails_the_probe(layout):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2582316Z         # bypass the static check to prove the probe is a second, independent proof
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2582732Z         spec = SandboxSpec(scratch=layout["scratch"], ro_binds=(layout["corpus"],))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2583067Z         with pytest.raises(SandboxUnproven) as caught:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2583341Z             probe(spec, (layout["corpus"], layout["ops"]))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2583614Z >       assert caught.value.code == "probe-reachable"
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2584211Z E       AssertionError: assert 'probe-failed' == 'probe-reachable'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2584480Z E         
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2584649Z E         - probe-reachable
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2584841Z E         + probe-failed
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2584957Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2585058Z tests/test_sandbox_probe.py:65: AssertionError
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2585375Z _____________ test_prove_stops_a_planted_bind_at_the_static_check ______________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2585596Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2586178Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_prove_stops_a_planted_bin0/corpus root'), 'ops': PosixPath('...ove_stops_a_planted_bin0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_prove_stops_a_planted_bin0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2586801Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2586872Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2587117Z     def test_prove_stops_a_planted_bind_at_the_static_check(layout):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2587490Z         spec = SandboxSpec(scratch=layout["scratch"], ro_binds=(layout["corpus"],))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2587834Z         with pytest.raises(SandboxUnproven) as caught:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2588094Z             prove(spec, (layout["corpus"],))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2588359Z >       assert caught.value.code == "bind-overlaps-denied"
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2588692Z E       AssertionError: assert 'userns-unavailable' == 'bind-overlaps-denied'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2588982Z E         
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2589156Z E         - bind-overlaps-denied
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2589361Z E         + userns-unavailable
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2589487Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2589587Z tests/test_sandbox_probe.py:74: AssertionError
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2589901Z ___________ test_a_denied_path_that_does_not_exist_passes_the_probe ____________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2590391Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2590962Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_denied_path_that_does_n0/corpus root'), 'ops': PosixPath('...denied_path_that_does_n0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_denied_path_that_does_n0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2591579Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2591657Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2591936Z     def test_a_denied_path_that_does_not_exist_passes_the_probe(layout):  # Review Focus 4
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2592364Z >       prove(SandboxSpec(scratch=layout["scratch"]), (layout["tmp"] / "no-store-root",))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2592612Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2592693Z tests/test_sandbox_probe.py:79: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2592928Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2593204Z src/autonomy/sandbox/bwrap.py:120: in prove
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2593434Z     preflight(which)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2593640Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2593810Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2593902Z which = <function which at 0x7f7f0b424b80>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2594047Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2594211Z     def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2594519Z         if which("bwrap") is None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2594823Z             raise SandboxUnproven("bwrap-missing", "bwrap", "bubblewrap is not on PATH")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2595128Z         trial = [
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2595377Z             "bwrap", "--unshare-all", "--die-with-parent", "--ro-bind", "/usr", "/usr",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2595784Z             *[arg for target, link in SYSTEM_SYMLINKS for arg in ("--symlink", target, link)],
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2596095Z             "--", "/usr/bin/true",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2596282Z         ]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2596430Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2596760Z             result = subprocess.run(trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2597153Z         except subprocess.TimeoutExpired:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2597548Z             raise SandboxUnproven("userns-unavailable", "bwrap", "the trial sandbox did not exit in 30 s") from None
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2598070Z         if result.returncode != 0:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2598541Z >           raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2599187Z E           autonomy.sandbox.static.SandboxUnproven: userns-unavailable: bwrap: bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2599569Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2599678Z src/autonomy/sandbox/bwrap.py:59: SandboxUnproven
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2600139Z _______________ test_the_actor_sees_its_scratch_at_its_host_path _______________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2600408Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2600983Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_actor_sees_its_scratc0/corpus root'), 'ops': PosixPath('...e_actor_sees_its_scratc0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_actor_sees_its_scratc0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2601606Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2601678Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2601924Z     def test_the_actor_sees_its_scratch_at_its_host_path(layout):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2602236Z         (layout["scratch"] / "hello").write_text("hi")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2602620Z         argv = build_argv(SandboxSpec(scratch=layout["scratch"]), ["/usr/bin/cat", "hello"], info_fd=None)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2603082Z >       out = subprocess.run(argv, capture_output=True, text=True, timeout=30, check=True)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2603435Z               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2603616Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2603696Z tests/test_sandbox_probe.py:86: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2603941Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2604124Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2604255Z input = None, capture_output = True, timeout = 30, check = True
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2604678Z popenargs = (['bwrap', '--unshare-all', '--die-with-parent', '--new-session', '--clearenv', '--proc', ...],)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2605064Z kwargs = {'text': True, 'stdout': -1, 'stderr': -1}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2605231Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2605313Z     def run(*popenargs,
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2605568Z             input=None, capture_output=False, timeout=None, check=False, **kwargs):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2605948Z         """Run command with arguments and return a CompletedProcess instance.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2606223Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2606462Z         The returned instance will have attributes args, returncode, stdout and
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2606850Z         stderr. By default, stdout and stderr are not captured, and those attributes
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2607243Z         will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2607564Z         or pass capture_output=True to capture both.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2607784Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2607987Z         If check is True and the exit code was non-zero, it raises a
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2608371Z         CalledProcessError. The CalledProcessError object will have the return code
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2611073Z         in the returncode attribute, and output & stderr attributes if those streams
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2611532Z         were captured.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2611764Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2612091Z         If timeout is given, and the process takes too long, a TimeoutExpired
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2612508Z         exception will be raised.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2612762Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2613041Z         There is an optional argument "input", allowing you to
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2613539Z         pass bytes or a string to the subprocess's stdin.  If you use this argument
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2614077Z         you may not also use the Popen constructor's "stdin" argument, as
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2614482Z         it will be used internally.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2614741Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2614996Z         By default, all communication is in bytes, and therefore any "input" should
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2615383Z         be bytes, and the stdout and stderr will be bytes. If in text mode, any
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2616055Z         "input" should be a string, and stdout and stderr will be strings decoded
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2616430Z         according to locale encoding, or by "encoding" if set. Text mode is
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2616799Z         triggered by setting any of text, encoding, errors or universal_newlines.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2617083Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2617298Z         The other arguments are the same as for the Popen constructor.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2617565Z         """
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2617732Z         if input is not None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2617949Z             if kwargs.get('stdin') is not None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2618249Z                 raise ValueError('stdin and input arguments may not both be used.')
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2618547Z             kwargs['stdin'] = PIPE
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2618738Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2618892Z         if capture_output:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2619161Z             if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2619529Z                 raise ValueError('stdout and stderr arguments may not be used '
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2619834Z                                  'with capture_output.')
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2620250Z             kwargs['stdout'] = PIPE
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2620460Z             kwargs['stderr'] = PIPE
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2620652Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2620835Z         with Popen(*popenargs, **kwargs) as process:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2621061Z             try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2621298Z                 stdout, stderr = process.communicate(input, timeout=timeout)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2621593Z             except TimeoutExpired as exc:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2621814Z                 process.kill()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2622015Z                 if _mswindows:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2622246Z                     # Windows accumulates the output in a single blocking
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2622553Z                     # read() call run on child threads, with the timeout
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2622860Z                     # being done in a join() on those threads.  communicate()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2623187Z                     # _after_ kill() is required to collect that and add it
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2623455Z                     # to the exception.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2623715Z                     exc.stdout, exc.stderr = process.communicate()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2623970Z                 else:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2624196Z                     # POSIX _communicate already populated the output so
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2624487Z                     # far into the TimeoutExpired exception.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2624726Z                     process.wait()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2624920Z                 raise
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2625172Z             except:  # Including KeyboardInterrupt, communicate handled that.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2625462Z                 process.kill()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2625713Z                 # We don't call process.wait() as .__exit__ does that for us.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2625970Z                 raise
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2626162Z             retcode = process.poll()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2626373Z             if check and retcode:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2626623Z >               raise CalledProcessError(retcode, process.args,
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2626905Z                                          output=stdout, stderr=stderr)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2628621Z E               subprocess.CalledProcessError: Command '['bwrap', '--unshare-all', '--die-with-parent', '--new-session', '--clearenv', '--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp', '--ro-bind', '/usr', '/usr', '--ro-bind', '/etc', '/etc', '--symlink', 'usr/bin', '/bin', '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib', '/lib64', '--symlink', 'usr/bin', '/sbin', '--bind', '/tmp/pytest-of-runner/pytest-0/test_the_actor_sees_its_scratc0/scratch', '/tmp/pytest-of-runner/pytest-0/test_the_actor_sees_its_scratc0/scratch', '--setenv', 'PATH', '/usr/bin', '--chdir', '/tmp/pytest-of-runner/pytest-0/test_the_actor_sees_its_scratc0/scratch', '--', '/usr/bin/cat', 'hello']' returned non-zero exit status 1.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2630583Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2630722Z /usr/lib/python3.12/subprocess.py:571: CalledProcessError
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2631078Z _____________ test_the_preflight_and_the_probe_never_inherit_stdin _____________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2631306Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2631901Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_preflight_and_the_pro0/corpus root'), 'ops': PosixPath('...e_preflight_and_the_pro0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_preflight_and_the_pro0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2632697Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7f09f8edb0>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2632946Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2633021Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2633318Z     def test_the_preflight_and_the_probe_never_inherit_stdin(layout, monkeypatch):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2633633Z         calls: list[dict] = []
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2633832Z         real = subprocess.run
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2634017Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2634195Z         def recording(*args, **kwargs):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2634412Z             calls.append(kwargs)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2634617Z             return real(*args, **kwargs)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2634812Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2635005Z         monkeypatch.setattr(subprocess, "run", recording)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2635330Z >       prove(SandboxSpec(scratch=layout["scratch"]), (layout["corpus"],))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2635552Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2635643Z tests/test_sandbox_probe.py:125: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2635889Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2636167Z src/autonomy/sandbox/bwrap.py:120: in prove
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2636396Z     preflight(which)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2636630Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2636814Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2636904Z which = <function which at 0x7f7f0b424b80>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2637060Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2637224Z     def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2637530Z         if which("bwrap") is None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2637843Z             raise SandboxUnproven("bwrap-missing", "bwrap", "bubblewrap is not on PATH")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2638153Z         trial = [
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2638408Z             "bwrap", "--unshare-all", "--die-with-parent", "--ro-bind", "/usr", "/usr",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2638815Z             *[arg for target, link in SYSTEM_SYMLINKS for arg in ("--symlink", target, link)],
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2639130Z             "--", "/usr/bin/true",
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2639317Z         ]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2639465Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2639788Z             result = subprocess.run(trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2640325Z         except subprocess.TimeoutExpired:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2640733Z             raise SandboxUnproven("userns-unavailable", "bwrap", "the trial sandbox did not exit in 30 s") from None
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2641127Z         if result.returncode != 0:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2641507Z >           raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2642147Z E           autonomy.sandbox.static.SandboxUnproven: userns-unavailable: bwrap: bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2642543Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2642648Z src/autonomy/sandbox/bwrap.py:59: SandboxUnproven
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2642973Z ______________ test_the_probe_reports_both_addresses_unreachable _______________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2643199Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2643788Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_probe_reports_both_ad0/corpus root'), 'ops': PosixPath('...e_probe_reports_both_ad0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_probe_reports_both_ad0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2644568Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7f09f8d970>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2644997Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2645081Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2645360Z     def test_the_probe_reports_both_addresses_unreachable(layout, monkeypatch):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2645650Z         seen = {}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2645821Z         real_run = subprocess.run
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2646017Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2646176Z         def spy(argv, **kwargs):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2646397Z             result = real_run(argv, **kwargs)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2646636Z             seen["stdout"] = result.stdout.decode()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2646868Z             return result
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2647049Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2647233Z         monkeypatch.setattr(subprocess, "run", spy)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2647506Z >       probe(SandboxSpec(scratch=layout["scratch"]), [])
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2647680Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2647762Z tests/test_sandbox_probe.py:153: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2648007Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2648206Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2648602Z spec = SandboxSpec(scratch=PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_probe_reports_both_ad0/scratch'), ro_binds=(), socket=None, token=None, env=mappingproxy({}))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2649137Z denied = []
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2649226Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2649360Z     def probe(spec: SandboxSpec, denied: Iterable[Path]) -> None:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2649718Z         """`ENOENT` on every denied path, and `ENETUNREACH` from a connect to a
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2650268Z         non-loopback IPv4 and IPv6 address (decision 13). A kernel without IPv6 answers
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2650615Z         `EAFNOSUPPORT`, which is as unreachable."""
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2650871Z         paths = [str(p.resolve()) for p in denied]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2651214Z         argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2651532Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2651826Z             result = subprocess.run(argv, capture_output=True, timeout=60, stdin=subprocess.DEVNULL)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2652194Z         except subprocess.TimeoutExpired:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2726197Z             raise SandboxUnproven("probe-failed", "bwrap", "the probe did not exit in 60 s") from None
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2726909Z         stdout = result.stdout.decode("utf-8", errors="replace")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2727358Z         if result.returncode != 0:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2727808Z             stderr = result.stderr.decode("utf-8", errors="replace").strip()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2728482Z >           raise SandboxUnproven("probe-failed", "bwrap", stderr or f"exit {result.returncode}")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2729341Z E           autonomy.sandbox.static.SandboxUnproven: probe-failed: bwrap: bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2729733Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2729852Z src/autonomy/sandbox/bwrap.py:102: SandboxUnproven
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2730405Z ___________ test_a_sandbox_sharing_the_host_network_fails_the_probe ____________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2730666Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2731250Z layout = {'corpus': PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_sandbox_sharing_the_hos0/corpus root'), 'ops': PosixPath('...sandbox_sharing_the_hos0/scratch'), 'tmp': PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_sandbox_sharing_the_hos0')}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2732049Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f7f09f8ea50>
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2732276Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2732357Z     @pytest.mark.bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2732711Z     @pytest.mark.skipif(not _has_default_route(), reason="the negative needs an IPv4 default route on the host")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2733193Z     def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2733618Z         # Negative: a test hook that adds --share-net (decision 13's removed mode). With a
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2734015Z         # default route, 192.0.2.1 times out or connects instead of ENETUNREACH.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2734581Z         from autonomy.sandbox import bwrap
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2734919Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2735081Z         real = bwrap.build_argv
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2735269Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2735431Z         def shared(spec, argv, *, info_fd):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2735672Z             args = real(spec, argv, info_fd=info_fd)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2735942Z             return [args[0], args[1], "--share-net", *args[2:]]
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2736183Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2736373Z         monkeypatch.setattr(bwrap, "build_argv", shared)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2736652Z         with pytest.raises(SandboxUnproven) as caught:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2736963Z             bwrap.probe(SandboxSpec(scratch=layout["scratch"]), [])
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2737270Z >       assert caught.value.code == "probe-network"
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2737568Z E       AssertionError: assert 'probe-failed' == 'probe-network'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2737832Z E         
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2737997Z E         - probe-network
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2738194Z E         + probe-failed
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2738307Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2738416Z tests/test_sandbox_probe.py:181: AssertionError
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2738738Z ___________ test_the_listener_lives_in_the_actors_network_namespace ____________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2738973Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2739163Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_listener_lives_in_the0')
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2739423Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2739583Z     def test_the_listener_lives_in_the_actors_network_namespace(tmp_path):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2739870Z         held = {}
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2740367Z         # The test closes the listener at the end: it holds the actor's network namespace.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2740678Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2740846Z         def hook(child_pid, pidfd):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2741095Z             held["listener"] = make_listener(child_pid, pidfd)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2741333Z     
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2741492Z         out_read, out_write = os.pipe()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2741724Z         null = os.open(os.devnull, os.O_RDWR)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2742085Z >       sandbox = launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/python3", "-I", "-c", CLIENT],
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2742507Z                          stdin=null, stdout=out_write, stderr=null, before_release=hook)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2742722Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2742808Z tests/test_egress_helper.py:35: 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2743052Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2743328Z src/autonomy/sandbox/bwrap.py:342: in launch
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2743559Z     before_release(child, pidfd)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2743767Z tests/test_egress_helper.py:31: in hook
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2744009Z     held["listener"] = make_listener(child_pid, pidfd)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2744254Z                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2744503Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2744674Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2744764Z child_pid = 4268, pidfd = 14, port = 4780
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2745461Z source = '\nimport fcntl, os, signal, socket, sys\nNS_GET_USERNS = 0xB701\npid, pidfd, back, port = (int(arg) for arg in sys.ar...(("127.0.0.1", port))\nlistener.listen(64)\nsocket.send_fds(socket.socket(fileno=back), [b"L"], [listener.fileno()])\n'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2746059Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2746300Z     def make_listener(child_pid: int, pidfd: int, *, port: int = MODEL_PORT, source: str = HELPER) -> socket.socket:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2746747Z         here, back = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2747024Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2747180Z             try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2747367Z                 result = subprocess.run(
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2747722Z                     ["/usr/bin/python3", "-I", "-c", source, str(child_pid), str(pidfd), str(back.fileno()), str(port)],
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2748189Z                     pass_fds=(pidfd, back.fileno()), stdin=subprocess.DEVNULL, capture_output=True,
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2748807Z                     timeout=HELPER_TIMEOUT,
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2749014Z                 )
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2749206Z             except subprocess.TimeoutExpired:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2749639Z                 raise EgressUnproven("listener-failed", f"the namespace helper did not finish in {HELPER_TIMEOUT:g} s") from None
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2750167Z             finally:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2750348Z                 back.close()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2750551Z             if result.returncode != 0:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2750850Z                 lines = result.stderr.decode("utf-8", "replace").strip().splitlines()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2751355Z >               raise EgressUnproven("listener-failed", lines[-1] if lines else f"the helper exited {result.returncode}")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2752000Z E               autonomy.egress.errors.EgressUnproven: listener-failed: FileNotFoundError: [Errno 2] No such file or directory: '/proc/4268/ns/net'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2752400Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2752512Z src/autonomy/egress/helper.py:59: EgressUnproven
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2752829Z _____________ test_joining_the_inits_own_user_namespace_is_refused _____________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2753093Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2753287Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_joining_the_inits_own_use0')
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2753537Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2753686Z     def test_joining_the_inits_own_user_namespace_is_refused(tmp_path):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2754068Z         # Negative: bwrap nests a user namespace inside the one that owns the network, so
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2754488Z         # joining the init's own gets EPERM at the network join (decision 13, NS_GET_USERNS).
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2754962Z         wrong = HELPER.replace("fcntl.ioctl(net, NS_GET_USERNS)", 'os.open(f"/proc/{pid}/ns/user", os.O_RDONLY)')
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2755337Z         assert wrong != HELPER
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2755667Z         error = hold_and_try(tmp_path, lambda child, pidfd: make_listener(child, pidfd, source=wrong))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2756134Z >       assert error.code == "listener-failed" and "Operation not permitted" in error.message
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2756499Z E       assert ('listener-failed' == 'listener-failed'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2756730Z E         
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2757117Z E           listener-failed and 'Operation not permitted' in "FileNotFoundError: [Errno 2] No such file or directory: '/proc/4271/ns/net'")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2757946Z E        +  where "FileNotFoundError: [Errno 2] No such file or directory: '/proc/4271/ns/net'" = EgressUnproven("listener-failed: FileNotFoundError: [Errno 2] No such file or directory: '/proc/4271/ns/net'").message
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2758495Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2758591Z tests/test_egress_helper.py:75: AssertionError
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2758908Z ____________ test_a_pidfd_that_no_longer_names_the_init_is_refused _____________
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2759136Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2759319Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_pidfd_that_no_longer_na0')
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2759569Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2759714Z     def test_a_pidfd_that_no_longer_names_the_init_is_refused(tmp_path):
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2760187Z         # The helper checks the pidfd after opening the namespace by pid, so a reused pid
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2760608Z         # is never joined: a stale pidfd is refused even while the pid's /proc entry exists.
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2760947Z         gone = subprocess.Popen(["/usr/bin/true"])
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2761192Z         stale = os.pidfd_open(gone.pid)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2761399Z         gone.wait()
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2761571Z         try:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2761830Z             error = hold_and_try(tmp_path, lambda child, pidfd: make_listener(child, stale))
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2762127Z         finally:
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2762294Z             os.close(stale)
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2762588Z >       assert error.code == "listener-failed" and "ProcessLookupError" in error.message
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2762936Z E       assert ('listener-failed' == 'listener-failed'
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2763447Z E         
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2763827Z E           listener-failed and 'ProcessLookupError' in "FileNotFoundError: [Errno 2] No such file or directory: '/proc/4278/ns/net'")
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2764644Z E        +  where "FileNotFoundError: [Errno 2] No such file or directory: '/proc/4278/ns/net'" = EgressUnproven("listener-failed: FileNotFoundError: [Errno 2] No such file or directory: '/proc/4278/ns/net'").message
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2765179Z 
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2765281Z tests/test_egress_helper.py:97: AssertionError
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.2765562Z ======================== 12 failed, 32 passed in 7.60s =========================
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.3147264Z error: recipe `test-one` failed on line 98 with exit code 1
+test	Namespace and TLS egress proof	2026-10-30T16:23:58.3161351Z ##[error]Process completed with exit code 1.
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	﻿2026-10-30T16:23:58.3259270Z Post job cleanup.
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.3996177Z [command]/usr/bin/git version
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4039594Z git version 2.56.0
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4071216Z Temporarily overriding HOME='<RUNNER_HOME>/work/_temp/cce10bcb-7b94-4790-8434-89a668773661' before making global git config changes
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4072277Z Adding repository directory to the temporary git global config as a safe directory
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4075973Z [command]/usr/bin/git config --global --add safe.directory <RUNNER_HOME>/work/autonomy/autonomy
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4115612Z Removing SSH command configuration
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4121671Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4159275Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4382271Z Removing HTTP extra header
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4387534Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4425650Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4654725Z Removing includeIf entries pointing to credentials config files
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4676757Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-30T16:23:58.4711250Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	Complete job	﻿2026-10-30T16:23:58.5080725Z Cleaning up orphan processes
