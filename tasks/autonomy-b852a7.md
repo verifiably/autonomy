@@ -7,7 +7,7 @@ size: xs
 complexity: low
 process: direct
 created: 2026-11-01T16:40:14Z
-updated: 2026-11-01T16:40:14Z
+updated: 2026-11-01T16:40:16Z
 depends: []
 tags: [sandbox]
 source: autonomy-d0fce7
@@ -25,3 +25,4 @@ Done: validate compat boolean fields (pi-mismatch on non-bool), handle synthetic
 
 - 2026-11-01T16:40:14Z (add): created
   provenance: {"origin":"mixed"}
+- 2026-11-01T16:40:16Z (main): concerns: autonomy-d0fce7 extension — deferred review minors from impl round 1 (synthetic registry hardening and full 4-class shipped catalog assertions)
