@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: main
 created: 2026-11-01T15:35:53Z
-updated: 2026-11-01T16:32:41Z
+updated: 2026-11-01T16:33:04Z
 started: 2026-11-01T15:42:44Z
 depends: []
 tags: [sandbox]
@@ -40,3 +40,4 @@ Done: the flag exists, is validated against pi's registry for the routed model, 
 - 2026-11-01T16:28:28Z (autonomy-d0fce7): minor (deferred) (impl round 1, dbd0fcd802043c5a0c7de7584872aaf3ec051a76..b7b7b3cf4f65529a91670956c920d9fa0eee5e63; reviewer recorded as bare 'agy' because Antigravity subagent runtime transcript metadata exposes no canonical model slug): (1) python/src/autonomy/analyst/toolchain.py:70-96 — synthetic anthropic.json combinations absent from pi 1.1.0's 17 shipped models (non-boolean compat flags, reasoning=false with supportsMidConvoEffort=true, or xhigh/max/supportsMidConvoEffort without forceAdaptiveThinking=true) rely on shipped catalog invariants; (2) python/tests/test_analyst_check.py:449-458 — test_the_shipped_pi_registry_matches_thinking_validation checks four 5.x models against the real shipped anthropic.json while the other three capability classes (claude-opus-4-7, claude-opus-4-6, claude-haiku-4-5) are covered in test_analyst_toolchain.py.
 - 2026-11-01T16:28:49Z (main): resumed
 - 2026-11-01T16:32:41Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/autonomy-d0fce7","state":"released","verification":"verified","purpose":"branch autonomy-d0fce7 fast-forward merged into main at 4c17258 (focused suite 141/141 and check-hygiene passed on merged main); worktree clean, ignored files only regenerable python/.venv, python/.pytest_cache and __pycache__ directories (discarded); no host pointer resolved into it; tt-report run; worktree unlocked and removed, branch deleted, path verified absent","next_owner":"none","cleanup_trigger":"none"}
+- 2026-11-01T16:33:04Z (main): retention checkpoint: observed 2026-11-01T16:32:50Z on titan; basis autonomy in-tree . 0b757fa2721e4348d0f128d1d92126f09801623e:tasks/autonomy-d0fce7.md; retained by main; this host: kept verified 0, kept unknown 0, released 1; changed 1. Rechecked all kept/verified items on this host (worktree .worktrees/autonomy-d0fce7 removed and verified absent; no WORK_ROOT task scratch created; temporary review diff scratch discarded); unknown items remain unverified with actions in basis (none). Other hosts retain their own dated observations (none). host-load --section session: nothing left running. Next: none.
