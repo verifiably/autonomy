@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: autonomy-d0fce7
 created: 2026-11-01T15:35:53Z
-updated: 2026-11-01T16:28:25Z
+updated: 2026-11-01T16:28:26Z
 started: 2026-11-01T15:42:44Z
 depends: []
 tags: [sandbox]
@@ -35,3 +35,4 @@ Done: the flag exists, is validated against pi's registry for the routed model, 
 - 2026-11-01T16:00:34Z (autonomy-d0fce7): decision: make --thinking LEVEL required on autonomy analyst and AnalystRequest, validated against pi 1.1.0's anthropic-messages registry (pi-ai dist/providers/data/anthropic.json) so any level pi would clamp, omit or collapse (including 'off' and 'minimal' on current adaptive-thinking Claude models, and 'xhigh'/'max' on older models without thinkingLevelMap entries) is refused at step 1 as thinking-unsupported (and an unlisted model as model-unknown), and record both model and thinking in epoch.json and events.jsonl. Rejected alternative: keeping a default ('off' or omitted, recorded as 'model default'), because in pi 1.1.0 '--thinking off' is silently clamped by clampThinkingLevel to 'low' on Haiku/Sonnet/Opus 5.5 and omitting '--thinking' substitutes DEFAULT_THINKING_LEVEL = 'medium' in pi-coding-agent sdk.js:136, so neither runs an unpinned provider default.
 - 2026-11-01T16:28:05Z (autonomy-d0fce7): review: impl round 1 — verdict: accept; findings: minor 2; reviewer: agy
 - 2026-11-01T16:28:25Z (autonomy-d0fce7): Ruling (impl round 1 declined-to-judge 1, dbd0fcd802043c5a0c7de7584872aaf3ec051a76..b7b7b3cf4f65529a91670956c920d9fa0eee5e63): leave python/scripts/egress_live.py:129 unchanged ('--thinking off' under autonomy run). Why: egress_live.py is row E21's manual live-egress smoke recipe for decision 13 (autonomy run), not autonomy analyst (decision 14), and only checks that one prompt crosses the egress proxy. Cost: if wrong, someone reading egress_live.py as an example of pi generation pinning could assume '--thinking off' disables thinking on 5.5 models, though egress_live.py claims no generation pinning.
+- 2026-11-01T16:28:26Z (autonomy-d0fce7): Ruling (impl round 1 declined-to-judge 2, dbd0fcd802043c5a0c7de7584872aaf3ec051a76..b7b7b3cf4f65529a91670956c920d9fa0eee5e63): keep mid-session pi RPC commands (set_thinking_level, cycle_thinking_level, set_model) unmediated on fd 0. Why: under decision 12 and decision 14 step 4, fds 0 and 1 belong directly to the caller with no orchestrator relay, so epoch.json and events.jsonl record launch configuration while scratch/sessions records mid-session RPC state. Cost: if wrong, a caller that mutates thinking mid-session over RPC diverges from epoch.json's launch-time thinking field unless read alongside scratch/sessions.
