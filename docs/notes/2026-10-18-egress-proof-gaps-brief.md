@@ -69,8 +69,8 @@ hypotheses with evidence from `7097495` and the pinned SDK.
     different from its own. bwrap's `--info-fd` report also carries
     `net-namespace`.
 
-The final review and deferred findings are preserved in
-`tasks/files/autonomy-e4c0b5/sdd-ledger.md`. The existing authority brief and open
+The final review and deferred findings are preserved in autonomy-e4c0b5's
+`sdd-ledger.md` attachment. The existing authority brief and open
 research contain no investigation of the two open egress questions: positions below
 the top level, and response completion.
 

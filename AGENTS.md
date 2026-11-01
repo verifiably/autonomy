@@ -46,8 +46,11 @@ neither place.
 
 ## Layout
 
-- `docs/specs/`, `docs/plans/` — this layer's designs and plans; the envelope's is
-  `docs/specs/2026-10-12-envelope-design.md`.
+- `docs/specs/`, `docs/plans/`, `docs/notes/` — the envelope design
+  (`docs/specs/2026-10-12-envelope-design.md`), its plans and the brief it cites.
+- Task records and new design specs, implementation plans, briefs and handoffs live in
+  the project's records directory, committed in the records repository, never in this
+  tree. Documents this tree already tracks stay here and are revised in place.
 - `python/` — the `verifiably-autonomy` package (`python/src/autonomy/`) and its tests.
 - `tools/` — `tt`, `ops-check`, `ops-docs` vendored from ops; `family.toml` published
   from verifiably/docs.

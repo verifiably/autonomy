@@ -165,9 +165,9 @@ provider accepts a particular compatibility option.
   — the governing design, in the kernel repository: §7 is this layer, §8 orders the
   sub-projects. Work here starts at sub-project #6, the envelope, after the command
   framework, and ends with #7, the loop and the priority function (`science.priority.v1`).
-- This repository's own designs and plans are under [docs/specs](docs/specs) and
-  [docs/plans](docs/plans); the envelope's design is
-  `docs/specs/2026-10-12-envelope-design.md`.
+- The envelope's design, `docs/specs/2026-10-12-envelope-design.md`, and the plans it
+  cites are under [docs/specs](docs/specs) and [docs/plans](docs/plans); task records
+  and newer working documents live in the project's records repository.
 - This layer is split from `science` on code-lineage independence: the envelope must
   not share a package with the surface it constrains, so its only seam is `science`'s
   commands as tools.

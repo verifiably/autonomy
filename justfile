@@ -38,7 +38,7 @@ check_hygiene_cmd := "python3 tools/ops-check && python3 tools/ops-docs check &&
 # runs docs_check_cmd instead of check_hygiene_cmd. fnmatch globs, `*` crossing `/`. Narrow it
 # when docs/ holds executable examples, fixtures, or anything a test reads; set it to
 # "" to always run the full check.
-docs_paths := "*.md docs/* tasks/*"
+docs_paths := "*.md docs/*"
 docs_check_cmd := check_hygiene_cmd
 
 # Remote refs whose push makes CI run the full suite, as space-separated fnmatch globs.
