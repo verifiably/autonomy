@@ -1,15 +1,17 @@
 ---
 id: autonomy-d0fce7
 title: "autonomy analyst: take an explicit thinking level and record it; '--thinking off' is not what current Claude models run"
-status: doing
+status: done
 priority: 2
 size: s
 complexity: mid
 process: direct
 owner: main
 created: 2026-11-01T15:35:53Z
-updated: 2026-11-01T16:33:48Z
+updated: 2026-11-01T16:33:53Z
 started: 2026-11-01T15:42:44Z
+completed: 2026-11-01T16:33:53Z
+closed: 2026-11-01T16:33:53Z
 depends: []
 tags: [sandbox]
 source: mm-62e2da
@@ -42,3 +44,5 @@ Done: the flag exists, is validated against pi's registry for the routed model, 
 - 2026-11-01T16:32:41Z (main): retained: {"host":"titan","kind":"worktree","path":".worktrees/autonomy-d0fce7","state":"released","verification":"verified","purpose":"branch autonomy-d0fce7 fast-forward merged into main at 4c17258 (focused suite 141/141 and check-hygiene passed on merged main); worktree clean, ignored files only regenerable python/.venv, python/.pytest_cache and __pycache__ directories (discarded); no host pointer resolved into it; tt-report run; worktree unlocked and removed, branch deleted, path verified absent","next_owner":"none","cleanup_trigger":"none"}
 - 2026-11-01T16:33:04Z (main): retention checkpoint: observed 2026-11-01T16:32:50Z on titan; basis autonomy in-tree . 0b757fa2721e4348d0f128d1d92126f09801623e:tasks/autonomy-d0fce7.md; retained by main; this host: kept verified 0, kept unknown 0, released 1; changed 1. Rechecked all kept/verified items on this host (worktree .worktrees/autonomy-d0fce7 removed and verified absent; no WORK_ROOT task scratch created; temporary review diff scratch discarded); unknown items remain unverified with actions in basis (none). Other hosts retain their own dated observations (none). host-load --section session: nothing left running. Next: none.
 - 2026-11-01T16:33:48Z (main): retention checkpoint: observed 2026-11-01T16:33:48Z on titan (observer attribution: unknown — tasks note --stamp emitted no harness_session provenance under agy); basis autonomy in-tree . d1851edb036b964d146e372dfe234cf7b9c55662:tasks/autonomy-d0fce7.md; retained by main; this host: kept verified 0, kept unknown 0, released 1; changed 0. Rechecked all kept/verified items on this host (worktree .worktrees/autonomy-d0fce7 removed and verified absent; no WORK_ROOT task scratch created; temporary review diff scratch discarded); unknown items remain unverified with actions in basis (none). Other hosts retain their own dated observations (none). host-load --section session: nothing left running. Next: none.
+- 2026-11-01T16:33:53Z (main): done
+- 2026-11-01T16:33:53Z (main): autonomy analyst requires --thinking LEVEL, validates it at step 1 against pi 1.1.0's anthropic-messages registry (model-unknown, thinking-unsupported), passes it in pi_argv, and records model and thinking in epoch.json and events.jsonl (b7b7b3cf4f65529a91670956c920d9fa0eee5e63; README.md and decision 14 / rows E23-E24 updated). Verification — focused scope: just test-one tests/test_analyst_toolchain.py tests/test_analyst_walk.py tests/test_analyst_release.py tests/test_analyst_launch.py tests/test_cli.py tests/test_analyst_check.py passed 141/141 in .worktrees/autonomy-d0fce7 (62.87s) and 141/141 on merged main (110.15s), including E24 wire effort check under bwrap + pi 1.1.0; mandatory hygiene: just check-hygiene passed with 0 errors; skipped broad work: just test and just test-fast omitted locally under .tt.toml automatic_broad = false (policy skip, not a pass); remote evidence: none yet (unpushed). Review: impl round 1 accepted (2 deferred minors, 3 declined-to-judge rulings recorded above; no deviations). Disclosures — pushes: none (local main is ahead of origin/main; user integrates remotely via git push origin main when ready); surviving processes: none (host-load --section session: nothing left running); others' work: untouched (main already stood 2 commits ahead of origin/main at dbd0fcd); worktrees and branches: branch autonomy-d0fce7 fast-forward merged into local main and deleted, .worktrees/autonomy-d0fce7 removed after tt-report, ignored-file and host-pointer checks, no unmerged branches remain.
