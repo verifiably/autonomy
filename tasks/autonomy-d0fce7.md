@@ -6,9 +6,9 @@ priority: 2
 size: s
 complexity: mid
 process: direct
-owner: main
+owner: autonomy-d0fce7
 created: 2026-11-01T15:35:53Z
-updated: 2026-11-01T15:42:44Z
+updated: 2026-11-01T15:43:49Z
 started: 2026-11-01T15:42:44Z
 depends: []
 tags: [sandbox]
@@ -28,3 +28,5 @@ Done: the flag exists, is validated against pi's registry for the routed model, 
 - 2026-11-01T15:35:53Z (add): created
   provenance: {"harness_session":"claude-code:d2f6936f-5a00-44ba-bd5b-50a8c3d96fff","harness_session_source":"CLAUDE_CODE_SESSION_ID","origin":"mixed"}
 - 2026-11-01T15:42:44Z (main): started
+- 2026-11-01T15:43:49Z (autonomy-d0fce7): resumed
+- 2026-11-01T15:43:49Z (autonomy-d0fce7): took over Unix session (owner main, stale)
