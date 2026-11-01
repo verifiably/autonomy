@@ -8,7 +8,7 @@ complexity: mid
 process: direct
 owner: autonomy-d0fce7
 created: 2026-11-01T15:35:53Z
-updated: 2026-11-01T16:00:34Z
+updated: 2026-11-01T16:28:05Z
 started: 2026-11-01T15:42:44Z
 depends: []
 tags: [sandbox]
@@ -33,3 +33,4 @@ Done: the flag exists, is validated against pi's registry for the routed model, 
 - 2026-11-01T15:49:16Z (autonomy-d0fce7): retained: {"host":"titan","kind":"worktree","path":".worktrees/autonomy-d0fce7","state":"kept","verification":"verified","purpose":"Implement and verify autonomy-d0fce7","next_owner":"task:autonomy-d0fce7","cleanup_trigger":"After review passes and the branch merges locally into main, inspect ignored files, run tt-report, check host pointers and remove the worktree"}
 - 2026-11-01T15:49:20Z (autonomy-d0fce7): process: direct; workspace .worktrees/autonomy-d0fce7 (branch autonomy-d0fce7, locked, just setup done). Focused baseline (automatic_broad = false, broad baseline deliberately omitted under policy-off): just test-one tests/test_analyst_toolchain.py tests/test_analyst_launch.py tests/test_cli.py tests/test_analyst_check.py — 98 passed in 70.54s. Origin read: mm-62e2da and filing session claude-code:d2f6936f-5a00-44ba-bd5b-50a8c3d96fff (user asked to pin generation settings in Amendment 4 point 3 and agreed on claude-opus-5-5; agent found autonomy analyst hardcodes --thinking off and filed autonomy-d0fce7).
 - 2026-11-01T16:00:34Z (autonomy-d0fce7): decision: make --thinking LEVEL required on autonomy analyst and AnalystRequest, validated against pi 1.1.0's anthropic-messages registry (pi-ai dist/providers/data/anthropic.json) so any level pi would clamp, omit or collapse (including 'off' and 'minimal' on current adaptive-thinking Claude models, and 'xhigh'/'max' on older models without thinkingLevelMap entries) is refused at step 1 as thinking-unsupported (and an unlisted model as model-unknown), and record both model and thinking in epoch.json and events.jsonl. Rejected alternative: keeping a default ('off' or omitted, recorded as 'model default'), because in pi 1.1.0 '--thinking off' is silently clamped by clampThinkingLevel to 'low' on Haiku/Sonnet/Opus 5.5 and omitting '--thinking' substitutes DEFAULT_THINKING_LEVEL = 'medium' in pi-coding-agent sdk.js:136, so neither runs an unpinned provider default.
+- 2026-11-01T16:28:05Z (autonomy-d0fce7): review: impl round 1 — verdict: accept; findings: minor 2; reviewer: agy
