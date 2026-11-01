@@ -48,16 +48,22 @@ A fresh pi analyst over declared inputs, under the same sandbox and model route,
 no endpoint (`docs/specs/2026-10-12-envelope-design.md`, decision 14):
 
 ```sh
-autonomy analyst --model-route NAME --model MODEL --input DIR... [--deny PATH]... \
-  --release DIR [--report-fd N] [--pi-dir DIR] [--node-dir DIR] [--lease SECONDS] [--deadline SECONDS]
+autonomy analyst --model-route NAME --model MODEL --thinking LEVEL --input DIR... \
+  [--deny PATH]... --release DIR [--report-fd N] [--pi-dir DIR] [--node-dir DIR] \
+  [--lease SECONDS] [--deadline SECONDS]
 ```
 
 Each `--input` is bound read-only at its real path; each `--deny` joins the denied set
-beside the route's entries, `<state>` and the release directory. Before launch the
+beside the route's entries, `<state>` and the release directory. `--thinking` is
+required and validated before launch against pi 1.1.0's `anthropic-messages` model
+registry (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`), refusing any level
+pi would clamp, omit or collapse for `--model` (`thinking-unsupported`, or
+`model-unknown` if pi's registry does not list `--model`). Before launch the
 static check, a walk of every admitted tree (no submount, no hard link in a
 user-writable tree, no inode shared with a denied root) and the probe all run. pi 1.1.0
 runs from the pinned install (`--pi-dir`, `PI_DIR`, or `~/.local/share/pi/1.1.0`) with
-a fixed argv and the fixed tool set `read,bash,grep,find,ls,write`; the prompt comes
+a fixed argv (`--model` and `--thinking` from the request) and the fixed tool set
+`read,bash,grep,find,ls,write`; the prompt comes
 over fds 0 and 1 (pi's RPC), which the caller drives as for `autonomy run`. When pi
 exits, outputs cross from the outputs directory under scratch to the release directory, which must exist
 and be empty, by a walk that follows no link: a symlink, FIFO, socket, device or
@@ -70,8 +76,9 @@ hard-linked file is refused and listed.
 | 4 | the analyst never started (a failed static check, walk, probe or launch) |
 | 2 | refused at configuration: nothing kept |
 
-The run directory `<state>/analyst/<run-id>/` holds the events log, the epoch record (pi's
-lock hash and the node, bwrap, rg and fd versions), the walk report, the route's
+The run directory `<state>/analyst/<run-id>/` holds the events log (recording the route,
+model and thinking level at allocation and launch), the epoch record (`model`,
+`thinking`, pi's lock hash and the node, bwrap, rg and fd versions), the walk report, the route's
 records and proxy log, the launcher's log and the release report (released files with
 their hashes, refused entries with their reasons); `--report-fd` carries its path out as
 for `autonomy run`. Scratch under `<cache>/analyst/<run-id>/` is left for the caller:

@@ -499,15 +499,17 @@ def test_the_analyst_parser_builds_a_request(monkeypatch):
         return 0
 
     monkeypatch.setattr(launch, "execute", fake_execute)
-    assert cli.main(["analyst", "--model-route", "pi", "--model", "m", "--input", "/a", "--input", "/b", "--deny", "/k",
-                     "--release", "/r", "--lease", "30", "--deadline", "100", "--report-fd", "7"]) == 0
+    assert cli.main(["analyst", "--model-route", "pi", "--model", "m", "--thinking", "high", "--input", "/a",
+                     "--input", "/b", "--deny", "/k", "--release", "/r", "--lease", "30", "--deadline", "100",
+                     "--report-fd", "7"]) == 0
     request = seen["request"]
     assert request.inputs == (Path("/a"), Path("/b")) and request.denied == (Path("/k"),)
-    assert request.release_dir == Path("/r") and request.model == "m" and request.model_route == "pi"
+    assert request.release_dir == Path("/r") and request.model == "m" and request.thinking == "high"
+    assert request.model_route == "pi"
     assert request.lease == 30 and request.deadline == 100 and request.report_fd == 7
 
 
-def test_the_analyst_parser_needs_an_input():
+def _run_cli_capturing_stderr(argv: list[str]) -> tuple[int, bytes]:
     """The diagnostic goes to fd 2 through the non-blocking channel, which writes a pipe
     and never a regular file (pytest's capture), so the test puts a pipe on fd 2."""
     from autonomy import cli
@@ -515,7 +517,7 @@ def test_the_analyst_parser_needs_an_input():
     saved = os.dup(2)
     try:
         os.dup2(write_end, 2)
-        code = cli.main(["analyst", "--model-route", "pi", "--model", "m", "--release", "/r"])
+        code = cli.main(argv)
     finally:
         os.dup2(saved, 2)
         os.close(saved)
@@ -524,4 +526,18 @@ def test_the_analyst_parser_needs_an_input():
         err = os.read(read_end, 65536)
     finally:
         os.close(read_end)
+    return code, err
+
+
+def test_the_analyst_parser_needs_an_input():
+    code, err = _run_cli_capturing_stderr(
+        ["analyst", "--model-route", "pi", "--model", "m", "--thinking", "low", "--release", "/r"]
+    )
     assert code == 2 and b"refused: input-missing" in err
+
+
+def test_the_analyst_parser_requires_thinking():
+    code, err = _run_cli_capturing_stderr(
+        ["analyst", "--model-route", "pi", "--model", "m", "--input", "/a", "--release", "/r"]
+    )
+    assert code == 2 and b"--thinking" in err

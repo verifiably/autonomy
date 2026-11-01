@@ -21,7 +21,7 @@ import pytest
 
 from autonomy.analyst.launch import AnalystRequest, Progress, execute
 from autonomy.analyst.toolchain import (
-    ANALYST_TOOLS, AnalystRefused, check_node, check_pi, default_node_dir, default_pi_dir,
+    ANALYST_TOOLS, AnalystRefused, check_node, check_pi, check_thinking, default_node_dir, default_pi_dir,
 )
 from egress_fixtures import MODEL, FakeUpstream, TextTurn, ToolTurn, Turn, pi_route, tls, write_credential, write_route  # noqa: F401
 
@@ -306,7 +306,8 @@ def judge(f: Fixture, upstream: FakeUpstream, records: list[dict], stderr: bytes
     return problems
 
 
-def configure(tmp_path: Path, tls, upstream: FakeUpstream, f: Fixture, toolchain, *, inputs=None, denied=None):
+def configure(tmp_path: Path, tls, upstream: FakeUpstream, f: Fixture, toolchain, *, thinking: str = "low",
+              inputs=None, denied=None):
     pi, node_dir = toolchain
     config = tmp_path / "config/verifiably-autonomy"
     credential = write_credential(config / "credentials/anthropic", "placeholder-not-a-key")
@@ -318,7 +319,7 @@ def configure(tmp_path: Path, tls, upstream: FakeUpstream, f: Fixture, toolchain
     env = {"HOME": str(tmp_path / "home"), "XDG_CONFIG_HOME": str(tmp_path / "config"),
            "XDG_STATE_HOME": str(tmp_path / "state"), "XDG_CACHE_HOME": str(tmp_path / "cache"), "PATH": "/usr/bin"}
     request = AnalystRequest(
-        "pi", MODEL, inputs if inputs is not None else (f.bundle,),
+        "pi", MODEL, thinking, inputs if inputs is not None else (f.bundle,),
         denied if denied is not None else (f.key, f.source, f.world), tmp_path / "release",
         pi_dir=pi.dir, node_dir=node_dir, lease=60.0, deadline=600.0,
     )
@@ -403,6 +404,8 @@ def test_e24_pi_tools_run_inside_the_namespace_and_denied_paths_are_absent(tmp_p
         assert (request.release_dir / "result.txt").read_text() == "released\n"
         epoch = json.loads((progress.run_dir / "epoch.json").read_text())
         assert epoch["pi"]["version"] == "1.1.0" and all(epoch[k] for k in ("node", "bwrap", "rg", "fd"))
+        assert epoch["model"] == MODEL and epoch["thinking"] == "low"
+        assert json.loads(upstream.seen[0].body)["messages"][-1]["output_config"] == {"effort": "low"}
         print(json.dumps({"epoch": epoch, "tools": ANALYST_TOOLS, "turns": len(upstream.tool_uses)}))
     finally:
         upstream.stop()
@@ -441,6 +444,17 @@ def test_the_judge_never_accepts_a_pi_argument_error_as_denial():
     assert problems == ["inconclusive: argument error on read"]
     denied = {"content": f"ENOENT: no such file or directory, access '{turn.input['path']}'", "is_error": True}
     assert judge_results(f, [(turn, denied)]) == []
+
+
+def test_the_shipped_pi_registry_matches_thinking_validation(toolchain):
+    pi, _ = toolchain
+    for model in ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"):
+        for level in ("low", "medium", "high", "xhigh", "max"):
+            check_thinking(pi, model, level)
+        for level in ("off", "minimal"):
+            with pytest.raises(AnalystRefused) as caught:
+                check_thinking(pi, model, level)
+            assert caught.value.code == "thinking-unsupported"
 
 
 def test_the_judge_flags_a_literal_sentinel_in_a_tool_input():

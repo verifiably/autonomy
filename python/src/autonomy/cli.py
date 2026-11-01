@@ -143,6 +143,7 @@ def _parser(diag: Diag) -> _Parser:
     )
     analyst_parser.add_argument("--model-route", required=True, metavar="NAME", help="the model route under <config>/routes/NAME.toml")
     analyst_parser.add_argument("--model", required=True, metavar="MODEL", help="pi's --model; must be in the route's models")
+    analyst_parser.add_argument("--thinking", required=True, metavar="LEVEL", help="pi's --thinking level; must be supported for --model in pi's registry")
     analyst_parser.add_argument("--input", action="append", default=[], type=Path, metavar="DIR", help="a directory bound read-only at its real path; repeat for each")
     analyst_parser.add_argument("--deny", action="append", default=[], type=Path, metavar="PATH", help="a path the analyst must not reach; repeat for each")
     analyst_parser.add_argument("--release", required=True, type=Path, metavar="DIR", help="an existing empty directory the outputs are released into")
@@ -175,8 +176,9 @@ def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -
         if not args.input:
             raise AnalystRefused("input-missing", "at least one --input directory is required")
         request = analyst.AnalystRequest(
-            args.model_route, args.model, tuple(args.input), tuple(args.deny), args.release, report_fd=args.report_fd,
-            pi_dir=args.pi_dir, node_dir=args.node_dir, lease=args.lease, deadline=args.deadline,
+            args.model_route, args.model, args.thinking, tuple(args.input), tuple(args.deny), args.release,
+            report_fd=args.report_fd, pi_dir=args.pi_dir, node_dir=args.node_dir, lease=args.lease,
+            deadline=args.deadline,
         )
         return analyst.execute(request, os.environ, diag=diag, progress=progress)
     except AnalystRefused as caught:

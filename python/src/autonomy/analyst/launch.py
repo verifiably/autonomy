@@ -22,7 +22,8 @@ from pathlib import Path
 
 from autonomy.analyst.release import check_release_dir, release
 from autonomy.analyst.toolchain import (
-    ANALYST_TOOLS, AnalystRefused, PiInstall, check_node, check_pi, default_node_dir, default_pi_dir, epoch_record,
+    ANALYST_TOOLS, AnalystRefused, PiInstall, check_node, check_pi, check_thinking, default_node_dir, default_pi_dir,
+    epoch_record,
 )
 from autonomy.analyst.walk import walk
 from autonomy.baseline import append_event, fsync_dir, utc_now, write_all
@@ -49,6 +50,7 @@ _HANDLED = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 class AnalystRequest:
     model_route: str
     model: str
+    thinking: str
     inputs: tuple[Path, ...]
     denied: tuple[Path, ...]
     release_dir: Path
@@ -87,9 +89,9 @@ class Progress:
     scratch: Path | None = None
 
 
-def pi_argv(pi: PiInstall, model: str, scratch: Path) -> list[str]:
+def pi_argv(pi: PiInstall, model: str, thinking: str, scratch: Path) -> list[str]:
     return [
-        str(pi.executable), "--mode", "rpc", "--provider", "anthropic", "--model", model, "--thinking", "off",
+        str(pi.executable), "--mode", "rpc", "--provider", "anthropic", "--model", model, "--thinking", thinking,
         "--session-dir", str(scratch / "sessions"), "--no-approve", "--no-extensions", "--no-skills",
         "--no-prompt-templates", "--no-mcp", "--no-context-files", "--tools", ",".join(ANALYST_TOOLS),
     ]
@@ -161,6 +163,7 @@ def refuse(request: AnalystRequest, env: Mapping[str, str], *, actor_fds: tuple[
     if operation is None or request.model not in operation.models:
         raise AnalystRefused("model-unrouted", f"route {request.model_route} does not allow model {request.model!r} on POST /v1/messages?beta=true")
     pi = check_pi(request.pi_dir if request.pi_dir is not None else default_pi_dir(env, _home(env)))
+    check_thinking(pi, request.model, request.thinking)
     node_dir = request.node_dir if request.node_dir is not None else default_node_dir(env)
     if node_dir is None:
         raise AnalystRefused("node-missing", "node is not on PATH; pass --node-dir or set NODE_DIR")
@@ -306,7 +309,7 @@ def execute(
     diag: Diag,
     progress: Progress,
     actor_fds: tuple[int, int, int] = ACTOR_FDS,
-    actor_argv: Callable[[PiInstall, str, Path], list[str]] = pi_argv,
+    actor_argv: Callable[[PiInstall, str, str, Path], list[str]] = pi_argv,
 ) -> int:
     """Decision 14's six steps. `actor_argv` is the test hook that puts a shell actor in
     pi's place. After step 1 the report fd is closed on every way out, as `run.execute`
@@ -322,8 +325,12 @@ def execute(
         run_dir, scratch = dirs.run_dir, dirs.scratch
         diag(f"analyst run {dirs.run_id} in {run_dir}")
         _write_json(scratch / "agent/models.json", {"providers": {"anthropic": {"baseUrl": MODEL_URL, "apiKey": "placeholder"}}})
-        _write_json(run_dir / "epoch.json", epoch_record(prepared.pi, prepared.node_dir))
-        append_event(run_dir, "allocated", run=dirs.run_id, scratch=str(scratch), release=str(prepared.release_dir),
+        _write_json(
+            run_dir / "epoch.json",
+            epoch_record(prepared.pi, prepared.node_dir, model=request.model, thinking=request.thinking),
+        )
+        append_event(run_dir, "allocated", run=dirs.run_id, model_route=request.model_route, model=request.model,
+                     thinking=request.thinking, scratch=str(scratch), release=str(prepared.release_dir),
                      inputs=[str(p) for p in prepared.inputs], denied=[str(p) for p in prepared.denied])
         if report is not None and not report.write_line(_line({"run": dirs.run_id, "run_dir": str(run_dir), "scratch": str(scratch)})):
             append_event(run_dir, "report-unwritten", line="run")
@@ -349,8 +356,8 @@ def execute(
             return EXIT_UNSTARTED
         append_event(run_dir, "proxy", pid=session.init_pid)
         try:
-            actor = launch(spec, actor_argv(prepared.pi, request.model, scratch), stdin=actor_fds[0], stdout=actor_fds[1],
-                           stderr=actor_fds[2], before_release=session.attach)
+            actor = launch(spec, actor_argv(prepared.pi, request.model, request.thinking, scratch), stdin=actor_fds[0],
+                           stdout=actor_fds[1], stderr=actor_fds[2], before_release=session.attach)
         except (SandboxUnproven, EgressUnproven) as caught:
             session.kill()
             code = caught.code
@@ -363,7 +370,8 @@ def execute(
                 start_time: int | None = _start_time(actor.child_pid)
             except OSError:  # an actor that exited at once: its init is already reaped
                 start_time = None
-            append_event(run_dir, "launched", child_pid=actor.child_pid, start_time=start_time)
+            append_event(run_dir, "launched", child_pid=actor.child_pid, start_time=start_time, model=request.model,
+                         thinking=request.thinking)
             log = _Log(run_dir)
             log.write(f"launched pi as namespace init {actor.child_pid}")
             if tuple(actor_fds) == ACTOR_FDS:

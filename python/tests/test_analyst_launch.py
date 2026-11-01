@@ -25,8 +25,8 @@ def world(tmp_path, tls):
         (tmp_path / name).mkdir()
     (tmp_path / "key/k.json").write_text("{}")
     return {"env": env, "tmp": tmp_path, "pi": pi_tree(tmp_path / "pi"), "node": node_tree(tmp_path / "node"),
-            "request": AnalystRequest("pi", MODEL, (tmp_path / "bundle",), (tmp_path / "key",), tmp_path / "release",
-                                      pi_dir=tmp_path / "pi", node_dir=tmp_path / "node")}
+            "request": AnalystRequest("pi", MODEL, "low", (tmp_path / "bundle",), (tmp_path / "key",),
+                                      tmp_path / "release", pi_dir=tmp_path / "pi", node_dir=tmp_path / "node")}
 
 
 @pytest.fixture
@@ -57,6 +57,9 @@ def test_relative_and_trailing_slash_paths_resolve(world, null_fds, monkeypatch)
     (lambda w: {"lease": 1.0}, "lease-below-floor"),
     (lambda w: {"model_route": "nope"}, "route-unknown"),
     (lambda w: {"model": "claude-nope"}, "model-unrouted"),
+    (lambda w: {"thinking": "off"}, "thinking-unsupported"),
+    (lambda w: {"thinking": "minimal"}, "thinking-unsupported"),
+    (lambda w: {"thinking": "bogus"}, "thinking-unsupported"),
     (lambda w: {"inputs": (w["tmp"] / "absent",)}, "input-missing"),
     (lambda w: {"inputs": (w["tmp"] / "bundle", w["tmp"] / "bundle" / "sub")}, "input-nested"),
     (lambda w: {"inputs": (w["tmp"] / "pi",)}, "input-nested"),
@@ -72,6 +75,19 @@ def test_each_configuration_refusal_is_typed_and_keeps_nothing(world, null_fds, 
     with pytest.raises(AnalystRefused) as caught:
         refuse(request, world["env"], actor_fds=null_fds)
     assert caught.value.code == code
+    assert not (world["tmp"] / "state").exists() and not (world["tmp"] / "cache").exists()
+
+
+def test_a_routed_model_absent_from_pi_registry_is_refused(world, null_fds, tls):
+    config = world["tmp"] / "config/verifiably-autonomy"
+    credential = config / "credentials/anthropic"
+    doc = pi_route(credential=credential, upstream="https://localhost:1", ca_file=tls.cert)
+    doc["operations"][0]["models"] = ["claude-unlisted"]
+    write_route(config, "pi", doc)
+    request = dataclasses.replace(world["request"], model="claude-unlisted")
+    with pytest.raises(AnalystRefused) as caught:
+        refuse(request, world["env"], actor_fds=null_fds)
+    assert caught.value.code == "model-unknown"
     assert not (world["tmp"] / "state").exists() and not (world["tmp"] / "cache").exists()
 
 
@@ -113,9 +129,9 @@ def test_the_runtime_dir_is_not_required(world, null_fds):
 
 def test_pi_argv_and_env_are_the_contract(world):
     scratch = world["tmp"] / "scratch"
-    argv = pi_argv(check_pi(world["pi"]), MODEL, scratch)
+    argv = pi_argv(check_pi(world["pi"]), MODEL, "high", scratch)
     assert argv[0] == str(world["pi"] / "node_modules/.bin/pi")
-    assert argv[1:] == ["--mode", "rpc", "--provider", "anthropic", "--model", MODEL, "--thinking", "off",
+    assert argv[1:] == ["--mode", "rpc", "--provider", "anthropic", "--model", MODEL, "--thinking", "high",
                         "--session-dir", str(scratch / "sessions"), "--no-approve", "--no-extensions", "--no-skills",
                         "--no-prompt-templates", "--no-mcp", "--no-context-files", "--tools", ",".join(ANALYST_TOOLS)]
     env = actor_env(world["node"], scratch)
@@ -140,8 +156,8 @@ def served_world(world, tls):
 
 
 def shell_actor(script: str):
-    def argv(pi, model, scratch):
-        return ["/usr/bin/sh", "-c", script.replace("SCRATCH", str(scratch))]
+    def argv(pi, model, thinking, scratch):
+        return ["/usr/bin/sh", "-c", script.replace("SCRATCH", str(scratch)).replace("THINKING", thinking)]
 
     return argv
 
@@ -186,12 +202,18 @@ def test_a_clean_run_releases_and_reports(served_world):
     assert lines[1]["egress"] == "close"
     assert (served_world["tmp"] / "release/result.txt").read_text() == "result\n"
     assert (served_world["tmp"] / "release/figs/a").exists()
-    events = [json.loads(line)["event"] for line in (run_dir / "events.jsonl").read_text().splitlines()]
+    records = [json.loads(line) for line in (run_dir / "events.jsonl").read_text().splitlines()]
+    events = [record["event"] for record in records]
     assert events[0] == "allocated" and "proved" in events and "launched" in events
     assert events[-1] == "closed"
+    allocated = records[0]
+    launched = next(record for record in records if record["event"] == "launched")
+    assert allocated["model_route"] == "pi" and allocated["model"] == MODEL and allocated["thinking"] == "low"
+    assert launched["model"] == MODEL and launched["thinking"] == "low"
     for name in ("walk.json", "release.json", "epoch.json", "launcher.log", "egress.jsonl"):
         assert (run_dir / name).exists(), name
-    assert json.loads((run_dir / "epoch.json").read_text())["pi"]["version"] == "1.1.0"
+    epoch = json.loads((run_dir / "epoch.json").read_text())
+    assert epoch["pi"]["version"] == "1.1.0" and epoch["model"] == MODEL and epoch["thinking"] == "low"
     models = served_world["tmp"] / "cache/verifiably-autonomy/analyst" / run_dir.name / "scratch/agent/models.json"
     assert json.loads(models.read_text()) == {"providers": {"anthropic": {"baseUrl": "http://127.0.0.1:4780", "apiKey": "placeholder"}}}
 
