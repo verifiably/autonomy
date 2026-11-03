@@ -176,6 +176,10 @@ else:
 
 # 5. Process tree and environment have no pi, node, proxy, or VERIFIABLY_MODEL_URL
 assert "VERIFIABLY_MODEL_URL" not in os.environ
+assert os.environ.get("LC_ALL") == "C.UTF-8"
+assert os.environ.get("LANG") == "C.UTF-8"
+assert os.environ.get("VERIFIABLY_SCRATCH") and Path(os.environ["VERIFIABLY_SCRATCH"]).is_dir()
+assert os.environ.get("VERIFIABLY_OUTPUTS") == str(Path(os.environ["VERIFIABLY_SCRATCH"]) / "outputs")
 for entry in Path("/proc").iterdir():
     if not entry.name.isdigit():
         continue

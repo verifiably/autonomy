@@ -445,6 +445,8 @@ def command_env(scratch: Path) -> dict[str, str]:
         "PATH": "/usr/bin",
         "HOME": str(scratch / "home"),
         "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "VERIFIABLY_SCRATCH": str(scratch),
         "VERIFIABLY_OUTPUTS": str(scratch / "outputs"),
     }
 
@@ -506,7 +508,7 @@ def _discover_command_symlinks(
                 for line in cfg.read_text(errors="replace").splitlines():
                     key, sep, val = line.partition("=")
                     if sep and key.strip() == "home":
-                        home_path = Path(val.strip())
+                        home_path = Path(val.strip().strip("'\""))
                         if home_path.is_absolute():
                             candidates.append(home_path)
         except OSError:
@@ -587,7 +589,13 @@ def refuse_command(
         parent_real = cmd_path.parent.resolve(strict=True)
     except OSError as caught:
         raise AnalystRefused("command-invalid", f"{cmd_path.parent}: {caught}") from None
-    if cmd_path.parent != parent_real:
+    merged_links = tuple(Path(link) for link in SYSTEM_LINKS if Path(link).is_symlink())
+    parent_via_merged = any(
+        (cmd_path.parent == link or cmd_path.parent.is_relative_to(link))
+        and (link.resolve(strict=True) / cmd_path.parent.relative_to(link)) == parent_real
+        for link in merged_links
+    )
+    if cmd_path.parent != parent_real and not parent_via_merged:
         raise AnalystRefused("command-invalid", f"{cmd_path}'s parent directory contains a symlink")
     if not os.path.lexists(cmd_path):
         raise AnalystRefused("command-missing", f"{cmd_path} does not exist")
@@ -601,7 +609,6 @@ def refuse_command(
         raise AnalystRefused("command-not-executable", f"{real_cmd} is not executable")
 
     admitted_real = (Path("/usr"), *inputs)
-    merged_links = tuple(Path(link) for link in SYSTEM_LINKS if Path(link).is_symlink())
     admitted_cmd = (*admitted_real, *merged_links)
     if not _under_any(cmd_path, admitted_cmd) or not _under_any(real_cmd, admitted_real):
         raise AnalystRefused(
@@ -685,11 +692,16 @@ def _replace_json(path: Path, value: object) -> None:
 
 
 def _hash_log_file(run_dir: Path, name: str) -> dict[str, object]:
-    data = (run_dir / name).read_bytes()
+    hasher = hashlib.sha256()
+    total = 0
+    with open(run_dir / name, "rb") as handle:
+        while chunk := handle.read(65536):
+            hasher.update(chunk)
+            total += len(chunk)
     return {
         "path": name,
-        "bytes": len(data),
-        "sha256": hashlib.sha256(data).hexdigest(),
+        "bytes": total,
+        "sha256": hasher.hexdigest(),
     }
 
 

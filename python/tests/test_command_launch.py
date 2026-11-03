@@ -78,6 +78,19 @@ def test_a_complete_command_request_is_prepared(cmd_world):
     assert prepared.places.state.resolve(strict=False) in prepared.denied
     assert prepared.release_dir in prepared.denied
     assert "bwrap" in prepared.bwrap or "version" in prepared.bwrap
+    scratch = tmp / "scratch"
+    assert command_env(scratch) == {
+        "PATH": "/usr/bin",
+        "HOME": str(scratch / "home"),
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "VERIFIABLY_SCRATCH": str(scratch),
+        "VERIFIABLY_OUTPUTS": str(scratch / "outputs"),
+    }
+    if Path("/bin").is_symlink() and Path("/bin/sh").exists():
+        sh_prep = refuse_command(dataclasses.replace(cmd_world["request"], argv=("/bin/sh", "-c", "true")), cmd_world["env"])
+        assert sh_prep.executable_path == Path("/bin/sh")
+        assert sh_prep.executable_realpath == Path("/bin/sh").resolve()
 
 
 @pytest.mark.parametrize(
