@@ -133,6 +133,10 @@ def check_report_fd(fd: int, actor_fds: tuple[int, int, int] = ACTOR_FDS) -> Lit
         raise StdioRefused(fd, "opened read-only, such as a pipe's read end")
     identity = _identity(fd)
     for actor_fd in actor_fds:
-        if _identity(actor_fd) == identity:
+        try:
+            actor_identity = _identity(actor_fd)
+        except OSError:
+            continue
+        if actor_identity == identity:
             raise StdioRefused(fd, f"the same file as fd {actor_fd}")
     return kind

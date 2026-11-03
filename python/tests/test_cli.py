@@ -541,3 +541,65 @@ def test_the_analyst_parser_requires_thinking():
         ["analyst", "--model-route", "pi", "--model", "m", "--input", "/a", "--release", "/r"]
     )
     assert code == 2 and b"--thinking" in err
+
+
+def test_command_cli_preserves_flags_and_help_after_double_dash(monkeypatch):
+    import autonomy.analyst.launch as launch
+    from autonomy import cli
+
+    seen = {}
+
+    def fake_execute_command(request, env, *, diag, progress, **kw):
+        seen["request"] = request
+        seen["kw"] = kw
+        return 0
+
+    monkeypatch.setattr(launch, "execute_command", fake_execute_command)
+    assert (
+        cli.main(
+            [
+                "command",
+                "--input",
+                "/a",
+                "--input",
+                "/b",
+                "--deny",
+                "/k",
+                "--release",
+                "/r",
+                "--workdir",
+                "/a",
+                "--deadline",
+                "120",
+                "--report-fd",
+                "7",
+                "--",
+                "/usr/bin/true",
+                "--input",
+                "--help",
+                "-v",
+            ]
+        )
+        == 0
+    )
+    request = seen["request"]
+    assert request.inputs == (Path("/a"), Path("/b"))
+    assert request.denied == (Path("/k"),)
+    assert request.release_dir == Path("/r")
+    assert request.workdir == Path("/a")
+    assert request.deadline == 120.0
+    assert request.report_fd == 7
+    assert request.argv == ("/usr/bin/true", "--input", "--help", "-v")
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["command", "--input", "/a", "--release", "/r"],
+        ["command", "--input", "/a", "--release", "/r", "--"],
+    ],
+)
+def test_command_cli_refusal_exits_2_and_writes_diag(argv):
+    code, err = _run_cli_capturing_stderr(argv)
+    assert code == 2 and b"refused: command-missing" in err
+

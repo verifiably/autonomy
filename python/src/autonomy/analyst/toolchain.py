@@ -215,3 +215,17 @@ def epoch_record(
         "rg": _version(run, ["/usr/bin/rg", "--version"]),
         "fd": _version(run, ["/usr/bin/fd", "--version"]),
     }
+
+
+def bwrap_info(
+    *,
+    which: Callable[[str], str | None] = shutil.which,
+    run: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+) -> dict[str, str | None]:
+    """The bwrap version and resolved binary path recorded in `autonomy command`'s `epoch.json`."""
+    found = which("bwrap")
+    return {
+        "version": _version(run, ["bwrap", "--version"]),
+        "path": str(Path(found).resolve()) if found is not None else None,
+    }
+

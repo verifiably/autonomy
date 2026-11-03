@@ -14,6 +14,7 @@ import functools
 import math
 import os
 import select
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -152,6 +153,21 @@ def _parser(diag: Diag) -> _Parser:
     analyst_parser.add_argument("--node-dir", type=Path, metavar="DIR", help="the node prefix (default NODE_DIR, else the prefix of node on PATH)")
     analyst_parser.add_argument("--lease", type=_seconds, default=LEASE_DEFAULT, metavar="SECONDS", help=f"the route's lease (default {LEASE_DEFAULT:g}, floor {LEASE_FLOOR:g})")
     analyst_parser.add_argument("--deadline", type=_seconds, default=analyst.DEADLINE_DEFAULT, metavar="SECONDS", help=f"the whole run's wall-clock bound (default {analyst.DEADLINE_DEFAULT:g})")
+    command_parser = commands.add_parser(
+        "command",
+        help="run a pinned command over declared inputs under the sandbox with no model or network (decision 14)",
+        description=(
+            "Run a pinned command under the sandbox with only the declared read-only inputs, the declared paths "
+            "denied, no model or network route, and its outputs released to one directory. Exit 0 clean, "
+            "3 released with findings, 4 the command never started, 2 refused."
+        ),
+    )
+    command_parser.add_argument("--input", action="append", default=[], type=Path, metavar="PATH", help="a regular file or directory bound read-only at its real path; repeat for each")
+    command_parser.add_argument("--deny", action="append", default=[], type=Path, metavar="PATH", help="a path the command must not reach; repeat for each")
+    command_parser.add_argument("--release", required=True, type=Path, metavar="DIR", help="an existing empty directory the outputs are released into")
+    command_parser.add_argument("--workdir", type=Path, metavar="DIR", help="working directory inside a declared directory --input (default: scratch)")
+    command_parser.add_argument("--report-fd", type=_fd, metavar="N", help="an anonymous pipe or connected AF_UNIX stream socket, not fd 0-2, for the run and closing lines")
+    command_parser.add_argument("--deadline", type=_seconds, default=analyst.DEADLINE_DEFAULT, metavar="SECONDS", help=f"the whole run's wall-clock bound (default {analyst.DEADLINE_DEFAULT:g})")
     return parser
 
 
@@ -186,7 +202,28 @@ def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -
         return EXIT_REFUSED
 
 
-def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.Progress) -> int:
+def _command(args: argparse.Namespace, cmd_argv: Sequence[str], diag: Diag, progress: analyst.Progress) -> int:
+    try:
+        if not args.input:
+            raise AnalystRefused("input-missing", "at least one --input is required")
+        if not cmd_argv:
+            raise AnalystRefused("command-missing", "a command executable is required after --")
+        request = analyst.CommandRequest(
+            inputs=tuple(args.input),
+            denied=tuple(args.deny),
+            release_dir=args.release,
+            argv=tuple(cmd_argv),
+            workdir=args.workdir,
+            report_fd=args.report_fd,
+            deadline=args.deadline,
+        )
+        return analyst.execute_command(request, os.environ, diag=diag, progress=progress, take_stdio=True)
+    except AnalystRefused as caught:
+        diag(f"refused: {caught.code}: {caught.message}")
+        return EXIT_REFUSED
+
+
+def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.Progress, *, label: str = "run") -> int:
     """The last resort for an exception nothing else handles, SIGINT's
     `KeyboardInterrupt` included: one diagnostic line, then exit 2 when no run
     directory exists, or 4 when one does. That run has no `disposition.json` and is
@@ -194,10 +231,8 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.
     run directory, the process's exit closes it."""
     if isinstance(progress, analyst.Progress):
         run_dir = progress.run_dir
-        label = "analyst run"
     else:
         run_dir = None if progress.dirs is None else progress.dirs.run_dir
-        label = "run"
     status = EXIT_REFUSED if run_dir is None else _EXIT_LEFT
     try:
         message = " ".join(str(caught).splitlines())
@@ -205,7 +240,7 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.
         if run_dir is None:
             diag(f"failed: {what}")
         else:
-            diag(f"{label} {run_dir.name} stopped by {what}; {run_dir} is left" + ("" if label == "analyst run" else " for run close"))
+            diag(f"{label} {run_dir.name} stopped by {what}; {run_dir} is left" + (" for run close" if label == "run" else ""))
     except BaseException:
         pass  # a diagnostic that cannot be written is ignored (decision 12); the exit code is the record
     return status
@@ -214,16 +249,28 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.
 def main(argv: Sequence[str] | None = None) -> int:
     diag = _Diagnostics()
     progress: Progress | analyst.Progress = Progress()
+    label = "run"
     try:
+        raw_argv = list(sys.argv[1:] if argv is None else argv)
+        cmd_argv: list[str] = []
+        if raw_argv and raw_argv[0] == "command":
+            if "--" in raw_argv:
+                sep = raw_argv.index("--")
+                raw_argv, cmd_argv = raw_argv[:sep], raw_argv[sep + 1:]
         try:
-            args = _parser(diag).parse_args(argv)
+            args = _parser(diag).parse_args(raw_argv)
         except _Stop as stop:
             return stop.status
         if args.command == "analyst":
+            label = "analyst run"
             progress = analyst.Progress()
             return _analyst(args, diag, progress)
+        if args.command == "command":
+            label = "command run"
+            progress = analyst.Progress()
+            return _command(args, cmd_argv, diag, progress)
         return _run(args, diag, progress)
     except BaseException as caught:
-        return _unexpected(caught, diag, progress)
+        return _unexpected(caught, diag, progress, label=label)
     finally:
         diag.close()
