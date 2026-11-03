@@ -13,6 +13,7 @@ SYSTEM_RO: tuple[Path, ...] = (Path("/usr"), Path("/etc"))
 SYSTEM_LINKS: tuple[str, ...] = ("/bin", "/lib", "/lib64", "/sbin")
 IN_SANDBOX_SOCKET = PurePosixPath("/run/va/endpoint.sock")
 IN_SANDBOX_TOKEN = PurePosixPath("/run/va/token")
+IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,9 @@ class SandboxSpec:
     socket: Path | None = None
     token: Path | None = None
     env: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    symlinks: tuple[tuple[Path, Path], ...] = ()
+    chdir: Path | None = None
+    outputs_link: bool = False
 
     def bind_sources(self) -> tuple[Path, ...]:
         """Every host path the sandbox binds, in argv order: each one is checked."""

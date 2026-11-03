@@ -315,3 +315,28 @@ def load_route(config: Path, name: str) -> LoadedRoute:
 def egress_denied(config: Path, loaded: LoadedRoute) -> tuple[Path, ...]:
     """The denied set's entries for a run with this route (decision 13, spec §7)."""
     return (config.resolve(), loaded.path, loaded.route.credential_file.resolve())
+
+
+def all_egress_denied(config: Path) -> tuple[Path, ...]:
+    """The denied set's egress entries for a model-free launch (`autonomy command`,
+    decision 14): `<config>` and every resolved absolute `credential.file` parsed from
+    `<config>/routes/*.toml`, ignoring unreadable or malformed route files."""
+    entries: list[Path] = [config.resolve(strict=False)]
+    routes_dir = config / "routes"
+    if routes_dir.is_dir():
+        for route_file in sorted(routes_dir.glob("*.toml")):
+            try:
+                doc = tomllib.loads(route_file.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+                continue
+            if not isinstance(doc, dict):
+                continue
+            cred = doc.get("credential")
+            if not isinstance(cred, dict):
+                continue
+            cred_file = cred.get("file")
+            if isinstance(cred_file, str) and cred_file and Path(cred_file).is_absolute():
+                resolved = Path(cred_file).resolve(strict=False)
+                if resolved not in entries:
+                    entries.append(resolved)
+    return tuple(entries)

@@ -244,3 +244,20 @@ def test_defined_route_capabilities_can_be_narrowed(tool_types, credential):
     assert parse(doc).operations[0].tool_types == frozenset(tool_types or [])
     doc["operations"][0]["fields"] = ["model"]
     assert parse(doc).operations[0].fields == {"model"}
+
+
+def test_all_egress_denied_collects_external_credentials_and_ignores_broken_routes(tmp_path):
+    from autonomy.egress.route import all_egress_denied
+
+    config = tmp_path / "config/verifiably-autonomy"
+    ext_cred = write_credential(tmp_path / "external/cred", "secret")
+    write_route(config, "valid", pi_route(credential=ext_cred))
+    (config / "routes/broken.toml").write_text("not = [valid toml")
+    (config / "routes/partial.toml").write_text('[credential]\nfile = "relative/path"\n')
+
+    denied = all_egress_denied(config)
+    assert denied == (config.resolve(strict=False), ext_cred.resolve(strict=False))
+    assert all_egress_denied(tmp_path / "nonexistent-config") == (
+        (tmp_path / "nonexistent-config").resolve(strict=False),
+    )
+

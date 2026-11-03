@@ -194,3 +194,27 @@ def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch)
         bwrap.probe(SandboxSpec(scratch=layout["scratch"]), [])
     assert caught.value.code == "probe-network"
     assert caught.value.path == "net:192.0.2.1"
+
+
+def test_build_argv_includes_symlinks_chdir_and_outputs_link(tmp_path):
+    scratch = tmp_path / "scratch"
+    work = tmp_path / "work"
+    real_py = tmp_path / "real-py"
+    link_py = tmp_path / "link-py"
+    spec = SandboxSpec(
+        scratch=scratch,
+        ro_binds=(work, real_py),
+        symlinks=((real_py, link_py),),
+        chdir=work,
+        outputs_link=True,
+    )
+    argv = build_argv(spec, ["/usr/bin/true"], info_fd=None)
+    assert ["--dir", "/run/va"] in [argv[i : i + 2] for i in range(len(argv) - 1)]
+    assert ["--symlink", str(scratch / "outputs"), "/run/va/outputs"] in [
+        argv[i : i + 3] for i in range(len(argv) - 2)
+    ]
+    assert ["--symlink", str(real_py), str(link_py)] in [
+        argv[i : i + 3] for i in range(len(argv) - 2)
+    ]
+    assert ["--chdir", str(work)] in [argv[i : i + 2] for i in range(len(argv) - 1)]
+

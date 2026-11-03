@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from autonomy.sandbox.spec import IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec
+from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec
 from autonomy.sandbox.static import SandboxUnproven, check_binds, system_symlinks
 
 _PROBE = """\
@@ -70,17 +70,21 @@ def build_argv(
         args += ["--symlink", target, link]
     for path in spec.ro_binds:
         args += ["--ro-bind", str(path), str(path)]
+    for target, link in spec.symlinks:
+        args += ["--symlink", str(target), str(link)]
     args += ["--bind", str(spec.scratch), str(spec.scratch)]
-    if spec.socket is not None or spec.token is not None:
+    if spec.socket is not None or spec.token is not None or spec.outputs_link:
         args += ["--dir", "/run/va"]
     if spec.socket is not None:
         args += ["--bind", str(spec.socket), str(IN_SANDBOX_SOCKET)]
     if spec.token is not None:
         args += ["--ro-bind", str(spec.token), str(IN_SANDBOX_TOKEN)]
+    if spec.outputs_link:
+        args += ["--symlink", str(spec.scratch / "outputs"), str(IN_SANDBOX_OUTPUTS)]
     env = {"PATH": "/usr/bin", **spec.env}
     for key, value in sorted(env.items()):
         args += ["--setenv", key, value]
-    args += ["--chdir", str(spec.scratch)]
+    args += ["--chdir", str(spec.chdir if spec.chdir is not None else spec.scratch)]
     if info_fd is not None:
         args += ["--info-fd", str(info_fd)]
     return [*args, "--", *argv]

@@ -195,3 +195,49 @@ def test_a_real_directory_where_a_link_belongs_is_typed(tmp_path):
     with pytest.raises(SandboxUnproven) as caught:
         system_symlinks(root)
     assert (caught.value.code, caught.value.path) == ("layout-unsupported", "/lib")
+
+
+def test_recreated_link_overlapping_denied_path_is_refused(tmp_path):
+    from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS
+
+    assert str(IN_SANDBOX_OUTPUTS) == "/run/va/outputs"
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    real_py = tmp_path / "store/cpython-3.13.12"
+    real_py.mkdir(parents=True)
+    links_dir = tmp_path / "links"
+    links_dir.mkdir()
+    link_py = links_dir / "cpython-3.13"
+    link_py.symlink_to(real_py)
+    sibling_secret = links_dir / "private-key"
+    sibling_secret.write_text("secret")
+    denied = tmp_path / "denied"
+    denied.mkdir()
+
+    # Passing case, including an unrelated denied sibling under link_py.parent (links_dir)
+    ok_spec = SandboxSpec(
+        scratch=scratch,
+        ro_binds=(real_py,),
+        symlinks=((real_py, link_py),),
+        chdir=real_py,
+        outputs_link=True,
+    )
+    check_binds(ok_spec, [denied, sibling_secret])
+
+    # Refused when the recreated link lies inside a denied directory (links_dir or denied / "link"),
+    # equals a denied path (link_py), or contains a denied path (link_py / "sub"), while real_py
+    # is outside the denied directory so check_sources alone would pass.
+    for bad_denied in (links_dir, link_py, link_py / "sub"):
+        with pytest.raises(SandboxUnproven) as caught:
+            check_binds(ok_spec, [bad_denied])
+        assert caught.value.code == "bind-overlaps-denied"
+
+    in_denied_spec = SandboxSpec(
+        scratch=scratch,
+        ro_binds=(real_py,),
+        symlinks=((real_py, denied / "link"),),
+    )
+    with pytest.raises(SandboxUnproven) as caught:
+        check_binds(in_denied_spec, [denied])
+    assert caught.value.code == "bind-overlaps-denied"
+

@@ -96,5 +96,40 @@ def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: It
                 )
 
 
+def check_recreated_links(links: Iterable[Path], denied: Iterable[Path]) -> None:
+    """Each recreated host symlink `L` against each denied path (decision 14): `L` may
+    not equal, contain, or lie inside a denied path, and `L.parent` may not lie inside a
+    denied ancestor. `L.parent` is not itself bound into the sandbox (`bwrap` creates an
+    empty directory on the tmpfs to hold `L`), so unrelated denied siblings under
+    `L.parent` are not exposed and are not refused."""
+    denied_list = tuple(denied)
+    targets = [(_target(path), Path(os.path.abspath(path))) for path in denied_list]
+    for link in links:
+        try:
+            parent_real = link.parent.resolve(strict=True)
+            parent_ancestry = _ancestry(parent_real)
+        except FileNotFoundError as caught:
+            raise SandboxUnproven("bind-missing", str(link), f"recreated link parent must exist: {caught}") from caught
+        except (OSError, RuntimeError) as caught:
+            raise SandboxUnproven("bind-unreadable", str(link), f"recreated link parent must resolve: {caught}") from caught
+        lexical = parent_real / link.name
+        for (target, target_identity, _target_ancestry), raw_target in targets:
+            overlaps = (
+                lexical == target
+                or lexical.is_relative_to(target)
+                or target.is_relative_to(lexical)
+                or lexical == raw_target
+                or lexical.is_relative_to(raw_target)
+                or raw_target.is_relative_to(lexical)
+                or (target_identity is not None and target_identity in parent_ancestry)
+            )
+            if overlaps:
+                raise SandboxUnproven(
+                    "bind-overlaps-denied", str(link), f"is, contains, or lies inside the denied path {target}"
+                )
+
+
 def check_binds(spec: SandboxSpec, denied: Iterable[Path]) -> None:
-    check_sources(spec.bind_sources(), denied)
+    denied_tuple = tuple(denied)
+    check_sources(spec.bind_sources(), denied_tuple)
+    check_recreated_links((link for _, link in spec.symlinks), denied_tuple)
