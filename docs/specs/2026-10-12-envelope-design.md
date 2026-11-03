@@ -81,9 +81,11 @@ and `walk.json`, adds an optional `--workdir` inside an admitted directory input
 fixed in-sandbox output path before `<run-id>` is allocated), directs the command's
 stdout and stderr to `stdout.log` and `stderr.log` in the run directory (with `/dev/null`
 on stdin), and updates §7, §12 (row E23 and new row E25), §13 (item 6) and §14 to match.
-**Status: draft for human review (round 2).** One independent builder check (`003f910c`)
-and one spec review (`codex/gpt-6-astra`, on `c6efc83`) were run and their findings were
-settled in the text below. Every design call in it is the author's; the user's recorded
+**Status: approved 2026-11-02 (human review round 3, frozen revision
+`45f7feb9d32960b5dcfa21333859a91d05d23f64`); implemented by autonomy-375479 on
+2026-11-02 (`docs/plans/2026-11-02-model-free-command-launch.md` in records).** One
+independent builder check (`003f910c`) and two spec review rounds (`codex/gpt-6-astra`,
+on `c6efc83` and `45f7feb`) were run and their findings were settled in the text below. Every design call in it is the author's; the user's recorded
 ask (mm-62e2da Amendment 4 revision 5, approved 2026-11-01 at `multiple-myeloma` commit
 `42304d4`) is to separate deterministic cohort computation from blinded narrative
 judgement under a model-free confined runner with the same namespace, walk, probe,

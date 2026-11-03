@@ -84,6 +84,47 @@ their hashes, refused entries with their reasons); `--report-fd` carries its pat
 for `autonomy run`. Scratch under `<cache>/analyst/<run-id>/` is left for the caller:
 pi's session files there hold everything the analyst read.
 
+### `autonomy command`
+
+A model-free confined command launch over declared regular-file and directory inputs,
+under the same sandbox, static check, alias walk, probe and no-follow output release as
+`autonomy analyst`, with no model in the process tree and no network route bound
+(`docs/specs/2026-10-12-envelope-design.md`, decision 14):
+
+```sh
+autonomy command --input PATH... [--deny PATH]... --release DIR [--workdir DIR] \
+  [--report-fd N] [--deadline SECONDS] -- COMMAND [ARG...]
+```
+
+Each `--input` is a host directory or regular file bound read-only at its real path; a
+single regular file can be bound without exposing its parent directory. During the
+pre-launch walk, each declared `--input` is hashed after passing the submount, hard-link
+and denied-inode alias checks (refusing any FIFO, socket or device inside a declared
+input as `walk-special`), and its content digest (`path`, `kind`, `sha256`, `files`,
+`bytes`) is recorded in the walk report and the epoch record. `--workdir DIR`, when
+given, must resolve inside one of the declared directory `--input`s (default:
+`scratch`). Inside the namespace, `/run/va/outputs` is a symlink to `<scratch>/outputs`
+alongside `VERIFIABLY_OUTPUTS=<scratch>/outputs`, so a command that runs with
+`python -I` / `-E` or from `--workdir` writes to a fixed in-sandbox output path before
+`<run-id>` is allocated. When `COMMAND` is a virtualenv symlink that traverses a host
+directory symlink (such as a `uv` Python install), `autonomy command` recreates that
+directory symlink on the sandbox tmpfs if its target directory is admitted by `/usr` or
+a directory `--input`. The command receives `/dev/null` on stdin and writes stdout and
+stderr to `<run dir>/stdout.log` and `<run dir>/stderr.log` (mode `0600`).
+
+| Exit | Meaning |
+|------|---------|
+| 0 | released, the command exited 0 without timeout or signal |
+| 3 | released with findings: the command exited non-zero, timed out, was killed by a signal, or had an entry refused at release |
+| 4 | the command never started (a failed static check, walk, probe or launch) |
+| 2 | refused at configuration: nothing kept |
+
+The run directory `<state>/command/<run-id>/` holds the events log, the epoch record
+(with the declared input digests, `argv`, `argv_sha256`, executable path/realpath/sha256,
+`workdir` and `bwrap` version/path), the walk report, the release report, the command's
+stdout and stderr logs, and the launcher's log, and never holds route records or a proxy
+log.
+
 ### The model route
 
 An actor has no network of its own. `--model-route NAME` gives it one path out: a
