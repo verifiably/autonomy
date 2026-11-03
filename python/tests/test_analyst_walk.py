@@ -173,3 +173,88 @@ def test_a_tmpfs_below_the_root_is_refused(tmp_path):
 @bwrap
 def test_without_a_plant_the_namespace_walk_passes(tmp_path):
     assert walk_in_namespace(tmp_path) == {"ok": True}
+
+
+def test_regular_file_input_walk_and_digest(tmp_path):
+    from autonomy.analyst.walk import walk, walk_tree
+
+    f = tmp_path / "disjoint.json"
+    f.write_text('{"cohort": 1}\n')
+    denied = tmp_path / "denied"
+    denied.mkdir()
+    (denied / "secret").write_text("k")
+
+    report = walk([f], [], [denied], digest_inputs=[f])
+    assert len(report.inputs) == 1
+    digest = report.inputs[0]
+    assert digest.path == str(f) and digest.kind == "file" and digest.files == 1
+    assert digest.bytes == len('{"cohort": 1}\n') and len(digest.sha256) == 64
+    assert report.to_json()["inputs"] == [digest.to_json()]
+
+    # Changing bytes changes the digest
+    f.write_text('{"cohort": 2}\n')
+    report2 = walk([f], [], [denied], digest_inputs=[f])
+    assert report2.inputs[0].sha256 != digest.sha256
+
+    # Hard-linked regular-file input is refused walk-hardlink before hashing
+    hard = tmp_path / "hard.json"
+    os.link(f, hard)
+    with pytest.raises(SandboxUnproven) as caught:
+        walk([f], [], [denied], digest_inputs=[f])
+    assert caught.value.code == "walk-hardlink"
+    hard.unlink()
+
+    # Regular-file input whose inode is under denied is refused walk-alias
+    with pytest.raises(SandboxUnproven) as caught:
+        walk([denied / "secret"], [], [denied], digest_inputs=[denied / "secret"])
+    assert caught.value.code == "walk-alias"
+
+    # Regular-file input that is itself a mount point in mountinfo is refused walk-submount
+    with pytest.raises(SandboxUnproven) as caught:
+        walk_tree(f, frozenset(), hardlinks=True, mounts=(f,), digest=True)
+    assert caught.value.code == "walk-submount"
+
+
+def test_directory_input_digest_covers_symlinks_and_empty_dirs_without_following_links(tmp_path):
+    from autonomy.analyst.walk import walk
+
+    bundle = tmp_path / "bundle"
+    (bundle / "empty_sub").mkdir(parents=True)
+    (bundle / "a.tsv").write_text("x\t1\n")
+    denied = tmp_path / "denied"
+    denied.mkdir()
+    secret = denied / "secret.txt"
+    secret.write_text("top-secret")
+    # Dangling/denied symlink inside bundle is hashed by link target without following
+    (bundle / "dangling").symlink_to(secret)
+
+    r1 = walk([bundle], [], [denied], digest_inputs=[bundle]).inputs[0]
+    assert r1.kind == "directory" and r1.files == 1 and r1.bytes == 4
+
+    # Mutating file bytes changes directory sha256
+    (bundle / "a.tsv").write_text("x\t2\n")
+    r2 = walk([bundle], [], [denied], digest_inputs=[bundle]).inputs[0]
+    assert r2.sha256 != r1.sha256
+
+    # Renaming an empty subdirectory changes directory sha256
+    (bundle / "empty_sub").rename(bundle / "empty_sub_2")
+    r3 = walk([bundle], [], [denied], digest_inputs=[bundle]).inputs[0]
+    assert r3.sha256 != r2.sha256
+
+    # Retargeting symlink changes directory sha256
+    (bundle / "dangling").unlink()
+    (bundle / "dangling").symlink_to(tmp_path / "other")
+    r4 = walk([bundle], [], [denied], digest_inputs=[bundle]).inputs[0]
+    assert r4.sha256 != r3.sha256
+
+
+def test_fifo_inside_declared_directory_input_is_refused_walk_special(tmp_path):
+    from autonomy.analyst.walk import walk
+
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    os.mkfifo(bundle / "pipe")
+    with pytest.raises(SandboxUnproven) as caught:
+        walk([bundle], [], [], digest_inputs=[bundle])
+    assert caught.value.code == "walk-special"
+
