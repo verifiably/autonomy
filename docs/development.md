@@ -82,6 +82,7 @@ Because broad targets are disabled locally:
 - `just test` and `just test-fast` record a policy skip locally and exit cleanly.
 - `just test-one <target>` runs focused tests directly (e.g. `just test-one tests/test_run.py` or `just test-one -k test_cli`). Arguments are passed intact to pytest without shell quoting issues.
 - `just check-hygiene` runs mandatory repository hygiene (ops-check, ops-docs check, and tasks check). It is never skipped by policy.
+- `just ci-check-hygiene` runs the portable hygiene subset (`ops-check` and `ops-docs check`) for hosted continuous integration, where the private detached records repository is unavailable.
 - `just test-full` (or `TT_FORCE=1 just test`) deliberately bypasses the skip policy to execute the entire test suite locally.
 - `just docs` runs `python3 tools/ops-docs write` to update the generated identity and family regions across `README.md` and `AGENTS.md`.
 
@@ -128,6 +129,6 @@ Hosted verification is defined in `.github/workflows/test.yml` and triggers on e
 2. **Interpreter Verification:** Asserts that `/usr/bin/python3` provides `os.setns`, `os.pidfd_open`, and `signal.pidfd_send_signal`.
 3. **AppArmor Configuration:** Lifts Ubuntu's unprivileged user namespace restriction on the disposable runner VM via `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`.
 4. **Namespace and Egress Proof:** Runs focused tests (`tests/test_sandbox_probe.py`, `tests/test_egress_helper.py`, `tests/test_egress_upstream.py`) before running the broad suite.
-5. **Hygiene and Full Suite:** Executes `just check-hygiene` followed by `just test-full` with `TT_FORCE=1`.
+5. **Hygiene and Full Suite:** Executes `just ci-check-hygiene` followed by `just test-full` with `TT_FORCE=1`.
 
-The hosted workflow omits `pi`-marked tests (as the runner image does not vendor the pinned `pi` distribution), cross-project task dependencies, and the paid `just live-egress` recipe. Hosted job runs are grouped by workflow and reference with in-progress cancellation enabled.
+The hosted workflow omits `pi`-marked tests (as the runner image does not vendor the pinned `pi` distribution), `tasks check` (which requires the private detached records repository), and the paid `just live-egress` recipe. Hosted job runs are grouped by workflow and reference with in-progress cancellation enabled.

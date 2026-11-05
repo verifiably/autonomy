@@ -13,6 +13,9 @@ Member of the verifiably family (https://github.com/verifiably/docs/blob/main/ov
 ## Gates
 
 `just check` composes `just check-hygiene`: ops-check, `ops-docs check` and `tasks check`.
+`just ci-check-hygiene` runs the portable hygiene checks (`ops-check` and `ops-docs check`);
+`tasks check` requires the private detached records repository and stays on the mandatory
+local path in `check-hygiene` and the git hooks.
 The pre-commit hook runs the same hygiene. The suite is pytest under `python/`: `just setup`
 once per worktree (frozen `uv sync`), then `just test-one <path | path::test | -k expr>`
 on affected tests while working and again before committing; the hooks run the
@@ -40,13 +43,13 @@ the suites as separate requests: hook durations from this change on are incompar
 with earlier whole-hook durations.
 
 Remote coverage: `.github/workflows/test.yml` runs setup, a namespace and TLS egress proof,
-`check-hygiene` and the forced full suite on every branch push (and manual dispatch) to
+`ci-check-hygiene` and the forced full suite on every branch push (and manual dispatch) to
 origin; tags and pull-request events run nothing. The job lifts Ubuntu's AppArmor
 restriction on unprivileged user namespaces with a runtime sysctl on its disposable VM,
 an approved exception that is never persisted and never applies to a host. `ci_suite_refs`
 declares that schedule so a covered push takes the shorter hook; the declaration is intent,
 not proof that the pushed head passed. The hosted hygiene has known gaps: `tasks check`
-cannot validate dependencies on other projects' tasks, and ops-check cannot compare
+requires the private detached records repository, and ops-check cannot compare
 vendored tools with an ops checkout it lacks, so both stay mandatory locally. The paid live-egress
 recipe runs in neither place.
 

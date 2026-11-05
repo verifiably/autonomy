@@ -32,6 +32,7 @@ tt := "python3 tools/tt"
 fast_cmd := "cd python && uv run pytest --testmon"
 test_cmd := "cd python && uv run pytest"
 check_hygiene_cmd := "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"
+ci_hygiene_cmd := "python3 tools/ops-check && python3 tools/ops-docs check"
 
 # Staged paths that cannot change the code checks' verdict: a commit staging only these
 # runs docs_check_cmd instead of check_hygiene_cmd. fnmatch globs, `*` crossing `/`. Narrow it
@@ -114,6 +115,10 @@ live-egress route model="claude-haiku-5-5":
 # skipped by policy.
 check-hygiene:
     {{tt}} check-hygiene -- sh -c '{{check_hygiene_cmd}}'
+
+# Hosted runners have no private detached task records.
+ci-check-hygiene:
+    {{tt}} ci-check-hygiene -- sh -c '{{ci_hygiene_cmd}}'
 
 # Untimed composition; this project has no broad code-check workload to add.
 check:

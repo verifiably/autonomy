@@ -14,7 +14,9 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 
-COMMANDS = dict(check_hygiene_cmd="python3 marker.py hygiene", fast_cmd="python3 marker.py fast",
+COMMANDS = dict(check_hygiene_cmd="python3 marker.py hygiene",
+                ci_hygiene_cmd="python3 marker.py ci-hygiene",
+                fast_cmd="python3 marker.py fast",
                 test_cmd="python3 marker.py suite", one_cmd="python3 marker.py focused")
 
 ALLOWED_GIT = {"GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL",
@@ -111,9 +113,23 @@ def test_recipes_follow_the_shared_shape(front_door):
     result = subprocess.run(["just", "--summary"], cwd=front_door.root, env=front_door.env,
                             text=True, capture_output=True, check=True)
     assert set(result.stdout.split()) == {
-        "test-fast", "test-one", "test", "test-full", "live-egress", "check", "check-hygiene", "gate",
-        "docs", "work-link", "setup", "hook-pre-commit", "hook-pre-commit-docs", "hook-pre-push",
-        "hook-pre-push-fast"}
+        "test-fast", "test-one", "test", "test-full", "live-egress", "check", "check-hygiene",
+        "ci-check-hygiene", "gate", "docs", "work-link", "setup", "hook-pre-commit",
+        "hook-pre-commit-docs", "hook-pre-push", "hook-pre-push-fast"}
+
+
+def test_ci_hygiene_omits_tasks_check_and_runs_under_policy_off(front_door):
+    def evaluate(name):
+        return subprocess.run(["just", "--justfile", str(REPO / "justfile"), "--evaluate", name],
+                              cwd=REPO, env=front_door.env, text=True, capture_output=True,
+                              check=True).stdout
+    assert evaluate("check_hygiene_cmd") == "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"
+    assert evaluate("ci_hygiene_cmd") == "python3 tools/ops-check && python3 tools/ops-docs check"
+    front_door.policy(False, ["test", "test-fast"])
+    result = front_door.recipe("ci-check-hygiene")
+    assert result.returncode == 0, result.stderr
+    assert front_door.markers() == [["ci-hygiene"]]
+    assert front_door.pairs() == [("ci-check-hygiene", "ran")]
 
 
 def test_setup_syncs_from_the_frozen_lock(front_door):
@@ -241,9 +257,12 @@ def test_the_workflow_uses_the_system_interpreter_frozen():
 def test_the_capability_proof_precedes_the_suite():
     wf = workflow()
     order = ["apt-get install", "os.setns", "run: just setup", "run: just test-one",
-             "run: just check-hygiene", "run: just test-full"]
+             "run: just ci-check-hygiene", "run: just test-full"]
     positions = [wf.index(marker) for marker in order]
     assert positions == sorted(positions)
+    assert "just check-hygiene" not in wf
+    for removed in ("khughitt/tasks", "rustup", "cargo"):
+        assert removed not in wf
     [install] = [line for line in wf.splitlines() if "apt-get install" in line]
     for package in ("bubblewrap", "openssl", "bash", "dash", "zsh"):
         assert package in install.split()

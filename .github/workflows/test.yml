@@ -61,13 +61,6 @@ jobs:
           print(sys.version)
           '
           echo "kernel.apparmor_restrict_unprivileged_userns=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)"
-      - name: Build the pinned tasks CLI
-        run: |
-          git clone https://github.com/khughitt/tasks "$RUNNER_TEMP/tasks"
-          git -C "$RUNNER_TEMP/tasks" checkout --detach 43b6eee5ae6c95ba83ac77e6108915ec9557f2b5
-          rustup toolchain install 1.99.1 --profile minimal
-          cargo +1.99.1 build --locked --release --manifest-path "$RUNNER_TEMP/tasks/Cargo.toml"
-          echo "$RUNNER_TEMP/tasks/target/release" >> "$GITHUB_PATH"
       - name: Setup
         run: just setup
       - name: Allow unprivileged user namespaces on this VM
@@ -79,6 +72,6 @@ jobs:
       - name: Namespace and TLS egress proof
         run: just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
       - name: Hygiene
-        run: just check-hygiene
+        run: just ci-check-hygiene
       - name: Full suite
         run: just test-full
