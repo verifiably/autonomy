@@ -31,8 +31,8 @@ record a skip, the hosted workflow below runs the full suite on every branch pus
 `just test-full` runs it here when you need it. Rollback sets `automatic_broad = true`,
 restores `just test-fast` (pytest-testmon) before each commit in the paragraph above,
 updates `test_the_repository_policy_disables_only_the_broad_suites` to match, and records
-`policy: enabled at <RFC3339-UTC> revision <full-sha>` on the adoption task at the
-landed rollback.
+`policy: enabled at <RFC3339-UTC> revision <full-sha>` on the adoption task autonomy-23aeff
+(tt-policy:autonomy) at the landed rollback.
 `just test-full` (or `TT_FORCE=1 just test`) runs the full suite deliberately and returns
 its status. testmon reselects only on Python changes, so a justfile or hook edit runs
 `just test-one tests/test_front_door.py`. The hooks time mandatory hygiene alone and call

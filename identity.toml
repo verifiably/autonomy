@@ -12,3 +12,7 @@ authority = [
   "docs/records.md",
 ]
 subsystems = []
+
+[documents]
+standard = 1
+
