@@ -2,7 +2,7 @@
 
 Type: data model; document types 1. Version 1 for disposition.json and ledger.v1; other run-directory records are currently unversioned.
 
-The autonomy runtime records structured, append-only JSON and JSONL artifacts within dedicated state and cache directories for every run. These records capture pre-launch environment provenance, real-time lifecycle transitions, egress accounting, released files, and closing research dispositions.
+The autonomy runtime records structured, append-only JSON and JSONL artifacts within dedicated state and cache directories for every run, capturing command lifecycles and closing checks defined in the [envelope protocol](envelope.md) alongside route configurations and proxy accounting defined in the [egress contract](egress.md). These records capture pre-launch environment provenance, real-time lifecycle transitions, egress accounting, released files, and closing research dispositions.
 
 ## XDG layout and run IDs
 
@@ -135,4 +135,4 @@ Autonomy integrates with verifiable session ledgers via permissions and tier dec
   - `invocation-close`: `{"line": "invocation-close", "invocation": "<32-hex>", "outcome": "committed"|"refused"|"failed"}`
   - `session-close`: `{"line": "session-close", "at": "<timestamp>"}`
 - `RunEvidence` (`python/src/autonomy/evidence.py`):
-  Evaluated at closing by `membership.classify`: `run_actor`, `tier_permit`, `baseline_available`, `ledger`, `chains`, `sealed`, `seal_timeout`, `orchestrator_lost`, `world_baseline`, `world_closing`, `mounts_baseline`, `mounts_closing`, `basis_open`, `basis_seal`, `later_ledgers`.
+  Evaluated at closing by `closing.close` (which delegates ledger and chain membership validation to `membership.classify`): `run_actor`, `tier_permit`, `baseline_available`, `ledger`, `chains`, `sealed`, `seal_timeout`, `orchestrator_lost`, `world_baseline`, `world_closing`, `mounts_baseline`, `mounts_closing`, `basis_open`, `basis_seal`, `later_ledgers`.

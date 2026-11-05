@@ -2,7 +2,7 @@
 
 Type: protocol; document types 1. Currently unversioned.
 
-The autonomy envelope enforces process, filesystem, descriptor, network, and model egress confinement around untrusted actor workloads and evaluates post-run evidence. It holds no private kernel access and never imports `beliefs`: it reaches `beliefs` only through `science`'s commands as tools and published record formats.
+The autonomy envelope enforces process, filesystem, descriptor, network, and model egress confinement around untrusted actor workloads and evaluates post-run evidence. Outbound model traffic is routed through the [model egress proxy and route protocol](egress.md), while execution provenance, output files, and session ledgers are captured in [run directory records](records.md). It holds no private kernel access and never imports `beliefs`: it reaches `beliefs` only through `science`'s commands as tools and published record formats.
 
 ## Participants and boundary
 
@@ -82,7 +82,7 @@ Concrete command invocation example:
 autonomy command \
   --input /path/to/data \
   --workdir /path/to/data \
-  --output /path/to/release \
+  --release /path/to/release \
   --deadline 300.0 \
   --report-fd 3 \
   -- /usr/bin/python3 script.py
@@ -93,7 +93,7 @@ autonomy command \
 Outputs cross from scratch storage to the operator's release destination via `release.release(outputs_dir, release_dir)` in `python/src/autonomy/analyst/release.py`:
 - Opens directories with `O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC` and traverses iteratively by descriptor to prevent symlink traversal and TOCTOU races.
 - Creates destination subdirectories with `os.mkdir(..., mode=0o700, dir_fd=dest_fd)` and files with `os.open(..., flags=O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, mode=0o600)`.
-- Copies single-link regular files in 1 MiB chunks (`_CHUNK = 1 << 20`), hashes bytes with SHA-256, fsyncs data, and records `{"path", "size", "sha256"}` in `ReleaseReport.released`.
+- Copies single-link regular files in 1 MiB chunks (`_CHUNK = 1 << 20`), hashes bytes with SHA-256, and records `{"path", "size", "sha256"}` in `ReleaseReport.released`.
 - Refuses non-regular entries into `ReleaseReport.refused` without aborting traversal: `"symlink"`, `"hardlinked"`, `"fifo"`, `"socket"`, `"device"`, `"collision"`, or `"unopenable"`.
 
 ## Closing and membership

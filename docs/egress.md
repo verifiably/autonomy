@@ -2,7 +2,7 @@
 
 Type: protocol, data model; document types 1. Currently unversioned.
 
-The model egress proxy mediates all network communication between confined actor workloads and upstream model providers. The actor sandbox holds no raw network connectivity, while the proxy process enforces cryptographic, syntactic, and policy boundaries over outbound requests.
+This document defines the route configuration data model and the runtime proxy network protocol mediating all communication between confined actor workloads and upstream model providers. The proxy operates in coordination with the [actor sandbox and envelope protocol](envelope.md) (which denies raw network connectivity to the actor), while egress accounting and session receipts are stored in [run directory records](records.md). The proxy process enforces cryptographic, syntactic, and policy boundaries over outbound requests.
 
 ## Custody boundary
 
