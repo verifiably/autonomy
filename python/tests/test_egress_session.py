@@ -312,7 +312,7 @@ def test_the_proxys_binds_are_checked_with_only_its_files_exempt(world):
     assert caught.value.code == "proxy-bind-refused"
 
 
-def test_the_proxy_gets_stdin_from_dev_null(world, monkeypatch):  # E20, the proxy's arm
+def test_the_proxy_gets_stdin_from_dev_null(world, monkeypatch):
     seen = {}
 
     def spy(argv, **kwargs):
@@ -325,7 +325,7 @@ def test_the_proxy_gets_stdin_from_dev_null(world, monkeypatch):  # E20, the pro
     assert seen["stdin"] is subprocess.DEVNULL and seen["start_new_session"] is True
 
 
-# -- E21 -----------------------------------------------------------------------------
+# -- Proxy session streaming and credential custody ---------------------------------
 
 SLOW_STEP = {"kind": "sleep", "name": "slow", "seconds": 2.5}  # outlasts the 1 s lease below
 
@@ -396,13 +396,13 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
         {"kind": "sweep", "name": "sweep", "needle": world.canary.encode().hex()},
     ]
     # Renewed while the actor runs, so a slow sweep (cold reads on a hosted runner) cannot
-    # end the route by lease mid-check; expiry has its own tests (autonomy-1ba43a).
+    # end the route by lease mid-check; expiry has its own tests.
     report, _ = run_actor(world, session, task, renew_every=E21_RENEW_EVERY)
     closed = session.close()
     closed_at = time.monotonic()
     host_listener.close()
-    # Shown by pytest only when the test fails: where the lease's 30 s went (autonomy-1ba43a).
-    print("e21 timings:", json.dumps({"prove": proxy_started - proved, "proxy_start_to_close": closed_at - proxy_started,
+    # Shown by pytest only when the test fails: where the lease's 30 s went.
+    print("session timings:", json.dumps({"prove": proxy_started - proved, "proxy_start_to_close": closed_at - proxy_started,
                                        **world.actor_timings}))
     assert report["stream"]["status"] == "200" and report["stream"]["events"] == 5
     assert report["stream"]["first"] < world.upstream.last_event_at
@@ -427,7 +427,7 @@ def test_e21_the_model_route_is_the_actors_only_way_out(world):
 
 
 def test_a_credential_passed_by_setenv_would_sit_in_bwraps_argv(world):
-    # Negative (E21): why the credential is bound as a file, never passed with --setenv:
+    # Negative: why the credential is bound as a file, never passed with --setenv:
     # bwrap's argv is readable through /proc by every same-uid process.
     spec = SandboxSpec(scratch=world.scratch, env={"ANTHROPIC_API_KEY": world.canary})
     assert world.canary in " ".join(build_argv(spec, ["/usr/bin/true"], info_fd=None))
@@ -463,7 +463,7 @@ def test_e21_the_route_enforced_is_the_one_loaded(world):
 
 
 def test_a_proxy_that_rereads_the_route_file_would_enforce_the_edit(world):
-    # Negative (E22): a proxy given the file as it is now, not the bytes step 2 read and
+    # Negative: a proxy given the file as it is now, not the bytes step 2 read and
     # digested, enforces an edit that baseline.json's digest does not show.
     loaded = world.loaded()
     doc = pi_route(credential=world.credential, upstream=world.upstream.origin, ca_file=loaded.route.ca_file)
@@ -477,7 +477,7 @@ def test_a_proxy_that_rereads_the_route_file_would_enforce_the_edit(world):
     assert json.loads(report["haiku"]["body"])["error"]["code"] == "model-refused"
 
 
-# -- E22 -----------------------------------------------------------------------------
+# -- Proxy close, lease, and orphan handling ------------------------------------------
 
 def when_listening(world: World, action) -> threading.Thread:
     """Run `action` in the background once the proxy holds the actor's listener: the
@@ -736,7 +736,7 @@ def test_e22_a_dead_proxy_leaves_nothing_listening(world):
 
 
 def test_e22_a_listener_copy_kept_by_the_orchestrator_would_leave_the_actor_hanging(world):
-    # Negative (E22): a copy outlives the proxy, so the kernel queues the connect in
+    # Negative: a copy outlives the proxy, so the kernel queues the connect in
     # the backlog and nobody answers, instead of refusing it.
     session = world.start()
     kept = []

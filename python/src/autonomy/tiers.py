@@ -1,4 +1,4 @@
-"""Tiers as permits (envelope design §5).
+"""Tiers as permits (docs/records.md).
 
 A tier is data: a closed write permit in the serialized shape the kernel's
 `session-open` ledger line records (sorted kind and family lists). autonomy imports

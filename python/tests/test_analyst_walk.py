@@ -127,7 +127,7 @@ def test_the_report_is_json(tmp_path):
     assert data["trees"][0]["rules"] == ["submount", "hardlink", "alias"] and data["denied_inodes"] == 0
 
 
-# E23's submount arms run inside a bwrap namespace the test builds: a same-filesystem
+# Submount checks run inside a bwrap namespace the test builds: a same-filesystem
 # bind needs a mount namespace, and the walk reads that namespace's mountinfo.
 bwrap = pytest.mark.bwrap
 PACKAGE_PARENT = str(Path(autonomy.__file__).resolve().parent.parent)

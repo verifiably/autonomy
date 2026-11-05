@@ -87,7 +87,7 @@ def test_a_tool_use_input_is_the_clients_data():
 
 
 def test_a_whole_body_walk_would_refuse_the_clients_data():
-    # Negative (E21): the positions are closed, not the whole body. A walker that refuses
+    # Negative: the positions are closed, not the whole body. A walker that refuses
     # every {"type": "url"} anywhere refuses this request, which check_body passes.
     message = {"role": "assistant", "content": [
         {"type": "tool_use", "id": "t", "name": "fetch", "input": {"type": "url", "url": "https://x"}}]}
@@ -126,7 +126,7 @@ def test_nested_sources_are_checked_at_any_depth():
     assert caught.value.code == "body-refused"
 
 
-# Literal fixtures from decision 13, independent of the validator's key tables.
+# Literal fixtures for the closed anthropic-messages dialect (docs/egress.md), independent of the validator's key tables.
 ALL_OP = replace(OP, block_types=frozenset({"text", "image", "document", "tool_use", "tool_result",
                                            "thinking", "redacted_thinking"}),
                  source_types=frozenset({"base64", "text", "content", "url", "file"}),
@@ -480,7 +480,7 @@ def test_refusal_code_precedence(model):
     assert caught.value.code == "model-refused"
 
 
-# Synthetic offline pi 1.1.0 / SDK 0.129.0 transport captures from autonomy-d0387e.
+# Synthetic offline pi 1.1.0 / SDK 0.129.0 transport captures.
 PI_CAPTURES = json.loads((Path(__file__).parent / "fixtures" / "pi-messages.json").read_text())
 
 

@@ -11,12 +11,11 @@
 # Adoption: copy templates/githooks/ to .githooks/ and run
 # `git config core.hooksPath .githooks`; append templates/gitignore to .gitignore so the
 # fallback log directory `.tt/` is never committed; vendor ops bin/tt as tools/tt and ops
-# bin/ops-check as tools/ops-check; vendor ops bin/ops-docs as tools/ops-docs and copy templates/identity.toml, templates/README.md, and templates/AGENTS.md (design: docs/specs/2026-09-22-project-guides-design.md). The check command runs ops-check first: the shared
+# bin/ops-check as tools/ops-check; vendor ops bin/ops-docs as tools/ops-docs and copy templates/identity.toml, templates/README.md, and templates/AGENTS.md. The check command runs ops-check first: the shared
 # hygiene checks (doc references exist, no Dropbox conflicted copies) in milliseconds.
 # Every recipe runs through the vendored timing wrapper so the run is recorded. The
 # wrapper counts tests from stdout; if the runner reports on stderr (python unittest
 # does), end that command with `2>&1`.
-# Design: ops docs/specs/2026-09-04-test-ci-audit-design.md, docs/specs/2026-09-28-test-ci-act-design.md.
 # Recipe lines are not echoed: the wrapper records every command it runs, `tasks check`
 # is silent when clean, and a clean commit should print nothing. `just --verbose` shows them.
 set quiet
@@ -63,7 +62,7 @@ ci_remote := "origin"
 #   node       --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=\"${TT_JUNIT_DIR:?run through tt}/node.xml\"
 #   playwright PLAYWRIGHT_JUNIT_OUTPUT_FILE=\"${TT_JUNIT_DIR:?run through tt}/playwright.xml\" before the command, --reporter=<current>,junit
 #   unittest   --durations 10 (printed; no JUnit writer)
-# The \" are justfile string escapes. Design: ops docs/specs/2026-10-08-tt-content-and-slowest-design.md §4.3.
+# The \" are justfile string escapes.
 one_cmd := "cd python && uv run pytest"
 
 # What a fresh checkout or worktree needs before the suite can run: dependency installs
@@ -106,7 +105,7 @@ test:
 test-full:
     TT_FORCE=1 just test
 
-# E21's live arm: pi through the model proxy to the real API. It costs one short prompt
+# Live egress smoke check: pi through the model proxy to the real API. It costs one short prompt
 # and never runs in the suite. Needs a model route whose credential is a real key.
 live-egress route model="claude-haiku-5-5":
     {{tt}} live-egress -- sh -c 'cd python && uv run python scripts/egress_live.py "$0" "$1"' {{route}} {{model}}

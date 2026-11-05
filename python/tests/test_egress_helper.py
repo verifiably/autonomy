@@ -68,7 +68,7 @@ def hold_and_try(tmp_path, attempt):
 
 def test_joining_the_inits_own_user_namespace_is_refused(tmp_path):
     # Negative: bwrap nests a user namespace inside the one that owns the network, so
-    # joining the init's own gets EPERM at the network join (decision 13, NS_GET_USERNS).
+    # joining the init's own gets EPERM at the network join (docs/egress.md, NS_GET_USERNS).
     wrong = HELPER.replace("fcntl.ioctl(net, NS_GET_USERNS)", 'os.open(f"/proc/{pid}/ns/user", os.O_RDONLY)')
     assert wrong != HELPER
     error = hold_and_try(tmp_path, lambda child, pidfd: make_listener(child, pidfd, source=wrong))
@@ -97,7 +97,7 @@ def test_a_pidfd_that_no_longer_names_the_init_is_refused(tmp_path):
     assert error.code == "listener-failed" and "ProcessLookupError" in error.message
 
 
-def test_the_helper_gets_stdin_from_dev_null(monkeypatch):  # E20, the helper's arm
+def test_the_helper_gets_stdin_from_dev_null(monkeypatch):  # Helper stdin is /dev/null
     seen = {}
 
     def spy(argv, **kwargs):

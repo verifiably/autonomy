@@ -1,4 +1,4 @@
-"""The model route (envelope design decision 13): operator configuration naming the
+"""The model route (docs/egress.md): operator configuration naming the
 one upstream, the operations an actor may ask for, and the credential the proxy adds.
 It is parsed strictly. An unknown key, an empty list the dialect needs, or a header
 the proxy always drops makes the route `route-invalid`."""
@@ -313,13 +313,13 @@ def load_route(config: Path, name: str) -> LoadedRoute:
 
 
 def egress_denied(config: Path, loaded: LoadedRoute) -> tuple[Path, ...]:
-    """The denied set's entries for a run with this route (decision 13, spec §7)."""
+    """The denied set's entries for a run with this route (docs/egress.md, docs/envelope.md)."""
     return (config.resolve(), loaded.path, loaded.route.credential_file.resolve())
 
 
 def all_egress_denied(config: Path) -> tuple[Path, ...]:
     """The denied set's egress entries for a model-free launch (`autonomy command`,
-    decision 14): `<config>` and every resolved absolute `credential.file` parsed from
+    docs/envelope.md): `<config>` and every resolved absolute `credential.file` parsed from
     `<config>/routes/*.toml`, ignoring unreadable or malformed route files."""
     entries: list[Path] = [config.resolve(strict=False)]
     routes_dir = config / "routes"

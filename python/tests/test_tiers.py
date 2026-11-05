@@ -89,7 +89,7 @@ def test_tier_by_name():
     ],
 )
 def test_no_tier_exceeds_command_reachable_families_or_is_ungoverned(t):
-    # A tier built from the kernel's full permit would fail here: E1's negative.
+    # A tier built from the kernel's full permit would fail here: a tier permits retire only in the kernel, never in autonomy.
     assert t.permit.act_families <= COMMAND_REACHABLE_FAMILIES
     assert t.permit.ungoverned is False
 

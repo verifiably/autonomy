@@ -565,7 +565,7 @@ def test_a_failing_hook_aborts_and_propagates_unchanged(tmp_path, stdio):
 
 
 def test_a_hook_that_swallows_its_failure_releases_the_actor(tmp_path, stdio):
-    # Negative (E22): a launch that ignores a helper failure runs the actor anyway,
+    # Negative: a launch that ignores a helper failure runs the actor anyway,
     # which is why `before_release` must propagate, never be wrapped in a try.
     flag = tmp_path / "ran"
 

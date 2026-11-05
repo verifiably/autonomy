@@ -1,6 +1,6 @@
-"""E21's live arm, run by `just live-egress <route> [model]` and never in the suite: pi
-in RPC mode, launched through B1's launch path with its proxy to the real API, and
-configured only by a `models.json` base URL and a placeholder key (decision 13).
+"""Live egress smoke check (docs/egress.md, docs/development.md), run by `just live-egress <route> [model]`
+and never in the suite: pi in RPC mode, launched through the analyst launch path with its proxy to
+the real API, and configured only by a `models.json` base URL and a placeholder key.
 
 It needs:
 - a model route at <config>/routes/<route>.toml whose credential file holds a real key;

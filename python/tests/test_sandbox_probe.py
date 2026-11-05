@@ -50,7 +50,7 @@ def test_the_actors_links_are_the_hosts(layout, monkeypatch):
 def test_no_sandbox_shares_the_host_network(layout):
     spec = SandboxSpec(scratch=layout["scratch"])
     assert "--share-net" not in build_argv(spec, ["/usr/bin/true"], info_fd=None)
-    # Plan A's `host` mode is removed (decision 13): the spec has no network field at all.
+    # The sandbox has no host-network mode (docs/envelope.md): the spec has no network field at all.
     assert "network" not in {f.name for f in dataclasses.fields(SandboxSpec)}
 
 
@@ -179,7 +179,7 @@ def _has_default_route() -> bool:
 @pytest.mark.bwrap
 @pytest.mark.skipif(not _has_default_route(), reason="the negative needs an IPv4 default route on the host")
 def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch):
-    # Negative: a test hook that adds --share-net (decision 13's removed mode). With a
+    # Negative: a test hook that adds --share-net (--share-net is never passed to the actor sandbox). With a
     # default route, 192.0.2.1 times out or connects instead of ENETUNREACH.
     from autonomy.sandbox import bwrap
 

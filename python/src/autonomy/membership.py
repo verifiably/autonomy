@@ -1,4 +1,4 @@
-"""Interval membership (envelope design §9, *Transactions and the crash allowance*).
+"""Interval membership (docs/envelope.md).
 
 Every entry after a written chain's baseline tip is a member, part of the one crash
 transaction (`outcome-unknown`), a foreign write, or, for an orphan with no seal, a

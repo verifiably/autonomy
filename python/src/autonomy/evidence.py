@@ -1,6 +1,6 @@
-"""The typed evidence the closing check reads (envelope design §9). Plan B fills it
-from `science log`/`heads` output (`log.v1`) and the run directory; the check itself
-does no I/O."""
+"""The typed evidence the closing check reads (docs/records.md, docs/envelope.md),
+filled from `science log`/`heads` output (`log.v1`) and the run directory; the check
+itself does no I/O."""
 
 from __future__ import annotations
 

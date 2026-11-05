@@ -1,8 +1,8 @@
-"""The orchestrator's side of the model proxy (envelope design decision 13): the
+"""The orchestrator's side of the model proxy (docs/egress.md): the
 proxy's own sandbox, its start, the listener's hand-off before the gate's release,
-renewal, and the close. B2 calls `check_proxy` at §3 step 7, `start` at step 9 (which
-checks again) and passes `attach` to `launch` there, sends `close` with the seal at
-close step 0, and calls `kill_orphan` from `run close`."""
+renewal, and the close. The orchestrator calls `check_proxy` during preflight,
+`start` at launch (which checks again) and passes `attach` to `launch` there, sends
+`close` with the seal at close step 0, and calls `kill_orphan` from `run close`."""
 
 from __future__ import annotations
 
@@ -228,7 +228,7 @@ class EgressSession:
         return bool(select.select([self.pidfd], [], [], 0)[0])
 
     def close(self, timeout: float = CLOSE_TIMEOUT) -> EgressClosed:
-        """Close step 0. B2 sends it together with the seal and waits on both."""
+        """Close step 0: sent together with the seal, waiting on both."""
         if self.pidfd < 0:
             raise RuntimeError("this proxy session is already released")
         send_message(self._control, {"op": "close"})
@@ -290,7 +290,7 @@ def _why(reply: dict | None, timeout: float) -> str:
 
 
 def kill_orphan(run_dir: Path, timeout: float = CLOSE_TIMEOUT) -> EgressClosed | None:
-    """*Orphans* (spec §3): the proxy of a run whose orchestrator died has seen EOF and
+    """*Orphans*: the proxy of a run whose orchestrator died has seen EOF and
     closed, or it is wedged. Wait up to `timeout` for its exit, then kill it. Returns
     None when the run started no proxy."""
     events_path = run_dir / EVENTS

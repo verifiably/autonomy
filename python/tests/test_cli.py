@@ -107,7 +107,7 @@ def pipes(held):
     }
 
 
-def test_publishes_exits_2_with_no_run_directory(tmp_path, pipes):  # E1, CLI arm
+def test_publishes_exits_2_with_no_run_directory(tmp_path, pipes):  # Invalid permit/tier refusal exits 2 with no run directory
     status, _ = autonomy(tmp_path, ["run", "--tier", "publishes", *ACTOR], pipes["io"])
     assert status == 2
     assert runs(tmp_path) == []
@@ -137,7 +137,7 @@ def test_dev_null_and_a_socketpair_pass_step_2(tmp_path, pipes, held):
 
 
 def refusal(name: str, tmp_path: Path, pipes: dict, held: list) -> tuple[Stdio, list[str], int | None, int | None]:
-    """The E20 step-2 cases: (stdio, extra args, report read end to check, stderr read
+    """The stdio and --report-fd validation cases: (stdio, extra args, report read end to check, stderr read
     end to check). A None read end means that channel is not the test's to read."""
     io = pipes["io"]
     report = ["--report-fd", str(pipes["report_write"])]
@@ -602,4 +602,20 @@ def test_command_cli_preserves_flags_and_help_after_double_dash(monkeypatch):
 def test_command_cli_refusal_exits_2_and_writes_diag(argv):
     code, err = _run_cli_capturing_stderr(argv)
     assert code == 2 and b"refused: command-missing" in err
+
+
+def test_help_output_has_no_historical_decision_citations():
+    import argparse
+    from autonomy import cli
+
+    parser = cli._parser(lambda _line: None)
+    texts = [parser.format_help()]
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sub in action.choices.values():
+                texts.append(sub.format_help())
+    combined = "\n".join(texts).lower()
+    assert "decision " not in combined
+    assert "docs/" + "specs" not in combined
+
 

@@ -126,7 +126,7 @@ def test_local_errors_remain_readable_with_a_standard_http_client(serve, mode, m
             assert json.loads(response.read())["type"] == "error"
 
 
-def test_an_allowed_request_streams_as_it_arrives(serve):  # E21
+def test_an_allowed_request_streams_as_it_arrives(serve):
     s = serve(mode="sse")
     s.upstream.events, s.upstream.gap = 5, 0.3
     body = json.dumps(message()).encode()
@@ -191,7 +191,7 @@ REFUSED = {
 
 
 @pytest.mark.parametrize("case", sorted(REFUSED))
-def test_refused_requests_never_reach_the_upstream(served, case):  # E21
+def test_refused_requests_never_reach_the_upstream(served, case):
     data, code = REFUSED[case]
     status, body = status_and_body(exchange(served.port, data))
     assert status == 403
@@ -205,7 +205,7 @@ def test_an_operation_refusal_names_the_routes_operations(served):
     assert "POST /v1/messages?beta=true" in json.loads(body)["error"]["message"]
 
 
-def test_actor_credentials_are_stripped_and_replaced(served):  # E21
+def test_actor_credentials_are_stripped_and_replaced(served):
     exchange(served.port, raw_request(body=message(), headers=[
         ("connection", "x-api-key"), ("x-api-key", "placeholder"), ("authorization", "Bearer sk-ant-oat01-x"),
         ("x-probe", "1"), ("cookie", "c=1"),
@@ -217,7 +217,7 @@ def test_actor_credentials_are_stripped_and_replaced(served):  # E21
     assert seen.headers["connection"] == ["close"]
 
 
-def test_destination_overrides_reach_only_the_upstream(served):  # E21
+def test_destination_overrides_reach_only_the_upstream(served):
     for headers in ([("host", "other")], [("x-forwarded-host", "other")], [("forwarded", "host=other")]):
         data = raw_request(body=message(), headers=headers).replace(b"host: 127.0.0.1:4780\r\n", b"", 1)
         assert status_and_body(exchange(served.port, data))[0] == 200
@@ -226,7 +226,7 @@ def test_destination_overrides_reach_only_the_upstream(served):  # E21
     assert served.other.connections == 0
 
 
-def test_a_redirect_returns_to_the_actor_and_is_never_followed(serve):  # E21
+def test_a_redirect_returns_to_the_actor_and_is_never_followed(serve):
     s = serve(mode="redirect")
     answer = exchange(s.port, raw_request(body=message()))
     s.server.close("close")
@@ -336,7 +336,7 @@ def close_while_held(s, holder: Holder) -> bytes:
 
 
 @pytest.mark.parametrize("stage", ["before-send", "connecting", "admit", "body-checked"])
-def test_a_request_held_before_its_first_byte_never_goes_upstream(serve, stage):  # E22
+def test_a_request_held_before_its_first_byte_never_goes_upstream(serve, stage):
     holder = Holder(stage)
     s = serve(hooks=Hooks(hold=holder))
     raw = close_while_held(s, holder)
@@ -345,12 +345,12 @@ def test_a_request_held_before_its_first_byte_never_goes_upstream(serve, stage):
     assert s.upstream.seen == []
     held, closing = s.records()
     assert (held["seq"], held["refused"], held["forwarded"]) == (1, "route-closed", False)
-    assert (held["ended"], held["status"]) == ("route-closed", 403)  # decision 13
+    assert (held["ended"], held["status"]) == ("route-closed", 403)
     assert closing["closed"] == "close" and held["seq"] <= closing["last_seq"]
 
 
 def test_a_check_only_at_acceptance_would_send_after_the_close(serve, monkeypatch):
-    # Negative (E22): a gate whose write ignores the flag sends the held request, though
+    # Negative: a gate whose write ignores the flag sends the held request, though
     # its seq still passes the last_seq check.
     monkeypatch.setattr(Gate, "attempt", lambda self, sock, data: sock.send(data))
     monkeypatch.setattr(server_module, "cut", lambda sock, how=socket.SHUT_RDWR: None)  # nor cuts
@@ -367,7 +367,7 @@ def test_after_the_close_a_connect_is_refused(served):
         socket.create_connection(("127.0.0.1", served.port), timeout=2)
 
 
-def test_a_stalled_upstream_never_delays_the_close(serve):  # E22, with the lease in Task 8
+def test_a_stalled_upstream_never_delays_the_close(serve):
     s = serve(mode="stall")
     big = json.dumps(message(system="x" * 6_000_000)).encode()
     client = threading.Thread(target=lambda: exchange(s.port, raw_request(body=big), timeout=30), daemon=True)
@@ -597,7 +597,7 @@ def test_an_upload_the_upstream_resets_is_recorded_forwarded_and_settled(serve):
     assert settled == [1]
 
 
-# Negatives (E21): each mutation shows a check the positive tests depend on. The two the
+# Negatives: each mutation shows a check the positive tests depend on. The two the
 # spec also lists, routing by Host and forwarding the actor's framing, have no mutation:
 # the proxy never reads Host or the actor's framing to route, and the positive tests
 # (destination overrides, the chunked smuggle) pin that.

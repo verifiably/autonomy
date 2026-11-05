@@ -1,4 +1,4 @@
-"""Shared fixtures for the egress tests: route documents and files, and (Task 6) a
+"""Shared fixtures for the egress tests: route documents and files, and a
 fake TLS upstream."""
 
 from __future__ import annotations

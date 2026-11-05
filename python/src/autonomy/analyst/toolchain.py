@@ -1,6 +1,6 @@
-"""The analyst's toolchain (envelope design decision 14, step 1): the pinned pi install,
+"""The analyst's toolchain (docs/envelope.md): the pinned pi install,
 its anthropic-messages model registry, the node prefix, and the epoch record that ties a
-launch to the model, thinking level and tool versions row E24 was checked with. A change
+launch to the model, thinking level and tool versions tests/test_analyst_check.py was checked with. A change
 in the toolchain is a new epoch for the check."""
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ PI_ANTHROPIC_MODELS = "node_modules/@earendil-works/pi-ai/dist/providers/data/an
 THINKING_LEVELS: tuple[str, ...] = ("off", "minimal", "low", "medium", "high", "xhigh", "max")
 """pi 1.1.0's CLI thinking levels (`pi-ai/dist/models.js`)."""
 ANALYST_TOOLS: tuple[str, ...] = ("read", "bash", "grep", "find", "ls", "write")
-"""The exact tool set row E24 tests: a constant, never a flag."""
+"""The exact tool set tests/test_analyst_check.py tests: a constant, never a flag."""
 TOOLS_SHADOWED: tuple[str, ...] = ("rg", "fd")
 """pi resolves these from its agent directory's bin/, then PATH; node's bin/ comes first on
 the sandbox PATH, so it must hold neither."""

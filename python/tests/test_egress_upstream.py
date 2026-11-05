@@ -134,7 +134,7 @@ def test_each_write_attempt_carries_at_most_a_slice():
 
 
 def test_a_blocking_write_under_the_lock_would_hold_the_close():
-    # Negative (E22): the lock held across a blocking write. The close transition then
+    # Negative: the lock held across a blocking write. The close transition then
     # waits for the peer to read, which a stalled upstream never does.
     gate = Gate()
     sender, peer = socket.socketpair()

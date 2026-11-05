@@ -1,5 +1,5 @@
-"""Lines to a caller's descriptor that can never hang the run (envelope design
-decision 12): the report fd's two lines, and diagnostics on stderr before the actor
+"""Lines to a caller's descriptor that can never hang the run (docs/envelope.md):
+the report fd's two lines, and diagnostics on stderr before the actor
 starts.
 
 The caller's open file description is never changed. A pipe is written through a
@@ -39,7 +39,7 @@ POLL_WAIT = 1.0
 _NULL_RDEV = os.makedev(1, 3)
 
 _before_write: Callable[[int], None] | None = None
-"""Test hook (spec row E20): called with the caller's descriptor between the poll and
+"""Test hook: called with the caller's descriptor between the poll and
 the write, where a competing writer can fill the channel."""
 
 

@@ -1,5 +1,4 @@
-"""An independent reader of the kernel's session ledger, `ledger.v1` (envelope
-design §4, §9; decision 10).
+"""An independent reader of the kernel's session ledger, `ledger.v1` (docs/records.md).
 
 autonomy imports no kernel, so this reads the published format itself: canonical
 JSON lines, `session-open` first, nothing after `session-close`. It never raises on
@@ -46,7 +45,7 @@ class Ledger:
 
     @property
     def incomplete(self) -> bool:
-        """Spec §9: only an incomplete ledger can explain a missing act line."""
+        """Only an incomplete ledger can explain a missing act line."""
         return self.torn_tail or bool(self.open_invocations) or not self.closed
 
 

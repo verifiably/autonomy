@@ -155,7 +155,7 @@ class Holder:
             assert self.release.wait(20)
 
 
-def test_the_lease_closes_a_stalled_upstream_without_its_progress(tmp_path, tls):  # E22
+def test_the_lease_closes_a_stalled_upstream_without_its_progress(tmp_path, tls):
     holder = Holder("before-send", 2)
     server, upstream, records = fresh(tmp_path, tls, mode="stall", hooks=Hooks(hold=holder))
     ours, theirs = pair()
@@ -202,7 +202,7 @@ def test_the_lease_closes_a_stalled_upstream_without_its_progress(tmp_path, tls)
 
 
 def test_without_its_own_deadline_a_proxy_forwards_past_the_lease(tmp_path, tls):
-    # Negative (E22): a loop with no deadline keeps serving for a stopped orchestrator.
+    # Negative: a loop with no deadline keeps serving for a stopped orchestrator.
     server, _, _ = fresh(tmp_path, tls)
     ours, theirs = pair()
     wake_read, _ = os.pipe()

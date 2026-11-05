@@ -1,4 +1,4 @@
-"""The run directory's records (envelope design §6). This module holds `events.jsonl`
+"""The run directory's records (docs/records.md). This module holds `events.jsonl`
 and the durable-write helpers; `baseline.json` and `seal.json` join it with the
 endpoint."""
 

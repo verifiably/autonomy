@@ -1,1 +1,1 @@
-"""The envelope: what may run unattended (docs/specs/2026-10-12-envelope-design.md)."""
+"""The envelope: what may run unattended (docs/envelope.md, docs/egress.md, docs/records.md)."""

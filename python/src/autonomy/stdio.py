@@ -1,5 +1,4 @@
-"""What the actor's stdio and the report fd may be (envelope design decision 12, §3
-step 2).
+"""What the actor's stdio and the report fd may be (docs/envelope.md).
 
 Each of fds 0, 1 and 2 must be an anonymous pipe, a connected AF_UNIX stream socket,
 or /dev/null. Anything else hands the actor a host object by descriptor, past the
@@ -54,9 +53,9 @@ def check_no_default_socket_timeout(fd: int) -> None:
     wrapped. CPython's `socket.socket(fileno=...)` sets `O_NONBLOCK` on the open file
     description when `socket.getdefaulttimeout()` is not None, and a `dup` shares that
     description with the caller's fd: the wrap would flip the caller's (and the actor's)
-    descriptor to non-blocking, which decision 12 never does. Nothing in this package
-    sets a default timeout; refusing one keeps a future socket client (Plan B2 adds
-    them) from introducing the hazard silently."""
+    descriptor to non-blocking, which autonomy never does. Nothing in this package
+    sets a default timeout; refusing one keeps a future socket client from
+    introducing the hazard silently."""
     if socket.getdefaulttimeout() is not None:
         raise StdioRefused(fd, "a socket, and a process-wide default socket timeout is set")
 

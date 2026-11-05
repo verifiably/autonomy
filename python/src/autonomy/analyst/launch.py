@@ -1,6 +1,6 @@
-"""`autonomy analyst` (envelope design decision 14): a fresh pi analyst under the sandbox,
+"""`autonomy analyst` (docs/envelope.md): a fresh pi analyst under the sandbox,
 with caller-declared read-only inputs, extra denied paths and one output directory,
-composed from Plan B1's launch path and the egress plan, with no endpoint.
+composed from the actor launch path and the egress proxy, with no endpoint.
 
 Step 1 refuses on configuration before anything exists. Two calls of the implementer's:
 an input that is itself a denied path is refused here as `bind-overlaps-denied` (the
@@ -151,7 +151,7 @@ def _resolve_denied(denied: tuple[Path, ...]) -> tuple[Path, ...]:
 
 
 def refuse(request: AnalystRequest, env: Mapping[str, str], *, actor_fds: tuple[int, int, int] = ACTOR_FDS) -> Prepared:
-    """Decision 14 step 1: every configuration refusal, before anything exists."""
+    """Preflight step 1: every configuration refusal, before anything exists."""
     if request.lease < LEASE_FLOOR:
         raise AnalystRefused("lease-below-floor", f"the lease is {request.lease:g} s; the floor is {LEASE_FLOOR:g} s")
     try:
@@ -244,7 +244,7 @@ class _Log:
 
 def _take_stdio(log: _Log) -> None:
     """The CLI handed its own stdio to pi: fds 0 and 1 go to /dev/null and fd 2 to the log,
-    as `autonomy run` does after its launch (decision 12)."""
+    as `autonomy run` does after its launch."""
     null = os.open(os.devnull, os.O_RDWR | os.O_CLOEXEC)
     try:
         os.dup2(null, 0)
@@ -314,7 +314,7 @@ def execute(
     actor_fds: tuple[int, int, int] = ACTOR_FDS,
     actor_argv: Callable[[PiInstall, str, str, Path], list[str]] = pi_argv,
 ) -> int:
-    """Decision 14's six steps. `actor_argv` is the test hook that puts a shell actor in
+    """The six-step analyst sequence. `actor_argv` is the test hook that puts a shell actor in
     pi's place. After step 1 the report fd is closed on every way out, as `run.execute`
     does, so a caller reading it sees EOF."""
     prepared = refuse(request, env, actor_fds=actor_fds)
@@ -551,7 +551,7 @@ def _discover_command_symlinks(
 def refuse_command(
     request: CommandRequest, env: Mapping[str, str], *, stdio_fds: tuple[int, int, int] = ACTOR_FDS
 ) -> CommandPrepared:
-    """Decision 14 `autonomy command` step 1: every configuration refusal before anything exists."""
+    """Preflight step 1 for `autonomy command`: every configuration refusal before anything exists."""
     if not (math.isfinite(request.deadline) and request.deadline > 0):
         raise AnalystRefused("deadline-invalid", f"the deadline {request.deadline!r} must be a finite positive number")
     try:
@@ -750,7 +750,7 @@ def execute_command(
     stdio_fds: tuple[int, int, int] = ACTOR_FDS,
     take_stdio: bool = False,
 ) -> int:
-    """Decision 14 `autonomy command` steps 1–5."""
+    """The five-step command sequence."""
     prepared = refuse_command(request, env, stdio_fds=stdio_fds)
     report: LineChannel | None = None
     log: _Log | None = None

@@ -1,4 +1,4 @@
-"""The sandbox spec is data (envelope design §7): what is bound, where, and how."""
+"""The sandbox spec is data (docs/envelope.md): what is bound, where, and how."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")
 @dataclass(frozen=True)
 class SandboxSpec:
     """No spec shares the host's network namespace: the actor's network is its own
-    loopback, and its only way out is the model route's listener (decision 13)."""
+    loopback, and its only way out is the model route's listener."""
 
     scratch: Path
     ro_binds: tuple[Path, ...] = ()

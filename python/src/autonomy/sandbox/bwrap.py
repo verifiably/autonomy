@@ -1,5 +1,5 @@
-"""The bwrap driver (envelope design §7, §8): argv, preflight, the denial probe,
-and (Task 7) launch and kill."""
+"""The bwrap driver (docs/envelope.md): argv, preflight, the denial probe,
+and launch and kill."""
 
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ def build_argv(
 
 def probe(spec: SandboxSpec, denied: Iterable[Path]) -> None:
     """`ENOENT` on every denied path, and `ENETUNREACH` from a connect to a
-    non-loopback IPv4 and IPv6 address (decision 13). A kernel without IPv6 answers
+    non-loopback IPv4 and IPv6 address. A kernel without IPv6 answers
     `EAFNOSUPPORT`, which is as unreachable."""
     paths = [str(p.resolve()) for p in denied]
     argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
@@ -146,7 +146,7 @@ class Sandboxed:
     def terminate(self, grace: float = 10.0) -> int:
         """SIGTERM, then SIGKILL after `grace`. bwrap's PID 1 need not forward
         SIGTERM, so SIGKILL is the path relied on: killing the namespace's init
-        kills every process in it (spec §8)."""
+        kills every process in it."""
         self._signal(signal.SIGTERM)
         try:
             return self.process.wait(timeout=grace)
@@ -216,7 +216,7 @@ except OSError as caught:
     os.write(2, f"va-gate: {sys.argv[2]}: {caught.strerror}\n".encode("utf-8", "replace"))
     os._exit(127)
 """
-"""The program bwrap runs in front of the actor, under `/usr/bin/python3 -I` (spec §7).
+"""The program bwrap runs in front of the actor, under `/usr/bin/python3 -I`.
 It reads one line from its own pipe, named by number in its argv, closes that pipe,
 and execs the actor only on `run`. EOF exits 125 without running the actor. It never
 touches stdin, so the release cannot come from the caller and the caller's bytes reach
@@ -289,12 +289,12 @@ def launch(
     the pidfd or by killing bwrap, and the gate, seeing EOF, never runs the actor.
 
     The actor's fds 0, 1 and 2 are `stdin`, `stdout` and `stderr`, and it holds no
-    other descriptor (decision 12). A closed one is refused, so a library caller never
+    other descriptor. A closed one is refused, so a library caller never
     passes a stray descriptor. `before_release(child_pid, pidfd)` runs after
     the pidfd is held and before the release. Whatever it raises aborts the launch and
-    propagates unchanged: the model proxy's listener (decision 13) must exist before
+    propagates unchanged: the model proxy's listener must exist before
     the actor can run. bwrap starts in a process group of its own, so a signal
-    to the caller's group cannot kill the actor before the seal (§3 step 9)."""
+    to the caller's group cannot kill the actor before the seal."""
     if threading.current_thread() is not threading.main_thread():
         raise RuntimeError(
             "launch the sandbox from the main thread: --die-with-parent is PR_SET_PDEATHSIG, "

@@ -1,4 +1,4 @@
-"""The run supervisor (envelope design §3): steps 1 and 2, and the close's records
+"""The run supervisor (docs/envelope.md, docs/records.md): steps 1 and 2, and the close's records
 (`disposition.json`, the report fd's two lines, the exit code). Steps 3 to 9 are a
 `Steps` callable; until science's run endpoint exists, `endpoint_side_unbuilt` closes
 every run `unwired` before any chain is read or the actor starts."""
@@ -222,7 +222,7 @@ def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, find
 
 
 def _route(name: str | None, where: Places) -> LoadedRoute | None:
-    """Step 2's route refusals (decision 13): before anything exists, so a refusal
+    """Step 2's route refusals: before anything exists, so a refusal
     leaves no run directory and writes nothing on the report fd."""
     if name is None:
         return None

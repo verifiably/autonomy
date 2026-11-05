@@ -1,4 +1,4 @@
-"""The proxy's request handling (envelope design decision 13). Each actor connection
+"""The proxy's request handling (docs/egress.md). Each actor connection
 carries one request, checked in the spec's order, framed by the proxy, streamed back
 and recorded. The close transition and every socket the server opened belong to the
 server. The control loop that decides when to close is in `proxy`."""
@@ -49,7 +49,7 @@ class Recorder:
 
 
 class Allowance(Protocol):
-    """autonomy-9e8a43's join points (decision 13): `admit` before any byte goes
+    """Allowance join points (docs/egress.md): `admit` before any byte goes
     upstream, `settle` when the response stream ends, however it ended."""
 
     def admit(self, run: str, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None: ...
@@ -367,7 +367,7 @@ class ProxyServer:
         except Refused as refused:
             record.update(refused=refused.code, status=403)
             if refused.code == "route-closed":
-                record["ended"] = "route-closed"  # decision 13: a request the close cut
+                record["ended"] = "route-closed"  # a request the close cut
             self._answer(conn, refusal(refused.code, refused.message))
         except RouteClosed as closed:
             record["ended"] = "route-closed"

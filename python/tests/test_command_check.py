@@ -1,6 +1,6 @@
-"""Row E25: the model-free confined command launch check (envelope design decision 14,
-autonomy-375479). Requires bubblewrap (`bwrap`) and unprivileged user namespaces, and
-needs neither `pi` nor `node` so it runs both locally and in `.github/workflows/test.yml`."""
+"""The model-free confined command launch check (docs/envelope.md). Requires bubblewrap
+(`bwrap`) and unprivileged user namespaces, and needs neither `pi` nor `node` so it runs
+both locally and in `.github/workflows/test.yml`."""
 
 from __future__ import annotations
 
@@ -299,7 +299,7 @@ def test_e25_confined_command_denies_private_paths_and_network_and_releases_outp
 
     tcp_listener = socket.create_server(("127.0.0.1", 0))
     host_port = tcp_listener.getsockname()[1]
-    abstract_name = f"autonomy-e25-{secrets.token_hex(6)}"
+    abstract_name = f"autonomy-cmd-{secrets.token_hex(6)}"
     unix_listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     unix_listener.bind("\0" + abstract_name)
     unix_listener.listen(1)

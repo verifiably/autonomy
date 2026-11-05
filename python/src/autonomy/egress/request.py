@@ -1,5 +1,5 @@
 """Strict HTTP/1.1 on the actor's side, and the request the proxy frames itself for the
-upstream (envelope design decision 13). Nothing the actor sends about framing, hops or
+upstream (docs/egress.md). Nothing the actor sends about framing, hops or
 destinations crosses: the target must be origin-form, the body comes with one
 `Content-Length`, and the proxy writes `Host`, the credential and its own length."""
 

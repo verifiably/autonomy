@@ -1,4 +1,4 @@
-"""The closing check (envelope design §9): every row of the table, membership, and
+"""The closing check (docs/envelope.md, docs/records.md): every row of the table, membership, and
 the precedence `quarantined` > `unwired` > `clean`. Pure: `RunEvidence` in,
 `Verdict` out."""
 

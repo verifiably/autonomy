@@ -1,4 +1,4 @@
-"""The egress refusals (envelope design decision 13), one shape for each audience."""
+"""The egress refusals (docs/egress.md), one shape for each audience."""
 
 from __future__ import annotations
 

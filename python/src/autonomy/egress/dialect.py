@@ -1,4 +1,4 @@
-"""The `anthropic-messages` dialect (envelope design decision 13). The body is parsed
+"""The `anthropic-messages` dialect (docs/egress.md). The body is parsed
 as strict JSON, so the proxy and the upstream read the same values from the same
 bytes. Then every position where a provider feature can sit is checked against the
 operation's closed lists. A `tool_use` block's `input` and a tool's `input_schema` are

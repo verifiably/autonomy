@@ -1,4 +1,4 @@
-"""The static bind check (envelope design §7, decision 8): no bind source may be,
+"""The static bind check (docs/envelope.md): no bind source may be,
 contain, or lie inside a denied path, by real path or by (st_dev, st_ino) ancestry,
 so a symlinked or bind-mounted alias of a corpus is caught before anything runs."""
 
@@ -68,7 +68,7 @@ def _target(path: Path) -> tuple[Path, tuple[int, int] | None, set[tuple[int, in
 def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: Iterable[Path] = ()) -> None:
     """Each source against each denied path. A source whose real path is exactly an
     exempt path is skipped: the proxy's credential and `ca_file` are bound as single
-    files under a denied ancestor such as `<config>` (decision 13). The exemption is
+    files under a denied ancestor such as `<config>`. The exemption is
     exact, so their directories are still refused."""
     targets = [_target(path) for path in denied]
     skip = {path.resolve(strict=False) for path in exempt if not path.is_symlink()}
@@ -97,7 +97,7 @@ def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: It
 
 
 def check_recreated_links(links: Iterable[Path], denied: Iterable[Path]) -> None:
-    """Each recreated host symlink `L` against each denied path (decision 14): `L` may
+    """Each recreated host symlink `L` against each denied path: `L` may
     not equal, contain, or lie inside a denied path, and `L.parent` may not lie inside a
     denied ancestor. `L.parent` is not itself bound into the sandbox (`bwrap` creates an
     empty directory on the tmpfs to hold `L`), so unrelated denied siblings under

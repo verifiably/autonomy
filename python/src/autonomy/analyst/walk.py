@@ -1,4 +1,4 @@
-"""The pre-launch walk (envelope design decision 14, §7 *The walk*). The static check
+"""The pre-launch walk (docs/envelope.md). The static check
 compares bind roots; this compares what the roots contain. Three rules over each
 admitted tree, with the launcher's own credentials and following no symlink:
 

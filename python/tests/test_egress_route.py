@@ -191,7 +191,7 @@ def test_the_denied_entries(config, credential):
     )
 
 
-def test_a_toolchain_bind_holding_the_credential_fails_the_static_check(config, credential):  # E22
+def test_a_toolchain_bind_holding_the_credential_fails_the_static_check(config, credential):  # Static bind check refuses a toolchain bind containing the credential
     from autonomy.sandbox.spec import SandboxSpec
     from autonomy.sandbox.static import SandboxUnproven, check_binds
 

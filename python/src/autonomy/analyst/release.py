@@ -1,4 +1,4 @@
-"""The output release (envelope design decision 14, *The release*). Scratch is where the
+"""The output release (docs/envelope.md). Scratch is where the
 analyst wrote freely; a symlink it planted dangles inside the namespace and resolves on
 the host. Outputs therefore cross to the host through this one walk by descriptor,
 which follows no link at any component: every entry is classified by `lstat` relative

@@ -1,4 +1,4 @@
-"""The proxy's upstream side (envelope design decision 13).
+"""The proxy's upstream side (docs/egress.md).
 
 `Gate` holds the route's open flag and the lock that the close transition takes. The
 lock is held only for a flag check and one non-blocking call: a write of at most

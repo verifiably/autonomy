@@ -1,4 +1,4 @@
-"""The namespace helper (envelope design decision 13). Before the gate's release it
+"""The namespace helper (docs/egress.md). Before the gate's release it
 puts the proxy's listener on 127.0.0.1:4780 inside the actor's own network namespace,
 where a loopback address is private to the actor. No process runs inside the sandbox
 for it.

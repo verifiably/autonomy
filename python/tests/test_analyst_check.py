@@ -1,4 +1,4 @@
-"""Row E24: the scripted-upstream tool-denial check (envelope design decision 14). No
+"""The scripted-upstream tool-denial check (docs/envelope.md, docs/egress.md). No
 model call is made: the fake upstream answers pi's requests with scripted `tool_use`
 turns, and the judge reads what pi's tools returned, what reached the upstream, and what
 the host filesystem shows afterwards. The marker strings are pi 1.1.0's own
@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.bwrap, pytest.mark.pi]
 GLOB = "!{proc,etc,usr,dev}"
 PI_1_1_0_BETAS = ["mid-conversation-output-config-2026-07-01", "thinking-binding-controls-2026-08-01", "inline-tools-2026-09-15"]
 """The anthropic-beta tokens pi 1.1.0 sends beside the fixture route's two older ones. A
-token alone grants no body capability (decision 13): the dialect still closes every
+token alone grants no body capability: the dialect still closes every
 shape, so the check's route lists them, as an operator's live route for pi 1.1.0 must."""
 LIMIT = 100
 ARGUMENT_ERROR = "Validation failed for tool"
@@ -127,7 +127,7 @@ def fixture_in_memory() -> Fixture:
 
 
 def script_for(f: Fixture, *, upstream_port: int, limit: int = LIMIT, extra_turns: Sequence[Turn] = ()) -> list[Turn]:
-    """The brief's steps 4 to 6: the allowed controls first, then the denied calls per
+    """Allowed control turns first, then denied tool calls: the allowed controls first, then the denied calls per
     root, one `ls F`, the three writes, the escape checks, `extra_turns`, and `done`."""
     files = f.files()
     allowed = files["A"]

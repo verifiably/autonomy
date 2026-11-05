@@ -1,4 +1,4 @@
-"""The `autonomy` command (envelope design §3, decision 12).
+"""The `autonomy` command (docs/envelope.md).
 
 `autonomy run` never reads fd 0 and never writes fd 1, help and refusals included:
 both belong to the actor. Diagnostics go to fd 2 through a non-blocking channel,
@@ -130,12 +130,12 @@ def _parser(diag: Diag) -> _Parser:
     )
     run.add_argument(
         "--model-route", metavar="NAME",
-        help="the model route under <config>/routes/NAME.toml: the actor's only network path (decision 13)",
+        help="the model route under <config>/routes/NAME.toml: the actor's only network path",
     )
     run.add_argument("actor", nargs="+", metavar="ACTOR", help="the actor's argv, after --")
     analyst_parser = commands.add_parser(
         "analyst",
-        help="run a fresh pi analyst over declared inputs under the sandbox (decision 14)",
+        help="run a fresh pi analyst over declared inputs under the sandbox",
         description=(
             "Run a fresh pi analyst under the sandbox with only the declared read-only inputs, the declared paths "
             "denied, and its outputs released to one directory. Exit 0 clean, 3 released with findings, "
@@ -155,7 +155,7 @@ def _parser(diag: Diag) -> _Parser:
     analyst_parser.add_argument("--deadline", type=_seconds, default=analyst.DEADLINE_DEFAULT, metavar="SECONDS", help=f"the whole run's wall-clock bound (default {analyst.DEADLINE_DEFAULT:g})")
     command_parser = commands.add_parser(
         "command",
-        help="run a pinned command over declared inputs under the sandbox with no model or network (decision 14)",
+        help="run a pinned command over declared inputs under the sandbox with no model or network",
         description=(
             "Run a pinned command under the sandbox with only the declared read-only inputs, the declared paths "
             "denied, no model or network route, and its outputs released to one directory. Exit 0 clean, "
@@ -242,7 +242,7 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.
         else:
             diag(f"{label} {run_dir.name} stopped by {what}; {run_dir} is left" + (" for run close" if label == "run" else ""))
     except BaseException:
-        pass  # a diagnostic that cannot be written is ignored (decision 12); the exit code is the record
+        pass  # a diagnostic that cannot be written is ignored; the exit code is the record
     return status
 
 

@@ -1,4 +1,4 @@
-"""The model proxy's process (envelope design decision 13). `autonomy.egress.session`
+"""The model proxy's process (docs/egress.md). `autonomy.egress.session`
 starts it in its own bwrap as
 `/usr/bin/python3 -I -c BOOT <package parent> <control fd> <records fd>`.
 
@@ -75,7 +75,7 @@ def control_loop(
     server: ProxyServer, control: socket.socket, wake: int, lease: float, *, clock: Callable[[], float] = time.monotonic,
 ) -> str:
     """Serve the control socket until a close cause: `close`, `lease`, `eof` or `term`.
-    The lease is the proxy's own deadline, renewed only by `renew` (spec §8)."""
+    The lease is the proxy's own deadline, renewed only by `renew`."""
     deadline = clock() + lease
     while True:
         remaining = deadline - clock()
