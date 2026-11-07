@@ -451,8 +451,8 @@ def test_a_close_racing_a_new_worker_never_joins_an_unstarted_thread(serve, monk
         def start(self):
             if getattr(self, "_target", None) == s.server._handle and "closer" not in outcome:
                 closer = real(target=closing)
-                outcome["closer"] = closer
                 closer.start()
+                outcome["closer"] = closer  # publish only once the main test can join it
                 time.sleep(0.6)  # the closer waits on the server's lock, past its join bound
             super().start()
 
