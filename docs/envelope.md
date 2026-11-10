@@ -100,7 +100,7 @@ Outputs cross from scratch storage to the operator's release destination via `re
 
 Post-run evaluation determines the final research disposition:
 - `closing.close(evidence: RunEvidence) -> Verdict` in `python/src/autonomy/closing.py` evaluates run evidence against severity mapping `SEVERITY`. It returns `Verdict(disposition, findings, members)` where `Disposition = Literal["clean", "unwired", "quarantined"]` ranked by `_RANK = {"clean": 0, "unwired": 1, "quarantined": 2}`.
-- `membership.classify(chains, baseline_heads, closing_heads, ledger, run_actor, later_ledgers=())` in `python/src/autonomy/membership.py` evaluates session ledger entries against `Intent`, `Registration`, and `Settlement` chains. It detects `chain-discontinuous`, `entry-foreign`, `outcome-unknown`, `intent-unfulfilled`, `act-unverified`, and single-act crash recovery.
+- `membership.classify(chains, ledger, run_actor, *, sealed, later_ledgers=())` in `python/src/autonomy/membership.py` evaluates session ledger entries against `Intent`, `Registration`, and `Settlement` chains. It detects `chain-discontinuous`, `entry-foreign`, `outcome-unknown`, `intent-unfulfilled`, `act-unverified`, and single-act crash recovery (owning an unrecorded store registration through an in-progress `write`, `delete`, or `move-source` intent when no registered path is `objects` or under `objects/` and `location` is in `registered_paths`, or through an in-progress `tree-write` intent when `registered_paths` holds a single canonical `objects/sha256/<hh>/<64-lowercase-hex>` path with matching shard).
 
 ## Failure
 

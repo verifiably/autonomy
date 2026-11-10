@@ -9,11 +9,25 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+import re
 
 from autonomy.evidence import Chain, Intent, Registration, Settlement
 from autonomy.ledger import ActLine, Ledger
 
 _STORE_OWNING_ACTS = ("write", "delete", "move-source")
+_OBJECT_PATH = re.compile(r"^objects/sha256/([0-9a-f]{2})/([0-9a-f]{64})$")
+
+
+def _is_object_path(path: str) -> bool:
+    return path == "objects" or path.startswith("objects/")
+
+
+def _is_object_create(reg: Registration) -> bool:
+    if len(reg.registered_paths) != 1:
+        return False
+    (path,) = reg.registered_paths
+    match = _OBJECT_PATH.fullmatch(path)
+    return match is not None and match.group(1) == match.group(2)[:2]
 
 
 @dataclass(frozen=True)
@@ -159,7 +173,14 @@ def _owner(
         return None
     for digest in sorted(in_progress):
         candidate = intents[digest]
-        if candidate.holdings_act in _STORE_OWNING_ACTS and candidate.location in reg.registered_paths:
+        if (
+            candidate.holdings_act in _STORE_OWNING_ACTS
+            and candidate.location is not None
+            and not any(_is_object_path(p) for p in reg.registered_paths)
+            and candidate.location in reg.registered_paths
+        ):
+            return digest
+        if candidate.holdings_act == "tree-write" and _is_object_create(reg):
             return digest
     return None
 

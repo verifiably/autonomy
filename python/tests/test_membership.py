@@ -1,6 +1,9 @@
 from autonomy.membership import classify
 from builders import INCOMPLETE, LATER, LATER_SID, RUN, act, corpus, intent, ledger, reg, settle, store
 
+OBJ_A = f"objects/sha256/aa/{'a' * 64}"
+OBJ_B = f"objects/sha256/bb/{'b' * 64}"
+
 
 def run(chains, led, *, sealed=True, later=()):
     m = classify(chains, led, RUN, sealed=sealed, later_ledgers=later)
@@ -33,6 +36,16 @@ def test_a_move_fully_recorded_is_members():
     ]
     _, found = run(chains, ledger(act("mv", "m1"), act("pa", "m1"), act("pb", "m2")))
     assert found == []
+
+
+def test_a_tree_write_fully_recorded_is_members():
+    chains = [
+        corpus(intent("t1", act="tree-write", location="store-tree:s:t"), reg("p1", "t1"), settle("ps1", "p1")),
+        store(reg("c1", paths={OBJ_A}), settle("cs1", "c1"), reg("c2", paths={OBJ_B}), settle("cs2", "c2")),
+    ]
+    m, found = run(chains, ledger(act("c1", "t1"), act("c2", "t1"), act("p1", "t1")))
+    assert found == []
+    assert set(m.members) == {"t1", "p1", "ps1", "c1", "cs1", "c2", "cs2"}
 
 
 # --- foreign writes -----------------------------------------------------------------
@@ -125,6 +138,108 @@ def test_a_store_transaction_outside_the_act_in_progress_is_foreign():
     chains = [corpus(intent("h1", act="write", location="x")), store(reg("w9", paths={"y"}), settle("s9", "w9"))]
     _, found = run(chains, ledger(**INCOMPLETE))
     assert found == [("entry-foreign", "s9"), ("entry-foreign", "w9"), ("intent-unfulfilled", "h1")]
+
+
+def test_a_tree_write_crashed_on_first_object_create_is_outcome_unknown():
+    for committed in (True, False):
+        chains = [
+            corpus(intent("t1", act="tree-write", location="store-tree:s:t")),
+            store(reg("c1", paths={OBJ_A}), settle("cs1", "c1", committed=committed)),
+        ]
+        _, found = run(chains, ledger(**INCOMPLETE))
+        assert found == [("outcome-unknown", "c1"), ("outcome-unknown", "cs1"), ("outcome-unknown", "t1")]
+
+
+def test_a_tree_write_crashed_on_subsequent_object_create_after_recorded_create():
+    chains = [
+        corpus(intent("t1", act="tree-write", location="store-tree:s:t")),
+        store(reg("c1", paths={OBJ_A}), settle("cs1", "c1"), reg("c2", paths={OBJ_B}), settle("cs2", "c2")),
+    ]
+    m, found = run(chains, ledger(act("c1", "t1"), **INCOMPLETE))
+    assert found == [("intent-unfulfilled", "t1"), ("outcome-unknown", "c2"), ("outcome-unknown", "cs2")]
+    assert {"t1", "c1", "cs1"} <= set(m.members)
+
+
+def test_a_tree_write_crashed_on_corpus_publish_is_outcome_unknown():
+    chains = [
+        corpus(intent("t1", act="tree-write", location="store-tree:s:t"), reg("p1", "t1"), settle("ps1", "p1")),
+        store(reg("c1", paths={OBJ_A}), settle("cs1", "c1")),
+    ]
+    m, found = run(chains, ledger(act("c1", "t1"), **INCOMPLETE))
+    assert found == [("outcome-unknown", "p1"), ("outcome-unknown", "ps1")]
+    assert {"t1", "c1", "cs1"} <= set(m.members)
+
+
+def test_several_unrecorded_tree_write_object_creates_are_foreign():
+    chains = [
+        corpus(intent("t1", act="tree-write", location="store-tree:s:t")),
+        store(reg("c1", paths={OBJ_A}), settle("cs1", "c1"), reg("c2", paths={OBJ_B}), settle("cs2", "c2")),
+    ]
+    _, found = run(chains, ledger(**INCOMPLETE))
+    assert ("entry-foreign", "c1") in found
+    assert ("entry-foreign", "c2") in found
+    assert ("entry-foreign", "t1") in found
+    assert not any(code == "outcome-unknown" for code, _ in found)
+
+
+def test_an_unrecorded_tree_write_object_create_before_a_recorded_create_is_foreign():
+    chains = [
+        corpus(intent("t1", act="tree-write", location="store-tree:s:t")),
+        store(reg("c1", paths={OBJ_A}), settle("cs1", "c1"), reg("c2", paths={OBJ_B}), settle("cs2", "c2")),
+    ]
+    m, found = run(chains, ledger(act("c2", "t1"), **INCOMPLETE))
+    assert ("entry-foreign", "c1") in found and ("entry-foreign", "cs1") in found
+    assert {"t1", "c2", "cs2"} <= set(m.members)
+
+
+def test_an_unrecorded_tree_write_object_create_under_a_complete_ledger_is_foreign():
+    chains = [
+        corpus(intent("t1", act="tree-write", location="store-tree:s:t")),
+        store(reg("c1", paths={OBJ_A}), settle("cs1", "c1")),
+    ]
+    _, found = run(chains, ledger())
+    assert found == [("entry-foreign", "c1"), ("entry-foreign", "cs1"), ("entry-foreign", "t1")]
+
+
+def test_non_canonical_or_unrelated_store_paths_under_tree_write_are_foreign():
+    for paths in (
+        {"x"},
+        {"objects/sha256/notes.txt"},
+        {f"objects/sha256/bb/{'a' * 64}"},
+        {f"objects/sha256/AA/{'A' * 64}"},
+        {f"objects/sha256/aa/{'a' * 63}"},
+        {OBJ_A, OBJ_B},
+    ):
+        chains = [
+            corpus(intent("t1", act="tree-write", location="store-tree:s:t")),
+            store(reg("c1", paths=paths), settle("cs1", "c1")),
+        ]
+        _, found = run(chains, ledger(**INCOMPLETE))
+        assert found == [("entry-foreign", "c1"), ("entry-foreign", "cs1"), ("intent-unfulfilled", "t1")]
+
+
+def test_ordinary_store_intents_reject_object_and_mixed_domain_paths():
+    for act_name, loc, paths in (
+        ("write", OBJ_A, {OBJ_A}),
+        ("write", "objects", {"objects"}),
+        ("write", "x", {"x", OBJ_A}),
+        ("write", "x", {"x", "objects"}),
+    ):
+        chains = [
+            corpus(intent("h1", act=act_name, location=loc)),
+            store(reg("w1", paths=paths), settle("ws1", "w1")),
+        ]
+        _, found = run(chains, ledger(**INCOMPLETE))
+        assert ("entry-foreign", "w1") in found and ("entry-foreign", "ws1") in found
+        assert not any(code == "outcome-unknown" for code, _ in found)
+
+    move_chains = [
+        corpus(intent("m1", act="move-source", location="x"), intent("m2", act="move-destination", location="y")),
+        store(reg("w1", paths={"x", OBJ_A}), settle("ws1", "w1")),
+    ]
+    _, found = run(move_chains, ledger(**INCOMPLETE))
+    assert ("entry-foreign", "w1") in found and ("entry-foreign", "ws1") in found
+    assert not any(code == "outcome-unknown" for code, _ in found)
 
 
 # --- cut acts, unverified acts, rewritten chains ------------------------------------
