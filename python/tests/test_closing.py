@@ -16,6 +16,19 @@ SPEC_ROWS = {
     "basis-moved": "quarantined", "session-unclosed": "unwired", "permit-mismatch": "unwired",
     "orchestrator-lost": "unwired", "mount-moved": None, "after-run": None,
     "egress-unproven": "unwired", "egress-lost": None, "egress-close-timeout": None,
+    "development-workspace-unproven": "unwired",
+    "development-sandbox-unproven": "unwired",
+    "development-gate-unproven": "unwired",
+    "development-stop-before-release": "unwired",
+    "development-close-unproven": "quarantined",
+    "development-deadline": "quarantined",
+    "development-stopped": "quarantined",
+    "development-actor-failed": "quarantined",
+    "development-bundle-missing": "quarantined",
+    "development-bundle-refused": "quarantined",
+    "development-bundle-header-invalid": "quarantined",
+    "development-bundle-validation-failed": "quarantined",
+    "development-candidate-unrecorded": "quarantined",
 }
 
 

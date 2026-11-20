@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
-from autonomy.baseline import append_event, fsync_dir, utc_now, write_all
+from autonomy.baseline import append_event, publish_bytes, utc_now
 from autonomy.channel import LineChannel
 from autonomy.closing import Disposition, disposition_of
 from autonomy.egress.errors import RouteRefused
@@ -207,18 +207,7 @@ def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, find
         "members": {},
         "closing_heads": None,
     }
-    temporary = run_dir / f".{DISPOSITION}.{secrets.token_hex(8)}.tmp"
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
-    try:
-        try:
-            write_all(fd, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"))
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-        os.link(temporary, run_dir / DISPOSITION)
-    finally:
-        temporary.unlink()
-    fsync_dir(run_dir)
+    publish_bytes(run_dir / DISPOSITION, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"))
 
 
 def _route(name: str | None, where: Places) -> LoadedRoute | None:

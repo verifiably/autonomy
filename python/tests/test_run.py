@@ -296,7 +296,7 @@ def _interrupted(*args, **kwargs):
 
 @pytest.mark.parametrize(
     ("module", "name", "replacement"),
-    [("autonomy.run", "write_all", _half_then_interrupted), ("os", "fsync", _interrupted), ("os", "link", _interrupted)],
+    [("autonomy.baseline", "write_all", _half_then_interrupted), ("os", "fsync", _interrupted), ("os", "link", _interrupted)],
 )
 def test_an_interrupted_disposition_publishes_nothing_and_a_retry_succeeds(tmp_path, monkeypatch, module, name, replacement):
     with monkeypatch.context() as patch:
@@ -310,7 +310,7 @@ def test_an_interrupted_disposition_publishes_nothing_and_a_retry_succeeds(tmp_p
 
 def test_an_interruption_at_the_directory_fsync_leaves_a_complete_record_and_a_retry_is_refused(tmp_path, monkeypatch):
     with monkeypatch.context() as patch:
-        patch.setattr("autonomy.run.fsync_dir", _interrupted)
+        patch.setattr("autonomy.baseline.fsync_dir", _interrupted)
         with pytest.raises(KeyboardInterrupt):
             write_disposition(tmp_path, "r1", "unwired", [FINDING])
     assert json.loads((tmp_path / "disposition.json").read_text())["disposition"] == "unwired"

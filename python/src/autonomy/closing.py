@@ -38,6 +38,19 @@ SEVERITY: Mapping[str, Literal["unwired", "quarantined"] | None] = MappingProxyT
         "egress-close-timeout": None,
         "mount-moved": None,
         "after-run": None,
+        "development-workspace-unproven": "unwired",
+        "development-sandbox-unproven": "unwired",
+        "development-gate-unproven": "unwired",
+        "development-stop-before-release": "unwired",
+        "development-close-unproven": "quarantined",
+        "development-deadline": "quarantined",
+        "development-stopped": "quarantined",
+        "development-actor-failed": "quarantined",
+        "development-bundle-missing": "quarantined",
+        "development-bundle-refused": "quarantined",
+        "development-bundle-header-invalid": "quarantined",
+        "development-bundle-validation-failed": "quarantined",
+        "development-candidate-unrecorded": "quarantined",
     }
 )
 _RANK: Mapping[str, int] = MappingProxyType({"clean": 0, "unwired": 1, "quarantined": 2})

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,22 @@ def fsync_dir(path: Path) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def publish_bytes(path: Path, data: bytes) -> None:
+    """Publish complete bytes once, with the containing directory synced."""
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+    try:
+        try:
+            write_all(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.link(temporary, path)
+    finally:
+        temporary.unlink()
+    fsync_dir(path.parent)
 
 
 def append_event(run_dir: Path, event: str, **fields: object) -> None:

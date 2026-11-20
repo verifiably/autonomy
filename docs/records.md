@@ -136,3 +136,26 @@ Autonomy integrates with verifiable session ledgers via permissions and tier dec
   - `session-close`: `{"line": "session-close", "at": "<timestamp>"}`
 - `RunEvidence` (`python/src/autonomy/evidence.py`):
   Evaluated at closing by `closing.close` (which delegates ledger and chain membership validation to `membership.classify`): `run_actor`, `tier_permit`, `baseline_available`, `ledger`, `chains`, `sealed`, `seal_timeout`, `orchestrator_lost`, `world_baseline`, `world_closing`, `mounts_baseline`, `mounts_closing`, `basis_open`, `basis_seal`, `later_ledgers`.
+
+## Development run records
+
+The development record helpers use the same run identifiers and durable
+publication primitive as science. A development allocation uses only private
+state and scratch directories. Its protected `supervisor.lock` spans
+initialization and terminal publication. A separate `publication.lock` allows
+stop and verdict publication to serialize independently of supervisor ownership.
+Both are empty mode-`0600` files opened without following links.
+
+`run.json` records version, run ID, development mode, timestamp, canonical
+repository and scratch paths, pinned base, task ref and deadline. Its exact
+SHA-256 binds the identity to `grant.json`, which records the effective
+read-only and denied paths, stdio classes, resource limits, and digests of the
+base bundle and the scratch walk. Route and allowance fields are null for the
+model-free slice.
+
+A development `disposition.json` carries version, run ID, mode, disposition,
+findings, close timestamp, grant digest and candidate receipt digest. A clean
+verdict requires the matching run, grant, walk, candidate receipt, base bundle,
+and candidate bundle bytes. A quarantined or unwired record has a null candidate
+digest. Only the verified clean record makes the exact candidate eligible for
+acceptance.
