@@ -9,10 +9,13 @@ import sys
 import textwrap
 import threading
 import time
+from contextlib import closing
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from autonomy.sandbox import bwrap
 from autonomy.sandbox.bwrap import launch
 from autonomy.sandbox.spec import SandboxSpec
 from autonomy.sandbox.static import SandboxUnproven
@@ -525,6 +528,85 @@ def test_launch_survives_a_caller_with_fds_0_1_2_closed(tmp_path):
     subprocess.run([sys.executable, "-c", orchestrator], stdin=subprocess.DEVNULL, timeout=60)
     assert out.read_text() == "0"
     assert (scratch / "ran").exists()
+
+
+@pytest.mark.parametrize("identity", ["different-device", "different-inode", "same", "unreadable"])
+def test_launch_requires_distinct_network_namespace_evidence(tmp_path, stdio, monkeypatch, identity):
+    real_stat = os.stat
+    host = real_stat("/proc/self/ns/net")
+    flag = tmp_path / "ran"
+
+    def stat(path, *args, **kwargs):
+        if isinstance(path, str) and path.startswith("/proc/") and path.endswith("/ns/net"):
+            pid = path.split("/")[2]
+            if pid.isdecimal():
+                if identity == "unreadable":
+                    raise PermissionError("namespace evidence unavailable")
+                return SimpleNamespace(
+                    st_dev=host.st_dev + (identity == "different-device"),
+                    st_ino=host.st_ino + (identity == "different-inode"),
+                )
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", stat)
+    spec = SandboxSpec(scratch=tmp_path)
+    if identity.startswith("different"):
+        with closing(launch(spec, ["/usr/bin/touch", str(flag)], **stdio)) as sandbox:
+            assert sandbox.wait(timeout=10) == 0
+        assert flag.exists()
+    else:
+        with pytest.raises(SandboxUnproven) as caught:
+            with closing(launch(spec, ["/usr/bin/touch", str(flag)], **stdio)) as sandbox:
+                sandbox.wait(timeout=10)
+        assert caught.value.code == "probe-network"
+        assert not flag.exists()
+
+
+def test_launch_refuses_a_real_shared_network_namespace(tmp_path, stdio, monkeypatch):
+    build = bwrap.build_argv
+    flag = tmp_path / "ran"
+
+    def share_network(*args, **kwargs):
+        argv = build(*args, **kwargs)
+        return [*argv[:2], "--share-net", *argv[2:]]
+
+    monkeypatch.setattr(bwrap, "build_argv", share_network)
+    with pytest.raises(SandboxUnproven) as caught:
+        with closing(launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/touch", str(flag)], **stdio)) as sandbox:
+            sandbox.wait(timeout=10)
+    assert caught.value.code == "probe-network"
+    assert not flag.exists()
+
+
+def test_launch_refuses_namespace_evidence_from_an_exited_child(tmp_path, stdio, monkeypatch):
+    real_stat = os.stat
+    real_open = os.pidfd_open
+    child_namespace = None
+    pidfd = None
+    flag = tmp_path / "ran"
+
+    def pidfd_open(pid):
+        nonlocal child_namespace, pidfd
+        child_namespace = f"/proc/{pid}/ns/net"
+        pidfd = real_open(pid)
+        return pidfd
+
+    def stat(path, *args, **kwargs):
+        info = real_stat(path, *args, **kwargs)
+        if path == child_namespace:
+            signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+            poll = select.poll()
+            poll.register(pidfd, select.POLLIN)
+            assert poll.poll(5000), "namespace init did not exit"
+        return info
+
+    monkeypatch.setattr(os, "pidfd_open", pidfd_open)
+    monkeypatch.setattr(os, "stat", stat)
+    with pytest.raises(SandboxUnproven, match="exited") as caught:
+        with closing(launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/touch", str(flag)], **stdio)) as sandbox:
+            sandbox.wait(timeout=10)
+    assert caught.value.code == "probe-network"
+    assert not flag.exists()
 
 
 def test_before_release_runs_while_the_gate_still_holds_the_actor(tmp_path, stdio):

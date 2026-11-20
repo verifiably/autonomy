@@ -272,6 +272,23 @@ def _abort(process: subprocess.Popen, pidfd: int) -> None:
     process.wait()
 
 
+def _check_network_namespace(child_pid: int, pidfd: int) -> None:
+    child_path = f"/proc/{child_pid}/ns/net"
+    try:
+        host = os.stat("/proc/self/ns/net")
+        child = os.stat(child_path)
+    except OSError as caught:
+        raise SandboxUnproven("probe-network", child_path, f"cannot read network namespace identity: {caught}") from caught
+
+    # A pidfd becomes readable on exit, even before the task is reaped.
+    poll = select.poll()
+    poll.register(pidfd, select.POLLIN)
+    if poll.poll(0):
+        raise SandboxUnproven("probe-network", child_path, "sandbox init exited during the network namespace check")
+    if (host.st_dev, host.st_ino) == (child.st_dev, child.st_ino):
+        raise SandboxUnproven("probe-network", child_path, "sandbox shares the orchestrator's network namespace")
+
+
 def launch(
     spec: SandboxSpec,
     argv: Iterable[str],
@@ -285,13 +302,14 @@ def launch(
 
     bwrap runs the gate (`_GATE`) holding the read end of a dedicated pipe. bwrap
     reports the namespace's init on --info-fd, the pidfd is opened while the gate still
-    waits, and only then is `RELEASE` written. Every failure before that aborts through
-    the pidfd or by killing bwrap, and the gate, seeing EOF, never runs the actor.
+    waits, and its network namespace is checked before the actor can start. Every
+    failure before release aborts through the pidfd or by killing bwrap, and the gate,
+    seeing EOF, never runs the actor.
 
     The actor's fds 0, 1 and 2 are `stdin`, `stdout` and `stderr`, and it holds no
     other descriptor. A closed one is refused, so a library caller never
     passes a stray descriptor. `before_release(child_pid, pidfd)` runs after
-    the pidfd is held and before the release. Whatever it raises aborts the launch and
+    the namespace check and before the release. Whatever it raises aborts the launch and
     propagates unchanged: the model proxy's listener must exist before
     the actor can run. bwrap starts in a process group of its own, so a signal
     to the caller's group cannot kill the actor before the seal."""
@@ -341,6 +359,7 @@ def launch(
             pidfd = os.pidfd_open(child)
         except OSError as caught:
             raise SandboxUnproven("launch-failed", "bwrap", f"no handle on child {child}: {caught.strerror}") from caught
+        _check_network_namespace(child, pidfd)
         if before_release is not None:
             try:
                 before_release(child, pidfd)
