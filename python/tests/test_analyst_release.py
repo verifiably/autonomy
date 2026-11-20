@@ -207,3 +207,48 @@ def test_descriptor_exhaustion_on_depth_degrades_to_refusals(tmp_path, low_fd_li
     report = release(out, dest)
     assert report.released == [] and report.refused and all(e["reason"] == "unopenable" for e in report.refused)
     assert all("Too many open files" in e.get("detail", "") for e in report.refused)
+
+
+@pytest.mark.parametrize("change", ["replace", "short", "overflow", "collision"])
+def test_copy_checks_bound_and_identity_before_publishing(tmp_path, monkeypatch, change):
+    from importlib import import_module
+
+    module = import_module("autonomy.analyst.release")
+    out, dest = outputs_with(tmp_path, lambda o: None)
+    source = out / "result.txt"
+    target = dest / "staged"
+    if change == "collision":
+        target.write_bytes(b"holder")
+    read = os.read
+    write = os.write
+    writes = []
+    calls = []
+
+    def read_fixture(fd, size):
+        calls.append(size)
+        block = read(fd, size)
+        if change == "replace" and block:
+            source.rename(out / "old")
+            source.write_bytes(b"replaced")
+        if change == "short":
+            return b""
+        if change == "overflow" and len(calls) == 2:
+            return b"!"
+        return block
+
+    def write_fixture(fd, data):
+        writes.append(len(data))
+        return write(fd, data)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "read", read_fixture)
+        patch.setattr(os, "write", write_fixture)
+        with pytest.raises(module.ReleaseFileRefused):
+            module.release_file(out, source.name, target, max_bytes=7)
+    assert sum(writes) <= 7
+    assert all(size <= 8 for size in calls)
+    if change == "collision":
+        assert target.read_bytes() == b"holder"
+    else:
+        assert not target.exists()
+    assert set(dest.iterdir()) <= {target}

@@ -151,7 +151,8 @@ repository and scratch paths, pinned base, task ref and deadline. Its exact
 SHA-256 binds the identity to `grant.json`, which records the effective
 read-only and denied paths, stdio classes, resource limits, and digests of the
 base bundle and the scratch walk. Route and allowance fields are null for the
-model-free slice.
+model-free slice. The receiver memory limit counts virtual address space per
+process. Preparation helpers use the same memory and temporary storage limits.
 
 The journal starts with an `allocated` event carrying run ID and mode.
 The supervisor syncs `releasing` before opening the gate. It includes
@@ -161,6 +162,13 @@ carries `actor_exit`, `cause` (`exit`, `deadline` or `stop`), and
 `containment_proven`. The immutable, idempotent stop request in `stop.json`
 contains version, run ID and `requested_at`. A stop or recovery command
 returns the existing exit code for an already terminal run.
+
+After confined validation, the supervisor can promote the exact staged
+bytes to `candidate.bundle` and write `candidate.json`. The receipt records
+version, run ID, mode, base, ref, tip, a zero actor exit, close time, and the
+SHA-256 digests of `base.bundle`, `candidate.bundle` and `grant.json`.
+Absent or failed transfer, invalid header, failed receiver checks and failed
+artifact or receipt publication each produce a quarantine finding.
 
 A development `disposition.json` carries version, run ID, mode, disposition,
 findings, close timestamp, grant digest and candidate receipt digest. A clean

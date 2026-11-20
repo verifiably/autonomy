@@ -16,12 +16,15 @@ from __future__ import annotations
 import errno
 import hashlib
 import os
+import secrets
 import stat
 from collections.abc import Iterable
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from autonomy.analyst.toolchain import AnalystRefused
+from autonomy.baseline import fsync_dir, write_all
 
 _CHUNK = 1 << 20
 _OPEN = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
@@ -84,15 +87,15 @@ def _classify(info: os.stat_result) -> str | None:
     return "unopenable"
 
 
-def _copy(src_fd: int, dest_fd: int) -> tuple[int, str]:
+def _copy(src_fd: int, dest_fd: int, *, max_bytes: int | None = None) -> tuple[int, str]:
     digest = hashlib.sha256()
     size = 0
-    while chunk := os.read(src_fd, _CHUNK):
-        view = memoryview(chunk)
-        while view:
-            view = view[os.write(dest_fd, view):]
-        digest.update(chunk)
+    while chunk := os.read(src_fd, _CHUNK if max_bytes is None else min(_CHUNK, max_bytes - size + 1)):
         size += len(chunk)
+        if max_bytes is not None and size > max_bytes:
+            raise ReleaseFileRefused("output stream exceeds the byte limit")
+        write_all(dest_fd, chunk)
+        digest.update(chunk)
     return size, digest.hexdigest()
 
 
@@ -222,3 +225,69 @@ def release(outputs: Path, destination: Path) -> ReleaseReport:
     finally:
         os.close(src)
     return report
+
+
+class ReleaseFileMissing(Exception):
+    """The declared output was absent."""
+
+
+class ReleaseFileRefused(Exception):
+    """The declared output could not be transferred intact within the byte limit."""
+
+
+@dataclass(frozen=True)
+class ReleasedFile:
+    path: Path
+    size: int
+    sha256: str
+
+
+def _file_identity(info: os.stat_result) -> tuple[int, ...]:
+    return info.st_dev, info.st_ino, info.st_mode, info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+
+
+def release_file(outputs: Path, name: str, destination: Path, *, max_bytes: int) -> ReleasedFile:
+    """Transfer one bounded regular file to a new protected staging name."""
+    if Path(name).name != name or name in ("", ".", "..") or max_bytes <= 0:
+        raise ValueError("release requires a single entry name and a positive byte limit")
+    try:
+        with ExitStack() as close:
+            scratch_fd = os.open(outputs.parent, _OPEN | os.O_DIRECTORY)
+            close.callback(os.close, scratch_fd)
+            try:
+                outputs_fd = os.open(outputs.name, _OPEN | os.O_DIRECTORY, dir_fd=scratch_fd)
+                close.callback(os.close, outputs_fd)
+                before = os.stat(name, dir_fd=outputs_fd, follow_symlinks=False)
+            except FileNotFoundError as caught:
+                raise ReleaseFileMissing(f"{outputs / name} is absent") from caught
+            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+                raise ReleaseFileRefused("the output must be a single-link regular file")
+            if before.st_size > max_bytes:
+                raise ReleaseFileRefused(f"output exceeds the {max_bytes} byte limit")
+            source_fd = os.open(name, _OPEN, dir_fd=outputs_fd)
+            close.callback(os.close, source_fd)
+            identity = _file_identity(before)
+            if _file_identity(os.fstat(source_fd)) != identity:
+                raise ReleaseFileRefused("output changed before opening")
+            temporary = destination.with_name(f".{destination.name}.{secrets.token_hex(8)}.tmp")
+            dest_fd = os.open(temporary, _CREATE, 0o600)
+            try:
+                try:
+                    size, digest = _copy(source_fd, dest_fd, max_bytes=max_bytes)
+                    named = os.stat(name, dir_fd=outputs_fd, follow_symlinks=False)
+                    current_dir = os.stat(outputs.name, dir_fd=scratch_fd, follow_symlinks=False)
+                    opened_dir = os.fstat(outputs_fd)
+                    if (size != before.st_size or _file_identity(named) != identity
+                            or _file_identity(os.fstat(source_fd)) != identity
+                            or (current_dir.st_dev, current_dir.st_ino) != (opened_dir.st_dev, opened_dir.st_ino)):
+                        raise ReleaseFileRefused("output size or identity changed during transfer")
+                    os.fsync(dest_fd)
+                finally:
+                    os.close(dest_fd)
+                os.link(temporary, destination, follow_symlinks=False)
+            finally:
+                temporary.unlink()
+            fsync_dir(destination.parent)
+            return ReleasedFile(destination, size, digest)
+    except OSError as caught:
+        raise ReleaseFileRefused(f"cannot transfer {outputs / name}: {caught}") from caught

@@ -99,6 +99,23 @@ ticks to confirm containment or limit signals to the recorded namespace.
 Only an intact journal proving the gate never opened permits an unfinished
 run to close unwired. All other unfinished runs close quarantined.
 
+#### Development candidate validation
+
+Only a timely zero exit with confirmed containment permits transfer of
+`outputs/candidate.bundle`. The supervisor opens the output by descriptor,
+requires one regular single-link file, and checks its byte count and identity
+before publishing protected staging. The independent candidate limit applies
+both before and during copying.
+
+A separate bubblewrap receiver uses private configuration, limited writable
+storage and process address space, and a separate elapsed-time bound. It checks
+that the header advertises the declared branch exactly once with exactly the
+pinned base as prerequisite. The receiver imports the base into an empty bare
+repository, validates the candidate with `fetch.fsckObjects=true` and
+`git fsck --strict --full`, and checks that the imported tip is a proper
+descendant of the base. Git never opens the actor's repository from the host
+or checks out the candidate in the receiver.
+
 ### autonomy analyst
 
 1. **Refusal:** Validates lease (`>= 10.0`), stdio fds, report fd, route TOML, model routing (`model-unrouted`), toolchain (`check_pi`, `PI_VERSION = "1.1.0"`, `ANALYST_TOOLS = ("read", "bash", "grep", "find", "ls", "write")`, `pi-mismatch`), thinking level (`check_thinking`, `THINKING_LEVELS`), node binary (`check_node`, `TOOLS_SHADOWED = ("rg", "fd")` absent), inputs, denied paths, and empty destination (`check_release_dir`, `release-unusable`).

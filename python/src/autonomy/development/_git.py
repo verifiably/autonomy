@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import resource
 import shutil
 import subprocess
@@ -28,7 +29,7 @@ def git_environment(home: Path) -> dict[str, str]:
     return {
         "PATH": "/usr/bin", "HOME": str(home), "LC_ALL": "C",
         "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
-        "GIT_NO_REPLACE_OBJECTS": "1", "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ATTR_NOSYSTEM": "1", "GIT_NO_REPLACE_OBJECTS": "1", "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0",
         "TMPDIR": str(home.parent / "tmp"),
     }
 
@@ -136,6 +137,64 @@ def _prepare(object_format: str, base: str, base_bytes: str, base_ref: str, acto
     shutil.copyfile(bundle, _EXPORT / "base.bundle")
 
 
+
+def _candidate_header(bundle: Path, object_format: str, base: str, ref: str) -> str:
+    def invalid(detail: str) -> GitFailed:
+        return GitFailed(detail, input_invalid=True)
+
+    hexadecimal = re.compile(rb"[0-9a-f]{" + str(len(base)).encode() + rb"}")
+    with bundle.open("rb") as stream:
+        version = stream.readline(128)
+        if version not in (b"# v2 git bundle\n", b"# v3 git bundle\n"):
+            raise invalid("unsupported bundle header")
+        format_line = None
+        prerequisite = None
+        tip = None
+        for line in stream:
+            if line == b"\n":
+                break
+            if not line.endswith(b"\n"):
+                raise invalid("incomplete bundle header")
+            entry = line[:-1]
+            if entry.startswith(b"@"):
+                if (version != b"# v3 git bundle\n" or prerequisite is not None or tip is not None
+                        or format_line is not None or entry != b"@object-format=" + object_format.encode()):
+                    raise invalid("unsupported or repeated bundle capability")
+                format_line = entry
+                continue
+            oid, space, value = entry.partition(b" ")
+            if not space:
+                raise invalid("bundle header entry lacks its delimiter")
+            if oid.startswith(b"-"):
+                if prerequisite is not None or tip is not None or oid[1:] != base.encode():
+                    raise invalid("bundle must have exactly the pinned base as prerequisite")
+                prerequisite = oid
+            else:
+                if tip is not None or value != ref.encode() or not hexadecimal.fullmatch(oid):
+                    raise invalid("bundle must advertise exactly the declared branch")
+                tip = oid
+        else:
+            raise invalid("bundle header terminator is missing")
+        if prerequisite is None or tip is None or (object_format != "sha1" and format_line is None):
+            raise invalid("bundle header lacks its base, branch or object format")
+        return tip.decode()
+
+
+def _validate(object_format: str, base: str, base_ref: str, actor_ref: str) -> str:
+    bundle = Path("/candidate.bundle")
+    tip = _candidate_header(bundle, object_format, base, actor_ref)
+    receiver = _ROOT / "receiver"
+    _init(receiver, object_format, bare=True)
+    _fetch(receiver, Path("/base.bundle"), base_ref)
+    if _git(receiver, "rev-parse", base_ref) != base:
+        raise GitFailed("receiver base differs from the approved commit")
+    _fetch(receiver, bundle, actor_ref)
+    if _git(receiver, "rev-parse", actor_ref) != tip or tip == base:
+        raise GitFailed("imported tip does not extend the approved base")
+    _git(receiver, "merge-base", "--is-ancestor", base, tip)
+    return tip
+
+
 def _main(memory: str, action: str, operands: list[str]) -> None:
     resource.setrlimit(resource.RLIMIT_AS, (int(memory), int(memory)))
     _HOME.mkdir(mode=0o700)
@@ -144,6 +203,8 @@ def _main(memory: str, action: str, operands: list[str]) -> None:
         _base_reader(*operands)
     elif action == "prepare":
         _prepare(*operands)
+    elif action == "validate":
+        print(_validate(*operands))
     else:
         raise ValueError(f"unknown Git helper operation: {action}")
 
