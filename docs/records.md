@@ -153,6 +153,15 @@ read-only and denied paths, stdio classes, resource limits, and digests of the
 base bundle and the scratch walk. Route and allowance fields are null for the
 model-free slice.
 
+The journal starts with an `allocated` event carrying run ID and mode.
+The supervisor syncs `releasing` before opening the gate. It includes
+`child_pid`, `start_time` in kernel ticks, `boot_id` and `grant_sha256`.
+`launched` records the later observation of a gate write. `actor-ended`
+carries `actor_exit`, `cause` (`exit`, `deadline` or `stop`), and
+`containment_proven`. The immutable, idempotent stop request in `stop.json`
+contains version, run ID and `requested_at`. A stop or recovery command
+returns the existing exit code for an already terminal run.
+
 A development `disposition.json` carries version, run ID, mode, disposition,
 findings, close timestamp, grant digest and candidate receipt digest. A clean
 verdict requires the matching run, grant, walk, candidate receipt, base bundle,

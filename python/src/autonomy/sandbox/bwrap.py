@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable, Iterable
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,10 +60,41 @@ def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
         raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
 
 
+_LOCK_USERNS = ("--unshare-user", "--disable-userns")
+_USERNS_PROOF = """
+import errno, os
+try:
+    os.unshare(os.CLONE_NEWUSER)
+except OSError as error:
+    if error.errno not in (errno.EPERM, errno.ENOSPC):
+        raise
+else:
+    raise SystemExit("nested user namespaces are available")
+"""
+
+
+def prove_development_host() -> None:
+    """Require rootless user namespaces and prove they cannot be nested."""
+    if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
+        raise SandboxUnproven("pidfd-unavailable", "python", "development supervision requires pidfds")
+    argv = ["bwrap", "--unshare-all", *_LOCK_USERNS, "--die-with-parent", "--clearenv", "--ro-bind", "/usr", "/usr"]
+    for target, link in system_symlinks():
+        argv.extend(("--symlink", target, link))
+    argv.extend(("--", "/usr/bin/python3", "-I", "-c", _USERNS_PROOF))
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired) as caught:
+        raise SandboxUnproven("userns-unavailable", "bwrap", str(caught)) from caught
+    if result.returncode != 0:
+        raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
+
+
 def build_argv(
     spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None
 ) -> list[str]:
     args = ["bwrap", "--unshare-all"]
+    if spec.disable_nested_userns:
+        args.extend(_LOCK_USERNS)
     args += ["--die-with-parent", "--new-session", "--clearenv", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]
     for path in SYSTEM_RO:
         args += ["--ro-bind", str(path), str(path)]
@@ -289,6 +321,14 @@ def _check_network_namespace(child_pid: int, pidfd: int) -> None:
         raise SandboxUnproven("probe-network", child_path, "sandbox shares the orchestrator's network namespace")
 
 
+_FILE_LIMIT = """
+import os, resource, sys
+limit = int(sys.argv[1])
+resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
+os.execvp("bwrap", sys.argv[2:])
+"""
+
+
 def launch(
     spec: SandboxSpec,
     argv: Iterable[str],
@@ -297,6 +337,8 @@ def launch(
     stdout: int,
     stderr: int,
     before_release: Callable[[int, int], None] | None = None,
+    release_guard: Callable[[int, int], AbstractContextManager[None]] | None = None,
+    actor_fsize_bytes: int | None = None,
 ) -> Sandboxed:
     """Start the actor so that its handle exists before it can run.
 
@@ -312,7 +354,9 @@ def launch(
     the namespace check and before the release. Whatever it raises aborts the launch and
     propagates unchanged: the model proxy's listener must exist before
     the actor can run. bwrap starts in a process group of its own, so a signal
-    to the caller's group cannot kill the actor before the seal."""
+    to the caller's group cannot kill the actor before the seal. An optional
+    guard encloses the gate write. The optional file limit is inherited via an
+    in-place exec of bwrap, which preserves its parent-death semantics."""
     if threading.current_thread() is not threading.main_thread():
         raise RuntimeError(
             "launch the sandbox from the main thread: --die-with-parent is PR_SET_PDEATHSIG, "
@@ -330,8 +374,11 @@ def launch(
     gate_read, gate_write = _pipe_above_stdio()
     gated = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_read), *argv]
     try:
+        command = build_argv(spec, gated, info_fd=info_write)
+        if actor_fsize_bytes is not None:
+            command = ["/usr/bin/python3", "-I", "-c", _FILE_LIMIT, str(actor_fsize_bytes), *command]
         process = subprocess.Popen(
-            build_argv(spec, gated, info_fd=info_write),
+            command,
             pass_fds=(info_write, gate_read),
             stdin=stdin,
             stdout=stdout,
@@ -366,7 +413,13 @@ def launch(
             except BaseException as caught:
                 hook_error = caught
                 raise
-        os.write(gate_write, RELEASE)
+        try:
+            with release_guard(child, pidfd) if release_guard is not None else nullcontext():
+                os.write(gate_write, RELEASE)
+        except BaseException as caught:
+            if release_guard is not None:
+                hook_error = caught
+            raise
     except BaseException as caught:
         _abort(process, pidfd)
         if caught is hook_error or isinstance(caught, SandboxUnproven) or not isinstance(caught, Exception):

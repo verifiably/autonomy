@@ -78,6 +78,27 @@ trees. It rejects hardlinks in scratch, submounts and denied inode aliases
 before proving denied paths and network isolation from inside the sandbox.
 The source worktree and Git metadata never enter the actor's mounts.
 
+#### Development supervision
+
+A development sandbox requires a fresh user namespace and disables nested
+user namespaces. The trusted launcher sets both file-size limits before it
+execs bubblewrap in place. The supervisor verifies both limits on the held
+namespace before release. The cap is per file.
+
+Under the publication lock, the supervisor checks for stop and records the
+namespace's identity durably before opening the gate. The monotonic actor
+deadline starts immediately before the gate write. While scheduled, the
+supervisor checks for stop or exit at least every second and sends TERM on
+stop or deadline. At most ten seconds of grace precede KILL. Output
+validation requires a timely zero exit and confirmed namespace shutdown.
+
+`autonomy run stop <id>` records a protected stop request. The request wins
+if recorded before terminal publication. `autonomy run close <id>` refuses a
+run with a live supervisor. Recovery uses a pidfd, boot ID and process start
+ticks to confirm containment or limit signals to the recorded namespace.
+Only an intact journal proving the gate never opened permits an unfinished
+run to close unwired. All other unfinished runs close quarantined.
+
 ### autonomy analyst
 
 1. **Refusal:** Validates lease (`>= 10.0`), stdio fds, report fd, route TOML, model routing (`model-unrouted`), toolchain (`check_pi`, `PI_VERSION = "1.1.0"`, `ANALYST_TOOLS = ("read", "bash", "grep", "find", "ls", "write")`, `pi-mismatch`), thinking level (`check_thinking`, `THINKING_LEVELS`), node binary (`check_node`, `TOOLS_SHADOWED = ("rg", "fd")` absent), inputs, denied paths, and empty destination (`check_release_dir`, `release-unusable`).

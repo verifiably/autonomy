@@ -131,7 +131,7 @@ def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits
     inode_denied = tuple(dict.fromkeys((source.repository, run.run_dir.parent.parent, *all_egress_denied(config))))
     denied = (*inode_denied, runtime)
     spec = SandboxSpec(
-        scratch=run.scratch, chdir=run.scratch / "repo", outputs_link=True,
+        scratch=run.scratch, chdir=run.scratch / "repo", outputs_link=True, disable_nested_userns=True,
         env={
             "HOME": str(run.scratch / "home"),
             "LC_ALL": "C",

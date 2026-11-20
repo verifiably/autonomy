@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from autonomy.baseline import append_event, fsync_dir, publish_bytes, utc_now
+from autonomy.baseline import EVENTS, append_event, fsync_dir, publish_bytes, utc_now
 from autonomy.closing import disposition_of
 from autonomy.membership import Finding
 from autonomy.run import EXIT_CODES, RunRefused, _xdg
@@ -179,6 +179,13 @@ def allocate_run(
         if isinstance(caught, (OSError, RunRefused)):
             raise RunRefused("allocation-failed", f"cannot allocate a development run: {caught}; restore state or cache storage") from caught
         raise
+
+
+def read_journal(run: RunPaths) -> tuple[dict[str, object], ...]:
+    data = _read_bytes(run.run_dir / EVENTS)
+    if not data.endswith(b"\n"):
+        raise ValueError("empty or incomplete event journal")
+    return tuple(_json(line) for line in data[:-1].split(b"\n"))
 
 
 def _canonical_path(value: object) -> bool:

@@ -79,7 +79,8 @@ def test_terminate_kills_every_process_in_the_namespace(tmp_path, stdio):
         sandboxed.close()
 
 
-def test_the_actor_dies_with_its_orchestrator(tmp_path):
+@pytest.mark.parametrize("actor_fsize_bytes", [None, 8192])
+def test_the_actor_dies_with_its_orchestrator(tmp_path, actor_fsize_bytes):
     mark = marker()
     orchestrator = textwrap.dedent(f"""
         import os, sys, time
@@ -87,11 +88,12 @@ def test_the_actor_dies_with_its_orchestrator(tmp_path):
         from autonomy.sandbox.bwrap import launch
         from autonomy.sandbox.spec import SandboxSpec
         null = os.open(os.devnull, os.O_RDWR)
-        launch(SandboxSpec(scratch=Path({str(tmp_path)!r})), {actor(mark)!r}, stdin=null, stdout=null, stderr=null)
+        launch(SandboxSpec(scratch=Path({str(tmp_path)!r})), {actor(mark)!r}, stdin=null, stdout=null, stderr=null,\n               **{({"actor_fsize_bytes": actor_fsize_bytes} if actor_fsize_bytes is not None else {})!r})
         print("ready", flush=True)
         time.sleep(300)
     """)
-    parent = subprocess.Popen([sys.executable, "-c", orchestrator], stdout=subprocess.PIPE, text=True)
+    parent = subprocess.Popen([sys.executable, "-c", orchestrator], stdout=subprocess.PIPE, text=True,
+                              env={"PATH": "/usr/bin", "HOME": str(tmp_path), "LC_ALL": "C"})
     try:
         assert parent.stdout.readline().strip() == "ready"
         deadline = time.monotonic() + 5
@@ -104,6 +106,7 @@ def test_the_actor_dies_with_its_orchestrator(tmp_path):
     finally:
         if parent.poll() is None:
             parent.kill()
+            parent.wait(timeout=5)
 
 
 def test_launch_refuses_any_thread_but_the_main_one(tmp_path, stdio):

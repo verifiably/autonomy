@@ -29,6 +29,7 @@ class SandboxSpec:
     symlinks: tuple[tuple[Path, Path], ...] = ()
     chdir: Path | None = None
     outputs_link: bool = False
+    disable_nested_userns: bool = False
 
     def bind_sources(self) -> tuple[Path, ...]:
         """Every host path the sandbox binds, in argv order: each one is checked."""
