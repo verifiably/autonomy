@@ -140,6 +140,20 @@ def read_json(path: Path) -> dict[str, object]:
     return _json(_read_bytes(path))
 
 
+def _durable_parents(path: Path) -> None:
+    for directory in (*reversed(path.parents), path):
+        if directory == directory.parent:
+            continue
+        try:
+            directory.mkdir(mode=0o700)
+        except FileExistsError:
+            if not directory.is_dir():
+                raise
+        # A concurrent first allocation may have created a directory just
+        # before we entered it. Sync existing parents as well.
+        fsync_dir(directory.parent)
+
+
 @contextmanager
 def allocate_run(
     places: DevelopmentPlaces, *, repository: Path, base: str, deadline_seconds: float,
@@ -151,7 +165,7 @@ def allocate_run(
     retained = False
     try:
         for directory in (run_dir, scratch):
-            directory.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            _durable_parents(directory.parent)
             directory.mkdir(mode=0o700)
             made.append(directory)
             fsync_dir(directory.parent)

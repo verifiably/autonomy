@@ -1,6 +1,7 @@
 import hashlib
 import os
 import subprocess
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
@@ -166,3 +167,61 @@ def test_walk_checks_the_prepared_scratch_for_aliases(workspace, places, fixture
         with pytest.raises(DevelopmentAborted, match="development-sandbox-unproven"):
             workspace.prepare_workspace(run, source, config=places.config, limits=limits)
         assert not (run.run_dir / "walk.json").exists()
+
+
+def test_preparation_refuses_source_directory_replaced_at_launch(workspace, places, fixture_source, monkeypatch):
+    repo, base, _ = fixture_source
+    limits = workspace.Limits()
+    source = workspace.admit_source(repo, base, limits=limits)
+    run_worker = workspace.run_worker
+    original = source.objects / "pack"
+
+    def replace_directory(*args, **kwargs):
+        original.rename(original.with_name("original-pack"))
+        original.mkdir()
+        # Model a path resolving differently after the host pinned its
+        # identity. The mounted identity must still match the witness.
+        replacement = os.open(original, os.O_DIRECTORY | os.O_RDONLY)
+        try:
+            kwargs["source_mounts"] = tuple(
+                replace(mount, fd=replacement) if mount.destination == "/source-objects/pack" else mount
+                for mount in kwargs["source_mounts"]
+            )
+            return run_worker(*args, **kwargs)
+        finally:
+            os.close(replacement)
+
+    # The genuine base remains locally available. The failure must be the
+    # changed directory identity, independent of whether Git could proceed.
+    with allocate_run(places, repository=repo, base=base, deadline_seconds=30) as run:
+        monkeypatch.setattr(workspace, "run_worker", replace_directory)
+        with pytest.raises(DevelopmentAborted, match="development-workspace-unproven.*source object directory changed"):
+            workspace.prepare_workspace(run, source, config=places.config, limits=limits)
+        assert not (run.run_dir / "base.bundle").exists()
+
+
+def test_source_enumeration_cannot_outlive_preparation_deadline(workspace, fixture_source, monkeypatch):
+    repo, base, _ = fixture_source
+    now = 0.0
+    scandir = os.scandir
+
+    @contextmanager
+    def slow_entries(directory):
+        def elapsed(entries):
+            nonlocal now
+            for entry in entries:
+                now += 0.25
+                yield entry
+
+        with scandir(directory) as entries:
+            yield elapsed(entries)
+
+    monkeypatch.setattr(workspace.time, "monotonic", lambda: now)
+    monkeypatch.setattr(workspace.os, "scandir", slow_entries)
+
+    def must_not_start(*args, **kwargs):
+        pytest.fail("source enumeration ran past the preparation budget")
+
+    monkeypatch.setattr(workspace, "run_worker", must_not_start)
+    with pytest.raises(RunRefused, match="development-repository-invalid.*source inspection.*deadline"):
+        workspace.admit_source(repo, base, limits=replace(workspace.Limits(), prepare_seconds=1))

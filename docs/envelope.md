@@ -85,7 +85,9 @@ scratch quotas require a separate activation gate.
 The development preparer opens the full approved commit ID in a private Git
 repository with only the local source's object data mounted read-only.
 Supported sources have a regular Git directory or are local bare repositories.
-The confined reader uses private configuration and ignores source refs, hooks,
+The supervisor pins the source object-directory identities during bounded
+enumeration. The confined reader checks the mounted identities before Git
+reads object data. It uses private configuration and ignores source refs, hooks,
 alternates and external stores. It exports one prerequisite-free
 `refs/heads/base` bundle, verifies it in an empty bare repository with strict
 full object checking, and seeds an independent checkout at

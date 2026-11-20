@@ -144,7 +144,9 @@ publication primitive as science. A development allocation uses only private
 `<state>/runs/<id>` and `<cache>/scratch/<id>` directories. Its protected `supervisor.lock` spans
 initialization and terminal publication. A separate `publication.lock` allows
 stop and verdict publication to serialize independently of supervisor ownership.
-Both are empty mode-`0600` files opened without following links.
+Both are empty mode-`0600` files opened without following links. The supervisor
+syncs the parent of each state and cache directory in the allocation path
+before publishing the run identity.
 
 `run.json` records version, run ID, development mode, timestamp, canonical
 repository and scratch paths, pinned base, task ref and deadline. Its exact

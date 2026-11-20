@@ -190,3 +190,38 @@ def test_terminal_publication_is_immutable_and_requires_durable_inputs(records, 
     bundle_path.write_bytes(b"changed")
     with pytest.raises(RunRefused, match="development-run-invalid"):
         records.terminal_exit(run)
+
+
+def test_first_use_syncs_ancestry_before_publishing_run(records, places, tmp_path, monkeypatch):
+    synced = []
+    publish = records.publish_json
+
+    def observe(directory):
+        synced.append(directory)
+
+    def verify_publish(path, value):
+        for chain in ((tmp_path, places.state.parent, places.state, places.state / "runs"),
+                      (tmp_path, places.cache.parent, places.cache, places.cache / "scratch")):
+            assert [synced.index(part) for part in chain] == sorted(synced.index(part) for part in chain)
+        return publish(path, value)
+
+    monkeypatch.setattr(records, "fsync_dir", observe)
+    monkeypatch.setattr(records, "publish_json", verify_publish)
+    with records.allocate_run(places, repository=tmp_path / "source", base=BASE, deadline_seconds=10.0):
+        pass
+
+
+def test_first_use_ancestor_sync_failure_refuses_before_record(records, places, tmp_path, monkeypatch):
+    sync = records.fsync_dir
+
+    def refuse(directory):
+        if directory == places.state.parent:
+            raise OSError("fixture ancestor sync failure")
+        sync(directory)
+
+    monkeypatch.setattr(records, "fsync_dir", refuse)
+    with pytest.raises(RunRefused, match="allocation-failed.*ancestor sync failure"):
+        with records.allocate_run(places, repository=tmp_path / "source", base=BASE, deadline_seconds=10.0):
+            pytest.fail("allocated after an unsynced new ancestor")
+    assert not (places.state / "runs").exists()
+    assert not (places.cache / "scratch").exists()

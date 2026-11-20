@@ -42,7 +42,9 @@ def attempt(tmp_path, bundles):
     repo, fmt, base, tip, base_bundle, bundle = bundles
     directories = development_places({"HOME": str(tmp_path)})
     with allocate_run(directories, repository=repo, base=base, deadline_seconds=5) as run:
-        source = SourceBase(repo, repo / ".git/objects", base, fmt, 0)
+        objects = repo / ".git/objects"
+        info = objects.stat()
+        source = SourceBase(repo, objects, base, fmt, 0, (info.st_dev, info.st_ino))
         path = run.run_dir / "base.bundle"
         path.write_bytes(base_bundle)
         out = run.scratch / "outputs"

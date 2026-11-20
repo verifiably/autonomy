@@ -6,12 +6,14 @@ import hashlib
 import os
 import re
 import time
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 from autonomy.analyst.walk import mount_points, walk
 from autonomy.baseline import publish_bytes
-from autonomy.development._git import GitFailed, run_worker
+from autonomy.development._git import GitFailed, PinnedObjectDirectory, SourceViewInvalid, run_worker
 from autonomy.development._records import BASE_REF, REF, DevelopmentAborted, RunPaths, publish_json
 from autonomy.egress.route import all_egress_denied
 from autonomy.membership import Finding
@@ -21,6 +23,7 @@ from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, SYSTEM_RO, SandboxSpec
 from autonomy.sandbox.static import SandboxUnproven, check_binds
 
 _MIB = 1 << 20
+_OPEN_DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,7 @@ class SourceBase:
     oid: str
     object_format: str
     prepare_until: float
+    object_identity: tuple[int, int]
 
 
 @dataclass(frozen=True)
@@ -65,54 +69,94 @@ def _objects(repository: Path) -> Path:
     return objects
 
 
-def _object_binds(objects: Path) -> tuple[tuple[Path, str], ...]:
-    # Construct the object view from the pack and loose-object directories.
-    # Git's source objects/info (including alternates) never enters it.
-    binds = []
-    for path in sorted(objects.iterdir()):
-        if path.name != "pack" and not re.fullmatch(r"[0-9a-f]{2}", path.name):
-            continue
-        if path.is_symlink() or not path.is_dir():
-            raise ValueError("Git object storage contains an unsupported directory")
-        with os.scandir(path) as entries:
-            if any(not entry.is_file(follow_symlinks=False) or entry.name.endswith(".promisor") for entry in entries):
-                raise ValueError("Git object storage contains an unsupported entry")
-        binds.append((path, f"/source-objects/{path.name}"))
-    return tuple(binds)
+@dataclass(frozen=True)
+class _ObjectView:
+    identity: tuple[int, int]
+    mounts: tuple[PinnedObjectDirectory, ...]
+
+
+def _directory_identity(info: os.stat_result) -> tuple[int, int]:
+    return info.st_dev, info.st_ino
+
+
+def _check_inspection_deadline(until: float) -> None:
+    if time.monotonic() >= until:
+        raise SourceViewInvalid("source inspection exceeded its preparation deadline")
+
+
+@contextmanager
+def _open_objects(path: Path, until: float) -> Iterator[int]:
+    # Start from the canonical absolute path and follow no symlink component.
+    directory = os.open(path.anchor, _OPEN_DIR)
+    try:
+        for part in path.parts[1:]:
+            _check_inspection_deadline(until)
+            next_directory = os.open(part, _OPEN_DIR, dir_fd=directory)
+            os.close(directory)
+            directory = next_directory
+        yield directory
+    finally:
+        os.close(directory)
+
+
+@contextmanager
+def _object_view(objects: Path, *, until: float, expected: tuple[int, int] | None = None) -> Iterator[_ObjectView]:
+    # The object bins remain pinned until the confined worker has checked
+    # the mounted inodes. Git never runs against an unverified mount.
+    mounts = []
+    with _open_objects(objects, until) as root, ExitStack() as held, os.scandir(root) as entries:
+        identity = _directory_identity(os.fstat(root))
+        if expected is not None and identity != expected:
+            raise SourceViewInvalid("source object root changed since admission")
+        for entry in entries:
+            _check_inspection_deadline(until)
+            if entry.name != "pack" and not re.fullmatch(r"[0-9a-f]{2}", entry.name):
+                continue
+            before = _directory_identity(entry.stat(follow_symlinks=False))
+            fd = os.open(entry.name, _OPEN_DIR, dir_fd=root)
+            held.callback(os.close, fd)
+            opened = _directory_identity(os.fstat(fd))
+            if opened != before:
+                raise SourceViewInvalid("source object directory changed during inspection")
+            destination = f"/source-objects/{entry.name}"
+            mounts.append(PinnedObjectDirectory(fd, destination, *opened))
+        _check_inspection_deadline(until)
+        yield _ObjectView(identity, tuple(mounts))
 
 
 def admit_source(repository: Path, oid: str, *, limits: Limits) -> SourceBase:
     deadline = time.monotonic() + limits.prepare_seconds
-    try:
-        repository = repository.resolve(strict=True)
-        objects = _objects(repository)
-        binds = _object_binds(objects)
-    except (OSError, ValueError) as caught:
-        raise RunRefused(
-            "development-repository-invalid", f"cannot use the source repository: {caught}; select an approved local repository",
-        ) from caught
     if not re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", oid):
         raise RunRefused("development-base-invalid", "resolve and supply the full approved commit ID")
     object_format = "sha1" if len(oid) == 40 else "sha256"
-    if not binds:
-        raise RunRefused("development-base-invalid", "base is absent from the local object store; supply the approved commit")
     try:
-        run_worker("admit", (object_format, oid), until=deadline, memory_bytes=limits.receiver_memory_bytes,
-                   storage_bytes=limits.receiver_storage_bytes, read_only=binds)
+        repository = repository.resolve(strict=True)
+        objects = _objects(repository)
+        with _object_view(objects, until=deadline) as view:
+            if not view.mounts:
+                raise RunRefused("development-base-invalid", "the base is absent from the local object store")
+            run_worker("admit", (object_format, oid), until=deadline, memory_bytes=limits.receiver_memory_bytes,
+                       storage_bytes=limits.receiver_storage_bytes, source_mounts=view.mounts)
+    except (OSError, ValueError, SourceViewInvalid) as caught:
+        raise RunRefused(
+            "development-repository-invalid", f"cannot use the source repository: {caught}. Select an approved local repository.",
+        ) from caught
     except GitFailed as caught:
         if caught.input_invalid:
-            raise RunRefused("development-base-invalid", f"{caught}; supply the full approved commit ID") from caught
+            raise RunRefused("development-base-invalid", f"{caught}. Supply the full approved commit ID.") from caught
         raise SandboxUnproven("development-launch-unavailable", str(repository), str(caught)) from caught
-    return SourceBase(repository, objects, oid, object_format, deadline)
+    return SourceBase(repository, objects, oid, object_format, deadline, view.identity)
 
 
 def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits: Limits) -> PreparedWorkspace:
     try:
-        run_worker(
-            "prepare", (source.object_format, source.oid, str(limits.base_bytes), BASE_REF, REF),
-            until=source.prepare_until, memory_bytes=limits.receiver_memory_bytes,
-            storage_bytes=limits.receiver_storage_bytes, read_only=_object_binds(source.objects), export=run.scratch,
-        )
+        with _object_view(source.objects, until=source.prepare_until, expected=source.object_identity) as view:
+            run_worker(
+                "prepare", (source.object_format, source.oid, str(limits.base_bytes), BASE_REF, REF),
+                until=source.prepare_until, memory_bytes=limits.receiver_memory_bytes,
+                storage_bytes=limits.receiver_storage_bytes, source_mounts=view.mounts,
+                export=run.scratch,
+            )
         staged = run.scratch / "base.bundle"
         with staged.open("rb") as stream:
             data = stream.read(limits.base_bytes + 1)
