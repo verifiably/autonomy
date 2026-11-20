@@ -141,7 +141,7 @@ Autonomy integrates with verifiable session ledgers via permissions and tier dec
 
 The development record helpers use the same run identifiers and durable
 publication primitive as science. A development allocation uses only private
-state and scratch directories. Its protected `supervisor.lock` spans
+`<state>/runs/<id>` and `<cache>/scratch/<id>` directories. Its protected `supervisor.lock` spans
 initialization and terminal publication. A separate `publication.lock` allows
 stop and verdict publication to serialize independently of supervisor ownership.
 Both are empty mode-`0600` files opened without following links.
@@ -176,3 +176,9 @@ verdict requires the matching run, grant, walk, candidate receipt, base bundle,
 and candidate bundle bytes. A quarantined or unwired record has a null candidate
 digest. Only the verified clean record makes the exact candidate eligible for
 acceptance.
+
+The development opening report includes `mode`, `base`, `ref` and
+`bundle_path` in addition to `run`, `run_dir`, and `scratch`. The closing
+report adds `mode` to `run`, `disposition`, and `exit`. The durable verdict
+is authoritative when reporting fails. If the supervisor left no disposition,
+use `autonomy run close <id>` to recover the run and its evidence.

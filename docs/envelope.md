@@ -54,13 +54,33 @@ The envelope defines distinct lifecycles across three commands:
 
 ### autonomy run
 
+#### Science mode
+
 1. **Refusal:** Validates `lease >= LEASE_FLOOR (10.0)` (`lease-below-floor`), stdio fds, report fd, tier configuration (`TierRefused`), and unique route kinds (`route-repeated`).
 2. **Resolution:** Checks `XDG_RUNTIME_DIR` is an absolute path (`runtime-dir-unset`), resolves `HOME` (`home-unknown`), and loads route TOML/credentials (`RouteRefused`). Failure exits 2 (`EXIT_REFUSED`).
 3. **Allocation:** Atomically creates `<state>/runs/<run-id>/`, `<cache>/scratch/<run-id>/`, and `$XDG_RUNTIME_DIR/va/<run-id[:12]>/` (mode `0700`; `allocation-failed`), and writes opening report line.
 4. **Execution:** Currently invokes `endpoint_side_unbuilt`, recording finding `baseline-unavailable`.
 5. **Verdict:** Derives disposition `"unwired"`, atomically hard-links `<run_dir>/disposition.json`, writes closing report line, and exits 4 (`EXIT_CODES["unwired"]`).
 
-#### Development workspace preparation
+#### Development mode
+
+`autonomy run --development --repository REPO --base OID --deadline SECONDS
+[--report-fd N] -- <actor argv>` authorizes one supervised offline candidate
+attempt. The base must be a full local commit ID and the deadline must be
+positive and finite. Omit the science tier, route and lease and any model
+route. Development state contains only protected records and scratch, so the
+run needs no XDG runtime directory. The actor receives the caller's byte
+channels. The CLI releases its copies immediately after the gate opens so the
+caller's streams can reach EOF before validation ends.
+
+The supervisor gives the actor the base OID, full development ref, and
+`/run/va/outputs/candidate.bundle` through `VERIFIABLY_DEVELOPMENT_BASE`,
+`VERIFIABLY_DEVELOPMENT_REF` and `VERIFIABLY_DEVELOPMENT_BUNDLE`.
+An immutable grant records the proved exposure and bounds. The supervised
+invocation grants this attempt. Unattended caller admission and aggregate
+scratch quotas require a separate activation gate.
+
+##### Workspace preparation
 
 The development preparer opens the full approved commit ID in a private Git
 repository with only the local source's object data mounted read-only.
@@ -78,7 +98,7 @@ trees. It rejects hardlinks in scratch, submounts and denied inode aliases
 before proving denied paths and network isolation from inside the sandbox.
 The source worktree and Git metadata never enter the actor's mounts.
 
-#### Development supervision
+##### Supervision
 
 A development sandbox requires a fresh user namespace and disables nested
 user namespaces. The trusted launcher sets both file-size limits before it
@@ -99,7 +119,7 @@ ticks to confirm containment or limit signals to the recorded namespace.
 Only an intact journal proving the gate never opened permits an unfinished
 run to close unwired. All other unfinished runs close quarantined.
 
-#### Development candidate validation
+##### Candidate validation
 
 Only a timely zero exit with confirmed containment permits transfer of
 `outputs/candidate.bundle`. The supervisor opens the output by descriptor,
@@ -164,10 +184,10 @@ Post-run evaluation determines the final research disposition:
 
 | Command | Exit Code | Meaning |
 | --- | --- | --- |
-| `autonomy run` | 0 | Clean run; closing disposition clean. |
+| `autonomy run` | 0 | Clean disposition. A development candidate is eligible for separate acceptance. |
 | `autonomy run` | 2 | Refused before execution; no run directory created. |
-| `autonomy run` | 3 | Quarantined; run findings indicate world, basis, or chain discontinuity. |
-| `autonomy run` | 4 | Unwired; baseline or science reads unbuilt or unavailable. |
+| `autonomy run` | 3 | Quarantined. Science evidence failed or development output is ineligible. |
+| `autonomy run` | 4 | Unwired or unfinished. Inspect the retained run directory for a verdict. |
 | `autonomy analyst` / `command` | 0 | Clean execution; outputs released without findings. |
 | `autonomy analyst` / `command` | 2 | Refused at step 1 before run directory allocation. |
 | `autonomy analyst` / `command` | 3 | Ran with findings (non-zero actor exit, release refusals, or egress errors). |
@@ -185,7 +205,7 @@ Post-run evaluation determines the final research disposition:
 ### Sandbox Unproven Codes
 
 `SandboxUnproven` error codes raised during pre-launch checks:
-`layout-unsupported`, `denied-unreadable`, `denied-unlistable`, `bind-missing`, `bind-unreadable`, `bind-overlaps-denied`, `bwrap-missing`, `userns-unavailable`, `pidfd-unavailable`, `walk-submount`, `walk-hardlink`, `walk-alias`, `walk-special`, `walk-unlistable`, `probe-failed`, `probe-network`, `probe-reachable`, `launch-failed`.
+`layout-unsupported`, `denied-unreadable`, `denied-unlistable`, `bind-missing`, `bind-unreadable`, `bind-overlaps-denied`, `bwrap-missing`, `userns-unavailable`, `pidfd-unavailable`, `walk-submount`, `walk-hardlink`, `walk-alias`, `walk-special`, `walk-unlistable`, `walk-timeout`, `probe-failed`, `probe-network`, `probe-reachable`, `launch-failed`.
 
 ### Closing Finding Severities
 
@@ -193,3 +213,7 @@ Finding codes mapped in `closing.SEVERITY`:
 - **quarantined**: `chain-discontinuous`, `entry-foreign`, `world-moved`, `basis-moved`.
 - **unwired**: `baseline-unavailable`, `ledger-unavailable`, `read-unavailable`, `ledger-malformed`, `seal-missing`, `outcome-unknown`, `intent-unfulfilled`, `seal-timeout`, `act-unverified`, `session-unclosed`, `permit-mismatch`, `orchestrator-lost`, `egress-unproven`.
 - **informational (None)**: `egress-lost`, `egress-close-timeout`, `mount-moved`, `after-run`.
+
+Development admission and findings use the same exit and severity catalog.
+The [negative verification matrix](development.md#development-decision-matrix)
+lists each supervised development code and its verification arm.

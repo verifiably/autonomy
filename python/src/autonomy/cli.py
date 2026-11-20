@@ -19,10 +19,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import autonomy.analyst.launch as analyst
+from autonomy import development
 from autonomy.analyst.toolchain import AnalystRefused
 from autonomy.channel import LineChannel
 from autonomy.run import (
-    EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, Diag, Progress, RunRefused, RunRequest,
+    EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, DevelopmentProgress, Diag, Progress, RunRefused, RunRequest,
     endpoint_side_unbuilt, execute,
 )
 from autonomy.tiers import TierRefused, tier
@@ -114,6 +115,7 @@ def _parser(diag: Diag) -> _Parser:
         "run",
         help="run one actor under the envelope",
         description="Run one actor under the envelope. Exit 0 clean, 3 quarantined, 4 unwired, 2 refused.",
+        epilog="For offline development use autonomy run --development --help. Use run stop ID or run close ID for development runs.",
     )
     run.add_argument("--tier", required=True, help="report-only, coordination or mints; publishes is refused")
     run.add_argument(
@@ -187,6 +189,79 @@ def _run(args: argparse.Namespace, diag: Diag, progress: Progress) -> int:
         return EXIT_REFUSED
 
 
+_DEVELOPMENT_VALUES = ("tier", "route", "lease", "model-route", "repository", "base", "deadline", "report-fd")
+
+
+def _development_options(options: Sequence[str]) -> list[str]:
+    # argparse recognizes -1 as a value but treats -inf as a switch. Pass
+    # both through admission, which owns the typed refusal for a bad value.
+    flags = {f"--{name}" for name in _DEVELOPMENT_VALUES}
+    normalized = []
+    index = 0
+    while index < len(options):
+        item = options[index]
+        if item in flags and index + 1 < len(options):
+            value = options[index + 1]
+            if value.startswith("-") and not value.startswith("--") and value != "-h":
+                item = f"{item}={value}"
+                index += 1
+        normalized.append(item)
+        index += 1
+    return normalized
+
+
+def _release_supervisor_stdio(diag: _Diagnostics) -> None:
+    diag.close()
+    null = os.open(os.devnull, os.O_RDWR | os.O_CLOEXEC)
+    try:
+        for fd in (0, 1, 2):
+            os.dup2(null, fd)
+    finally:
+        os.close(null)
+
+
+def _development_run(
+    options: Sequence[str], actor: Sequence[str], diag: _Diagnostics, progress: DevelopmentProgress,
+) -> int:
+    parser = _Parser(prog="autonomy run --development", diag=diag, allow_abbrev=False,
+                     description="Prepare one offline Git candidate under supervision.")
+    parser.add_argument("--development", action="store_true", help=argparse.SUPPRESS)
+    for name in _DEVELOPMENT_VALUES:
+        parser.add_argument(f"--{name}", default=None, nargs="?", const="")
+    args = parser.parse_args(_development_options(options))
+    if any(value is not None for value in (args.tier, args.route, args.lease)):
+        raise RunRefused("development-mode-conflict", "omit --tier, --route and --lease for development runs")
+    if args.model_route is not None:
+        raise RunRefused("development-model-route-refused", "omit the model route for supervised offline development")
+    if not args.repository:
+        raise RunRefused("development-repository-invalid", "select an approved local repository with --repository")
+    if not args.base:
+        raise RunRefused("development-base-invalid", "supply the full approved commit ID with --base")
+    try:
+        deadline = _seconds(args.deadline or "")
+    except argparse.ArgumentTypeError as caught:
+        raise RunRefused("deadline-invalid", "supply a positive finite --deadline in seconds") from caught
+    if not actor:
+        parser.error("supply the actor executable and argv after --")
+    try:
+        report_fd = None if args.report_fd is None else _fd(args.report_fd)
+    except argparse.ArgumentTypeError as caught:
+        raise RunRefused("stdio-refused", str(caught)) from caught
+    request = development.DevelopmentRequest(Path(args.repository), args.base, deadline, tuple(actor), report_fd)
+    return development.execute(request, os.environ, diag=diag, progress=progress,
+                               actor_launched=lambda: _release_supervisor_stdio(diag))
+
+
+def _development_control(action: str, options: Sequence[str], diag: Diag) -> int:
+    parser = _Parser(prog=f"autonomy run {action}", diag=diag)
+    parser.add_argument("run_id", nargs="?", metavar="RUN_ID")
+    args = parser.parse_args(options)
+    if args.run_id is None:
+        raise RunRefused("development-run-invalid", "supply the recorded development run ID")
+    command = development.stop if action == "stop" else development.close
+    return command(args.run_id, os.environ, diag=diag)
+
+
 def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -> int:
     try:
         if not args.input:
@@ -223,13 +298,15 @@ def _command(args: argparse.Namespace, cmd_argv: Sequence[str], diag: Diag, prog
         return EXIT_REFUSED
 
 
-def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.Progress, *, label: str = "run") -> int:
+def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.Progress | DevelopmentProgress, *, label: str = "run") -> int:
     """The last resort for an exception nothing else handles, SIGINT's
     `KeyboardInterrupt` included: one diagnostic line, then exit 2 when no run
     directory exists, or 4 when one does. That run has no `disposition.json` and is
     left for `run close`, and `execute` has already closed its report fd; without a
     run directory, the process's exit closes it."""
-    if isinstance(progress, analyst.Progress):
+    if isinstance(progress, DevelopmentProgress) and progress.durable_exit is not None:
+        return progress.durable_exit
+    if isinstance(progress, (analyst.Progress, DevelopmentProgress)):
         run_dir = progress.run_dir
     else:
         run_dir = None if progress.dirs is None else progress.dirs.run_dir
@@ -248,19 +325,23 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.
 
 def main(argv: Sequence[str] | None = None) -> int:
     diag = _Diagnostics()
-    progress: Progress | analyst.Progress = Progress()
+    progress: Progress | analyst.Progress | DevelopmentProgress = Progress()
     label = "run"
     try:
         raw_argv = list(sys.argv[1:] if argv is None else argv)
-        cmd_argv: list[str] = []
-        if raw_argv and raw_argv[0] == "command":
-            if "--" in raw_argv:
-                sep = raw_argv.index("--")
-                raw_argv, cmd_argv = raw_argv[:sep], raw_argv[sep + 1:]
-        try:
-            args = _parser(diag).parse_args(raw_argv)
-        except _Stop as stop:
-            return stop.status
+        before, actor = raw_argv, []
+        if "--" in raw_argv:
+            sep = raw_argv.index("--")
+            before, actor = raw_argv[:sep], raw_argv[sep + 1:]
+        if before[:1] == ["run"]:
+            if len(before) > 1 and before[1] in ("stop", "close"):
+                if before != raw_argv:
+                    raise RunRefused("development-run-invalid", "control commands take only the recorded run ID")
+                return _development_control(before[1], before[2:], diag)
+            if "--development" in before[1:]:
+                progress = DevelopmentProgress()
+                return _development_run(before[1:], actor, diag, progress)
+        args = _parser(diag).parse_args(before if raw_argv[:1] == ["command"] else raw_argv)
         if args.command == "analyst":
             label = "analyst run"
             progress = analyst.Progress()
@@ -268,9 +349,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "command":
             label = "command run"
             progress = analyst.Progress()
-            return _command(args, cmd_argv, diag, progress)
+            return _command(args, actor, diag, progress)
         return _run(args, diag, progress)
+    except _Stop as stop:
+        return stop.status
+    except RunRefused as caught:
+        if isinstance(progress, DevelopmentProgress) and progress.run_dir is not None:
+            return _unexpected(caught, diag, progress)
+        diag(f"refused: {caught.code}: {caught.message}")
+        return EXIT_REFUSED
     except BaseException as caught:
         return _unexpected(caught, diag, progress, label=label)
     finally:
-        diag.close()
+        try:
+            diag.close()
+        except OSError:
+            pass

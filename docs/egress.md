@@ -12,6 +12,14 @@ The egress boundary separates untrusted actor execution from operator credential
 - **Credential Protection:** Operator credentials are read-only bind mounts at `/run/va/credential` (`IN_SANDBOX_CREDENTIAL`) and CA bundles at `/run/va/ca.pem` (`IN_SANDBOX_CA`). Denied set functions `egress_denied` and `all_egress_denied` in `python/src/autonomy/analyst/launch.py` ensure route configurations and credential files are unconditionally denied to the actor sandbox.
 - **TLS Security:** Upstream communication enforces TLS 1.2 or higher (`ssl.TLSVersion.TLSv1_2`), disabling renegotiation (`OP_NO_RENEGOTIATION`) and TLS-level compression (`OP_NO_COMPRESSION`). Hostname verification is enabled with custom CA bundles when configured.
 
+## Model-free development runs
+
+The supervised development actor has a private network namespace and receives
+no configured listener, endpoint, model allowance or lease. A supplied
+`--model-route` is refused before any route or credential is read. For an
+offline attempt, the supervisor uses configured credential paths solely for
+the denied set. The actor and the Git helpers never receive credential bytes.
+
 ## Route configuration
 
 Route definitions are loaded from TOML documents at `<config>/routes/<name>.toml`, where route names match `_ROUTE_NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")`. Schema parsing is implemented in `python/src/autonomy/egress/route.py`:

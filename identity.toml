@@ -4,7 +4,7 @@ name = "autonomy"
 aliases = []
 purpose = "The envelope and orchestrator of verifiably: what may run unattended"
 abstract = """
-What may run unattended, under what tier, and how the next research action is chosen: the run baseline and dispositions, tiers as write-class permits, the actor sandbox, model egress proxy, and session ledger. It drives science's commands as tools and holds no private kernel access. Built: tiers, closing check, sandbox, model egress proxy, analyst, command, and autonomy run's launch side.
+Autonomy confines actors, checks run dispositions, enforces write-class tiers, and mediates model egress. It drives science commands as tools without private kernel access. It runs analyst and command sessions, supervises offline Git development, and implements the launch side of science runs.
 """
 authority = [
   "docs/envelope.md",

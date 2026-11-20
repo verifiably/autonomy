@@ -143,10 +143,14 @@ def refuse(request: RunRequest, *, actor_fds: tuple[int, int, int] = ACTOR_FDS) 
     write-corpus and orphaned-run checks need science's reads."""
     if request.lease < LEASE_FLOOR:
         raise RunRefused("lease-below-floor", f"the lease is {request.lease:g} s; the floor is {LEASE_FLOOR:g} s")
+    return check_run_stdio(request.report_fd, actor_fds)
+
+
+def check_run_stdio(report_fd: int | None, actor_fds: tuple[int, int, int]) -> tuple[StdioKind, StdioKind, StdioKind]:
     try:
         kinds = check_stdio(actor_fds)
-        if request.report_fd is not None:
-            check_report_fd(request.report_fd, actor_fds)
+        if report_fd is not None:
+            check_report_fd(report_fd, actor_fds)
     except StdioRefused as caught:
         raise RunRefused(caught.code, caught.message) from None
     return kinds
@@ -160,6 +164,14 @@ class Progress:
     None, `execute` left nothing on disk."""
 
     dirs: RunDirs | None = None
+
+
+@dataclass
+class DevelopmentProgress:
+    """Retained run and verdict checkpoints for the CLI's unexpected-error path."""
+
+    run_dir: Path | None = None
+    durable_exit: int | None = None
 
 
 @dataclass(frozen=True)

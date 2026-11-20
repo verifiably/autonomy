@@ -1,3 +1,5 @@
-"""The supervised offline development mode of the run envelope."""
+"""Supervised, model-free Git candidate development."""
 
-__all__: list[str] = []
+from autonomy.development._run import DevelopmentRequest, close, execute, stop
+
+__all__ = ["DevelopmentRequest", "close", "execute", "stop"]
