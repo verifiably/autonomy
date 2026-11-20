@@ -550,15 +550,23 @@ def test_launch_requires_distinct_network_namespace_evidence(tmp_path, stdio, mo
 
     monkeypatch.setattr(os, "stat", stat)
     spec = SandboxSpec(scratch=tmp_path)
+    attached = []
+    actor_argv = ["/usr/bin/touch", str(flag)]
+
+    def attach(child_pid, _pidfd):
+        attached.append(child_pid)
+
     if identity.startswith("different"):
-        with closing(launch(spec, ["/usr/bin/touch", str(flag)], **stdio)) as sandbox:
+        with closing(launch(spec, actor_argv, before_release=attach, **stdio)) as sandbox:
             assert sandbox.wait(timeout=10) == 0
+        assert attached == [sandbox.child_pid]
         assert flag.exists()
     else:
         with pytest.raises(SandboxUnproven) as caught:
-            with closing(launch(spec, ["/usr/bin/touch", str(flag)], **stdio)) as sandbox:
+            with closing(launch(spec, actor_argv, before_release=attach, **stdio)) as sandbox:
                 sandbox.wait(timeout=10)
         assert caught.value.code == "probe-network"
+        assert attached == []
         assert not flag.exists()
 
 
