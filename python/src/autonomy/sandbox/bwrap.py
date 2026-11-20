@@ -90,16 +90,16 @@ def build_argv(
     return [*args, "--", *argv]
 
 
-def probe(spec: SandboxSpec, denied: Iterable[Path]) -> None:
+def probe(spec: SandboxSpec, denied: Iterable[Path], *, timeout: float = 60) -> None:
     """`ENOENT` on every denied path, and `ENETUNREACH` from a connect to a
     non-loopback IPv4 and IPv6 address. A kernel without IPv6 answers
     `EAFNOSUPPORT`, which is as unreachable."""
     paths = [str(p.resolve()) for p in denied]
     argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
     try:
-        result = subprocess.run(argv, capture_output=True, timeout=60, stdin=subprocess.DEVNULL)
+        result = subprocess.run(argv, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
-        raise SandboxUnproven("probe-failed", "bwrap", "the probe did not exit in 60 s") from None
+        raise SandboxUnproven("probe-failed", "bwrap", f"the probe did not exit in {timeout:g} s") from None
     stdout = result.stdout.decode("utf-8", errors="replace")
     if result.returncode != 0:
         stderr = result.stderr.decode("utf-8", errors="replace").strip()

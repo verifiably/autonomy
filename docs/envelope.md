@@ -60,6 +60,24 @@ The envelope defines distinct lifecycles across three commands:
 4. **Execution:** Currently invokes `endpoint_side_unbuilt`, recording finding `baseline-unavailable`.
 5. **Verdict:** Derives disposition `"unwired"`, atomically hard-links `<run_dir>/disposition.json`, writes closing report line, and exits 4 (`EXIT_CODES["unwired"]`).
 
+#### Development workspace preparation
+
+The development preparer opens the full approved commit ID in a private Git
+repository with only the local source's object data mounted read-only.
+Supported sources have a regular Git directory or are local bare repositories.
+The confined reader uses private configuration and ignores source refs, hooks,
+alternates and external stores. It exports one prerequisite-free
+`refs/heads/base` bundle, verifies it in an empty bare repository with strict
+full object checking, and seeds an independent checkout at
+`refs/heads/development`. The scratch repository has its own objects and
+configuration. Its sibling home, harness state and output directories are
+outside the working tree.
+
+The supervisor checks the completed scratch alongside the admitted system
+trees. It rejects hardlinks in scratch, submounts and denied inode aliases
+before proving denied paths and network isolation from inside the sandbox.
+The source worktree and Git metadata never enter the actor's mounts.
+
 ### autonomy analyst
 
 1. **Refusal:** Validates lease (`>= 10.0`), stdio fds, report fd, route TOML, model routing (`model-unrouted`), toolchain (`check_pi`, `PI_VERSION = "1.1.0"`, `ANALYST_TOOLS = ("read", "bash", "grep", "find", "ls", "write")`, `pi-mismatch`), thinking level (`check_thinking`, `THINKING_LEVELS`), node binary (`check_node`, `TOOLS_SHADOWED = ("rg", "fd")` absent), inputs, denied paths, and empty destination (`check_release_dir`, `release-unusable`).

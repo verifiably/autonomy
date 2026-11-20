@@ -107,6 +107,14 @@ Certain tests require specific host privileges or external binaries and are mark
 - `bwrap`: Tests requiring `bubblewrap` and unprivileged user namespaces (`test_sandbox_probe.py`, `test_sandbox_launch.py`, `test_egress_helper.py`, `test_egress_session.py`, `test_analyst_walk.py`, `test_analyst_check.py`, `test_analyst_launch.py`, `test_command_check.py`, `test_command_launch.py`).
 - `pi`: Tests requiring the pinned `pi` 1.1.0 toolchain and Node.js prefix (`test_analyst_check.py`, `test_analyst_launch.py`). These tests resolve `PI_DIR` and `NODE_DIR` through `autonomy.analyst.toolchain` and skip gracefully if the binaries are absent or shadow host utilities.
 
+### Offline development workspace verification
+
+`just test-one tests/development/test_workspace.py tests/test_analyst_walk.py tests/test_sandbox_probe.py`
+exercises the independent Git seed and its confinement with disposable local
+repositories, including a non-tip base, unrelated history and SHA-1 and SHA-256
+object stores. Preparation helpers use the receiver limits for temporary storage
+and virtual address space per process. Tests use no provider route.
+
 ### Manual live-egress smoke check
 
 The test suite never makes live outbound network calls or spends model provider quota. A separate manual script is provided for live integration verification:

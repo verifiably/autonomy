@@ -52,12 +52,18 @@ def _identity(info: os.stat_result) -> Inode:
     return (info.st_dev, info.st_ino)
 
 
-def collect_denied_inodes(denied: Iterable[Path]) -> frozenset[Inode]:
+def _check_time(until: float | None, path: str | Path) -> None:
+    if until is not None and time.monotonic() >= until:
+        raise SandboxUnproven("walk-timeout", str(path), "the pre-launch walk exceeded its preparation deadline")
+
+
+def collect_denied_inodes(denied: Iterable[Path], *, until: float | None = None) -> frozenset[Inode]:
     """Every file and directory under each denied path that exists, by `lstat`,
     following no link. A missing path is skipped (it takes part by path in the static
     check). A directory that cannot be listed is refused."""
     inodes: set[Inode] = set()
     for root in denied:
+        _check_time(until, root)
         try:
             info = os.lstat(root)
         except FileNotFoundError:
@@ -73,6 +79,7 @@ def collect_denied_inodes(denied: Iterable[Path]) -> frozenset[Inode]:
             try:
                 with os.scandir(directory) as entries:
                     for entry in entries:
+                        _check_time(until, entry.path)
                         inodes.add(_identity(entry.stat(follow_symlinks=False)))
                         if entry.is_dir(follow_symlinks=False):
                             stack.append(Path(entry.path))
@@ -159,12 +166,14 @@ def _hash_regular_file(path: str, expected: os.stat_result) -> tuple[str, int]:
 
 
 def walk_tree(
-    root: Path, denied_inodes: frozenset[Inode], *, hardlinks: bool, mounts: tuple[Path, ...], digest: bool = False
+    root: Path, denied_inodes: frozenset[Inode], *, hardlinks: bool, mounts: tuple[Path, ...],
+    digest: bool = False, until: float | None = None,
 ) -> TreeReport:
     """`root` is already a real path. Mount points strictly below a directory root fail
     before any entry is read; a regular-file root that is itself a mount point fails."""
     started = time.monotonic()
     report = TreeReport(str(root), ["submount", "hardlink", "alias"] if hardlinks else ["submount", "alias"])
+    _check_time(until, root)
     root_info = os.lstat(root)
     root_dev = root_info.st_dev
 
@@ -198,6 +207,7 @@ def walk_tree(
                 if digest and directory != str(root):
                     manifest.append({"kind": "dir", "path": Path(directory).relative_to(root).as_posix()})
                 for entry in entries:
+                    _check_time(until, entry.path)
                     info = entry.stat(follow_symlinks=False)
                     report.entries += 1
                     _check_entry(entry.path, info, root_dev, denied_inodes, hardlinks)
@@ -244,17 +254,18 @@ def walk(
     denied: Iterable[Path],
     *,
     digest_inputs: Iterable[Path] = (),
+    until: float | None = None,
 ) -> WalkReport:
     """The whole pre-launch walk: the hard-link rule for the user-writable trees (the
     inputs, node, pi), the mount and inode rules for every tree."""
     started = time.monotonic()
-    denied_inodes = collect_denied_inodes(denied)
+    denied_inodes = collect_denied_inodes(denied, until=until)
     mounts = mount_points()
     digest_set = {Path(p) for p in digest_inputs}
     trees = [
-        walk_tree(Path(t), denied_inodes, hardlinks=True, mounts=mounts, digest=(Path(t) in digest_set))
+        walk_tree(Path(t), denied_inodes, hardlinks=True, mounts=mounts, digest=(Path(t) in digest_set), until=until)
         for t in user_trees
     ]
-    trees += [walk_tree(Path(t), denied_inodes, hardlinks=False, mounts=mounts) for t in system_trees]
+    trees += [walk_tree(Path(t), denied_inodes, hardlinks=False, mounts=mounts, until=until) for t in system_trees]
     inputs = [t.digest for t in trees if t.digest is not None]
     return WalkReport(trees, len(denied_inodes), round(time.monotonic() - started, 3), inputs=inputs)
