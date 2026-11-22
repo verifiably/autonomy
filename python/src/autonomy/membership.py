@@ -205,6 +205,8 @@ def _owner(
         return None
     for digest in sorted(in_progress):
         candidate = intents[digest]
+        if candidate.store_id is not None and candidate.store_id != chain.chain_id:
+            continue
         if (
             candidate.holdings_act in _STORE_OWNING_ACTS
             and candidate.location is not None

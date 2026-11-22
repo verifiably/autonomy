@@ -19,6 +19,7 @@ class Intent:
     kind: str | None
     holdings_act: str | None
     location: str | None
+    store_id: str | None = None
 
 
 @dataclass(frozen=True)

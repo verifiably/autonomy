@@ -188,14 +188,15 @@ def test_log_refuses_malformed_registrations(science, env, key, value):
 
 
 @pytest.mark.parametrize("committed", [False, True])
-def test_store_cut_act_with_unreadable_ledger_is_unwired(science, env, committed):
+@pytest.mark.parametrize("store_id", ["b" * 32, "d" * 32])
+def test_store_cut_act_checks_the_owning_store_identity(science, env, committed, store_id):
     header, registration, settlement = (json.loads(row) for row in _log().splitlines())
     settlement["committed"] = committed
     corpus_head = json.loads(_heads())["chains"][0]
     corpus_header = {key: corpus_head[key] for key in ("role", "id", "root", "genesis")}
     corpus_header.update(version="log.v1", after="1" * 64, through="4" * 64)
     intent = {"type": "intent", "digest": "4" * 64, "actor": RUN, "kind": "holdings",
-              "holdings_act": "write", "store_id": "b" * 32, "location": "incoming/a"}
+              "holdings_act": "write", "store_id": store_id, "location": "incoming/a"}
     corpus_args = ["log", "--chain", "a" * 32, "--after", "1" * 64, "--through", "4" * 64]
     _program(
         science, _response(_heads(), ["heads"]),
@@ -206,10 +207,11 @@ def test_store_cut_act_with_unreadable_ledger_is_unwired(science, env, committed
     corpus, store = reader.heads(resolve=False).chains
     chains = [reader.interval(corpus, after=corpus.genesis, through="4" * 64),
               reader.interval(store, after=store.genesis, through=store.tip)]
-    assert chains[0].entries == (Intent("4" * 64, RUN, "holdings", "write", "incoming/a"),)
+    assert chains[0].entries == (Intent("4" * 64, RUN, "holdings", "write", "incoming/a", store_id),)
     verdict = close(evidence(chains, ledger=LedgerUnusable(SID, "ledger-malformed", "partial")))
     assert verdict.disposition == "unwired"
-    assert {f.ref for f in verdict.findings if f.code == "outcome-unknown"} == {ch * 64 for ch in "456"}
+    expected = {ch * 64 for ch in "456"} if store_id == "b" * 32 else set()
+    assert {f.ref for f in verdict.findings if f.code == "outcome-unknown"} == expected
 
 
 def test_pending_transactions_preserve_both_ids(science, env):
@@ -246,10 +248,10 @@ def test_unrecognized_intent_preserves_nulls(science, env):
 def test_tree_write_preserves_the_intent_kind(science, env):
     header = json.loads(_log().splitlines()[0])
     row = {"type": "intent", "kind": "holdings", "actor": RUN, "digest": "6" * 64,
-           "holdings_act": "tree-write", "store_id": "b" * 32, "location": "incoming/tree"}
+           "holdings_act": "tree-write", "store_id": "b" * 32, "location": "a" * 64}
     _program(science, _response(_heads(), ["heads"]),
              _response("".join(json.dumps(item) + "\n" for item in (header, row)), _log_args()))
     reader = _reader(science, env)
     store = reader.heads(resolve=False).chains[1]
     actual = reader.interval(store, after=store.genesis, through=store.tip)
-    assert actual.entries == (Intent("6" * 64, RUN, "holdings", "tree-write", "incoming/tree"),)
+    assert actual.entries == (Intent("6" * 64, RUN, "holdings", "tree-write", "a" * 64, "b" * 32),)

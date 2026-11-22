@@ -9,7 +9,9 @@ import json
 import os
 import pwd
 import secrets
-from collections.abc import Callable, Mapping, Sequence
+import stat
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -25,6 +27,7 @@ from autonomy.tiers import Tier
 
 LEASE_FLOOR = 10.0
 LEASE_DEFAULT = 60.0
+DEADLINE_DEFAULT = 3600.0
 EXIT_REFUSED = 2
 EXIT_CODES: Mapping[Disposition, int] = MappingProxyType({"clean": 0, "quarantined": 3, "unwired": 4})
 DISPOSITION = "disposition.json"
@@ -49,6 +52,8 @@ class RunRequest:
     report_fd: int | None
     actor_argv: tuple[str, ...]
     model_route: str | None = None
+    deadline: float = DEADLINE_DEFAULT
+    toolchain: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -109,6 +114,25 @@ class RunDirs:
     socket_dir: Path
 
 
+def _private_directory(path: Path) -> None:
+    path.mkdir(mode=0o700, exist_ok=True)
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700:
+        raise ValueError(f"{path} must be a private directory owned by the current user (0700)")
+
+
+def ensure_run_parents(where: Places) -> None:
+    path = where.runtime
+    try:
+        if not path.is_dir():
+            raise ValueError(f"{path} must be a directory")
+        for path in (where.runtime / "va", where.state, where.cache, where.state / "runs", where.cache / "scratch"):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            _private_directory(path)
+    except (OSError, ValueError) as caught:
+        raise RunRefused("allocation-failed", f"cannot prepare {path}: {caught}") from caught
+
+
 def allocate(where: Places) -> RunDirs:
     """Step 1. The socket directory's name is the run id's first 12 hex digits, short
     because of the 107-byte AF_UNIX path limit. Each directory is new: a collision
@@ -118,6 +142,7 @@ def allocate(where: Places) -> RunDirs:
     it made (their parents, shared by every run, stay). A directory that cannot be
     made is refused `allocation-failed`, so the run exits 2 with no run directory.
     Should a removal itself fail, its error propagates instead."""
+    ensure_run_parents(where)
     run_id = secrets.token_hex(16)
     run_dir = where.state / "runs" / run_id
     scratch = where.cache / "scratch" / run_id
@@ -126,7 +151,6 @@ def allocate(where: Places) -> RunDirs:
     path = run_dir
     try:
         for path in (run_dir, scratch, socket_dir):
-            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             path.mkdir(mode=0o700)
             made.append(path)
         return RunDirs(run_id, run_dir, scratch.resolve(), socket_dir)
@@ -181,6 +205,14 @@ class Opened:
     stdio: tuple[StdioKind, StdioKind, StdioKind]
     places: Places
     route: LoadedRoute | None
+
+
+RunOpener = Callable[[Places, LoadedRoute | None], AbstractContextManager[RunDirs]]
+
+
+@contextmanager
+def _open_local(where: Places, route: LoadedRoute | None) -> Iterator[RunDirs]:
+    yield allocate(where)
 
 
 Steps = Callable[[Opened], Sequence[Finding]]
@@ -245,6 +277,7 @@ def execute(
     diag: Diag,
     progress: Progress,
     actor_fds: tuple[int, int, int] = ACTOR_FDS,
+    open_run: RunOpener = _open_local,
 ) -> int:
     """Refuse, allocate, report the run, run `steps`, then close: `disposition.json`,
     the closing line, the exit code.
@@ -262,23 +295,23 @@ def execute(
     try:
         if request.report_fd is not None:
             report = LineChannel(request.report_fd)
-        dirs = allocate(where)
-        progress.dirs = dirs
-        diag(f"run {dirs.run_id} in {dirs.run_dir}")
-        if report is not None and not report.write_line(
-            _line({"run": dirs.run_id, "run_dir": str(dirs.run_dir), "scratch": str(dirs.scratch)})
-        ):
-            append_event(dirs.run_dir, "report-unwritten", line="run")
-        findings = tuple(steps(Opened(request, dirs, stdio, where, route)))
-        disposition = disposition_of(findings)
-        code = EXIT_CODES[disposition]
-        write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
-        if report is not None and not report.write_line(
-            _line({"run": dirs.run_id, "disposition": disposition, "exit": code})
-        ):
-            append_event(dirs.run_dir, "report-unwritten", line="closing")
-        diag(f"run {dirs.run_id} closed {disposition}: {', '.join(f.code for f in findings) or 'no findings'}")
-        return code
+        with open_run(where, route) as dirs:
+            progress.dirs = dirs
+            diag(f"run {dirs.run_id} in {dirs.run_dir}")
+            if report is not None and not report.write_line(
+                _line({"run": dirs.run_id, "run_dir": str(dirs.run_dir), "scratch": str(dirs.scratch)})
+            ):
+                append_event(dirs.run_dir, "report-unwritten", line="run")
+            findings = tuple(steps(Opened(request, dirs, stdio, where, route)))
+            disposition = disposition_of(findings)
+            code = EXIT_CODES[disposition]
+            write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
+            if report is not None and not report.write_line(
+                _line({"run": dirs.run_id, "disposition": disposition, "exit": code})
+            ):
+                append_event(dirs.run_dir, "report-unwritten", line="closing")
+            diag(f"run {dirs.run_id} closed {disposition}: {', '.join(f.code for f in findings) or 'no findings'}")
+            return code
     finally:
         if report is not None:
             report.close()

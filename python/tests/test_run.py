@@ -430,3 +430,207 @@ def test_a_route_refusal_keeps_nothing_and_writes_no_report_line(tmp_path, env, 
         os.close(read_end)
         if write_end >= 0:
             os.close(write_end)
+
+
+def test_application_parents_are_private_under_permissive_umask(env):
+    where = places(env)
+    old = os.umask(0)
+    try:
+        directories = allocate(where)
+    finally:
+        os.umask(old)
+    for path in (where.state, where.cache, directories.run_dir.parent,
+                 directories.scratch.parent, directories.socket_dir.parent):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o700
+
+
+def test_existing_wide_runtime_parent_is_refused_without_changing_it(env):
+    runtime = places(env).runtime / "va"
+    runtime.mkdir(mode=0o755)
+    runtime.chmod(0o755)
+    with pytest.raises(RunRefused) as caught:
+        allocate(places(env))
+    assert caught.value.code == "allocation-failed"
+    assert stat.S_IMODE(runtime.stat().st_mode) == 0o755
+    assert not list(runtime.iterdir())
+
+
+def test_runtime_parent_owned_by_another_user_is_refused(env, monkeypatch):
+    where = places(env)
+    parent = where.runtime / "va"
+    parent.mkdir(mode=0o700)
+    uid = os.geteuid()
+    monkeypatch.setattr(os, "geteuid", lambda: uid + 1)
+    with pytest.raises(RunRefused):
+        allocate(where)
+    assert parent.stat().st_uid == uid
+    assert not list(parent.iterdir())
+
+
+def _science_world(location, env, *, write_root=None, chain_id="a" * 32, pending=False):
+    import sys
+
+    location.mkdir()
+    for directory in ("world", "corpus", "operations", "store", "bin"):
+        (location / directory).mkdir()
+    cfg = location / "science.toml"
+    cfg.write_text(
+        'world_root = "world"\nworld_id = "' + "c" * 32 + '"\n'
+        'corpus_roots = ["corpus"]\noperations_root = "operations"\nstore_root = "store"\n'
+        + (f'write_root = "{write_root}"\n' if write_root is not None else ""),
+    )
+    world_pending = [["world-tx", "d" * 64]] if pending == "world" else []
+    chain_pending = [["corpus-tx", "e" * 64]] if pending == "chain" else []
+    heads = {"version": "heads.v1", "world_genesis": "1" * 64, "world_head": "2" * 64,
+             "world_pending": world_pending, "chains": [
+                 {"role": "corpus", "id": chain_id, "root": str(location / "corpus"),
+                  "genesis": "3" * 64, "tip": "4" * 64, "pending": chain_pending},
+                 {"role": "store", "id": "b" * 32, "root": str(location / "store"),
+                  "genesis": "5" * 64, "tip": "6" * 64, "pending": []},
+             ]}
+    calls = location / "reads"
+    executable = location / "bin" / "science"
+    executable.write_text(
+        f"#!{sys.executable}\n"
+        "from pathlib import Path\nimport sys\n"
+        f"assert sys.argv[1:4] == ['heads', '--config', {str(cfg)!r}], sys.argv\n"
+        f"with Path({str(calls)!r}).open('a') as stream:\n"
+        "    print('resolve' if '--resolve' in sys.argv else 'detached', file=stream)\n"
+        f"print({json.dumps(heads)!r})\n",
+    )
+    executable.chmod(0o700)
+    return {**env, "PATH": str(executable.parent), "SCIENCE_CONFIG": str(cfg)}, calls
+
+
+def _opening(env, *, tier=REPORT_ONLY):
+    from autonomy.science_run._admission import Admission
+
+    return Admission(RunRequest(tier, 60, None, ("/usr/bin/true",)), env)
+
+
+def _opened(admission, dirs, where):
+    from autonomy.run import Opened
+
+    return Opened(admission.request, dirs, ("null", "null", "null"), where, None)
+
+
+def test_admission_publishes_baseline_before_releasing_other_roots(tmp_path, env):
+    first_env, first_calls = _science_world(tmp_path / "first", env)
+    next_env, next_calls = _science_world(tmp_path / "next", env, chain_id="e" * 32)
+    where = places(env)
+    first = _opening(first_env)
+    with first.open(where, None) as first_dirs:
+        assert events(first_dirs.run_dir)[0]["pid"] == os.getpid()
+        baseline = first.capture(_opened(first, first_dirs, where))
+        assert not isinstance(baseline, Finding)
+        assert first_calls.read_text() == "resolve\n"
+        snapshot = json.loads((first_dirs.run_dir / "baseline.json").read_bytes())
+        assert snapshot["written"]["a" * 32]["tip"] == "4" * 64
+        assert snapshot["mounts"]["b" * 32]["role"] == "store"
+        assert snapshot["sandbox"]["stdio"] == ["null", "null", "null"]
+        assert snapshot["world"]["id"] == "c" * 32
+        with pytest.raises(RunRefused) as caught:
+            with _opening(first_env).open(where, None):
+                pytest.fail("overlapping run allocated")
+        assert caught.value.code == "orphaned-run"
+        assert first_dirs.run_id in caught.value.message
+        assert first_calls.read_text() == "resolve\n"
+        second = _opening(next_env)
+        with second.open(where, None) as second_dirs:
+            assert not isinstance(second.capture(_opened(second, second_dirs, where)), Finding)
+        assert next_calls.read_text() == "detached\nresolve\n"
+
+
+def test_write_root_outside_declared_corpora_refuses_before_reads(tmp_path, env):
+    configured, calls = _science_world(tmp_path / "sample", env, write_root="other")
+    with pytest.raises(RunRefused) as caught:
+        with _opening(configured).open(places(env), None):
+            pytest.fail("invalid write root allocated")
+    assert caught.value.code == "write-root-unknown"
+    assert not calls.exists()
+    assert not runs(tmp_path)
+
+
+@pytest.mark.parametrize("pending", ["world", "chain"])
+def test_pending_after_resolution_prevents_baseline_publication(tmp_path, env, pending):
+    configured, calls = _science_world(tmp_path / "sample", env, pending=pending)
+    where = places(env)
+    admission = _opening(configured)
+    with admission.open(where, None) as dirs:
+        finding = admission.capture(_opened(admission, dirs, where))
+    assert finding.code == "baseline-pending"
+    assert not (dirs.run_dir / "baseline.json").exists()
+    assert calls.read_text() == "resolve\n"
+
+
+@pytest.mark.parametrize("handle", ["VERIFIABLY_ENDPOINT", "VERIFIABLY_TOKEN_FILE"])
+def test_handle_blocks_all_host_reads_but_allows_local_allocation(tmp_path, env, handle):
+    configured, calls = _science_world(tmp_path / "sample", env, write_root="other")
+    configured[handle] = ""
+    where = places(env)
+    admission = _opening(configured)
+    with admission.open(where, None) as dirs:
+        finding = admission.capture(_opened(admission, dirs, where))
+    assert finding.code == "baseline-unavailable"
+    assert not (dirs.run_dir / "baseline.json").exists()
+    assert not calls.exists()
+
+
+def test_disjoint_paths_with_the_same_chain_identity_are_refused(tmp_path, env):
+    first_env, _ = _science_world(tmp_path / "first", env)
+    next_env, calls = _science_world(tmp_path / "second", env)
+    where = places(env)
+    first = _opening(first_env)
+    with first.open(where, None) as dirs:
+        first.capture(_opened(first, dirs, where))
+    with pytest.raises(RunRefused, match=dirs.run_id):
+        with _opening(next_env).open(where, None):
+            pytest.fail("overlapping identity allocated")
+    assert calls.read_text() == "detached\n"
+
+
+def test_unfinished_writer_with_unreadable_roots_blocks_disjoint_candidates(tmp_path, env):
+    first_env, _ = _science_world(tmp_path / "first", env)
+    next_env, calls = _science_world(tmp_path / "second", env, chain_id="e" * 32)
+    where = places(env)
+    first = _opening(first_env)
+    with first.open(where, None) as dirs:
+        first.capture(_opened(first, dirs, where))
+        append_event(dirs.run_dir, "endpoint-starting")
+    snapshot = dirs.run_dir / "baseline.json"
+    snapshot.write_text("{broken")
+    with pytest.raises(RunRefused, match=dirs.run_id):
+        with _opening(next_env).open(where, None):
+            pytest.fail("an unfinished writer with unreadable roots was ignored")
+    assert not calls.exists()
+    write_disposition(dirs.run_dir, dirs.run_id, "unwired", [FINDING])
+    second = _opening(next_env)
+    with second.open(where, None) as second_dirs:
+        assert not isinstance(second.capture(_opened(second, second_dirs, where)), Finding)
+    assert calls.read_text() == "resolve\n"
+
+
+def test_concurrent_start_cannot_admit_before_the_first_baseline(tmp_path, env):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    configured, calls = _science_world(tmp_path / "world", env)
+    where = places(env)
+    attempting = Event()
+
+    def start_second():
+        attempting.set()
+        with pytest.raises(RunRefused) as caught:
+            with _opening(configured).open(where, None):
+                pytest.fail("second start admitted")
+        return caught.value
+
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        first = _opening(configured)
+        with first.open(where, None) as dirs:
+            second = worker.submit(start_second)
+            assert attempting.wait(3)
+            first.capture(_opened(first, dirs, where))
+            refusal = second.result(timeout=3)
+            assert refusal.code == "orphaned-run" and dirs.run_id in refusal.message
+    assert calls.read_text() == "resolve\n"

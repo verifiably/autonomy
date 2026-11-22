@@ -180,9 +180,15 @@ def _entry(row: dict) -> Entry:
                 act = _text(row["holdings_act"])
                 if act not in _HOLDINGS_ACTS:
                     raise ReadUnavailable("unrecognized holdings act")
-                if row["store_id"] is not None:
-                    _matches(row["store_id"], _ID)
-                return Intent(digest, _text(row["actor"]), "holdings", act, _text(row["location"]))
+                store_id = None if row["store_id"] is None else _matches(row["store_id"], _ID)
+                location = _text(row["location"])
+                if act == "tree-write":
+                    _matches(location, _DIGEST)
+                elif store_id is not None and (act != "re-check" or not _DIGEST.fullmatch(location)):
+                    _bare_path(location)
+                if store_id is None and act != "re-check":
+                    raise ReadUnavailable("mutating holdings act has no store")
+                return Intent(digest, _text(row["actor"]), "holdings", act, location, store_id)
             _fields(row, "type digest actor kind")
             if row["kind"] is None and row["actor"] is None:
                 return Intent(digest, None, None, None, None)

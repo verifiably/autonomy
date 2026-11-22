@@ -21,6 +21,22 @@ Run directories and transient scratch spaces follow the XDG Base Directory speci
 
 Every run is identified by `run_id`, a string of 32 lowercase hexadecimal characters generated via `secrets.token_hex(16)`. The runtime path uses `<run-id[:12]>` to guarantee socket paths remain well within the 107-byte `AF_UNIX` limit. `XDG_RUNTIME_DIR` must be an absolute path for `autonomy run` (`runtime-dir-unset`), but is unused by `analyst` and `command`.
 
+A science allocation creates its application-owned state, cache and socket
+parents as private directories. An existing runtime `va/` must be owned by the
+caller and have mode `0700`. Admission serializes under `<state>/admission.lock`
+through baseline capture. The private per-run `supervisor.lock` holds lifetime
+ownership. Each state root defines one admission domain on the host.
+
+For science, `run.json` records version, mode, run ID, canonical config path and
+opening digest, executable, original operations root, deadline, lease and seal
+timeout. The allocation event records the supervisor PID, boot ID and kernel
+start ticks. `baseline.json` is an immutable version-1 snapshot containing tier,
+permit, world identity and digests, written and mounted chain identities and
+digests, actor arguments, sandbox settings, route metadata and lease. The
+`written` and `mounts` objects key chain entries by ID. Each entry records role,
+root, genesis and tip. Route metadata contains route name, file digest, upstream
+and actor URL. Credential values and paths are excluded from route metadata.
+
 ## Disposition record
 
 The terminal verdict is written to `<run_dir>/disposition.json` by `run.write_disposition` in `python/src/autonomy/run.py`. It is a Version 1 record with schema:
@@ -153,6 +169,7 @@ The reader checks both ordered registration path/state surfaces before passing
 their exact paths to the closing check. With an unusable ledger, an unambiguous
 store transaction attributable to the act in progress yields `outcome-unknown`
 for its intent, registration and any settlement without certifying membership.
+Store ownership checks the decoded store identity as well as the location.
 Independent foreign-entry and chain-discontinuity evidence still applies.
 
 ## Development run records

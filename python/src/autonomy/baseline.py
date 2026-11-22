@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import stat
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -62,3 +64,36 @@ def append_event(run_dir: Path, event: str, **fields: object) -> None:
         os.close(fd)
     if created:
         fsync_dir(run_dir)
+
+
+
+def publish_json(path: Path, value: Mapping[str, object]) -> None:
+    publish_bytes(path, (json.dumps(dict(value), indent=2, sort_keys=True, allow_nan=False) + "\n").encode())
+
+
+def read_private_bytes(path: Path) -> bytes:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    with os.fdopen(fd, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                or info.st_mode & 0o077 or info.st_nlink != 1):
+            raise ValueError(f"{path.name} must be an owned private regular file")
+        return stream.read()
+
+
+def _unique_fields(fields: list[tuple[str, object]]) -> dict[str, object]:
+    result = dict(fields)
+    if len(result) != len(fields):
+        raise ValueError("duplicate fields in protected run record")
+    return result
+
+
+def decode_object(data: bytes) -> dict[str, object]:
+    row = json.loads(data, object_pairs_hook=_unique_fields)
+    if type(row) is not dict:
+        raise ValueError("protected run record must be a JSON object")
+    return row
+
+
+def read_record(path: Path) -> dict[str, object]:
+    return decode_object(read_private_bytes(path))

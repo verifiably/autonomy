@@ -236,6 +236,15 @@ def lookup_run(places: DevelopmentPlaces, run_id: str) -> RunPaths:
         raise _invalid(str(caught)) from caught
 
 
+def valid_run(run_dir: Path, env: Mapping[str, str]) -> bool:
+    """Whether this directory has a valid development identity under the invoking roots."""
+    try:
+        run = lookup_run(development_places(env), run_dir.name)
+    except RunRefused:
+        return False
+    return run.run_dir == run_dir.resolve()
+
+
 def publish_grant(
     run: RunPaths, *, base_sha256: str, walk_sha256: str, read_only: tuple[Path, ...],
     denied: tuple[Path, ...], stdio: tuple[StdioKind, StdioKind, StdioKind],
