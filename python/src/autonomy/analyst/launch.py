@@ -139,12 +139,13 @@ def _resolve_inputs(inputs: tuple[Path, ...], toolchain: tuple[Path, ...]) -> tu
 def _resolve_denied(denied: tuple[Path, ...]) -> tuple[Path, ...]:
     resolved: list[Path] = []
     for given in denied:
-        real = Path(given).resolve(strict=False)
         try:
-            os.lstat(real)
-        except FileNotFoundError:
-            pass
-        except OSError as caught:
+            real = Path(given).resolve(strict=False)
+            try:
+                real.stat()
+            except FileNotFoundError:
+                pass
+        except (OSError, RuntimeError) as caught:
             raise AnalystRefused("denied-unreadable", f"{given}: a denied path must be stat-able: {caught}") from None
         resolved.append(real)
     return tuple(resolved)

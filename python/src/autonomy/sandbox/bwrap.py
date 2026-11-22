@@ -89,12 +89,8 @@ def prove_development_host() -> None:
         raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
 
 
-def _actor_environment(spec: SandboxSpec) -> dict[str, str]:
-    return {"PATH": "/usr/bin", **spec.env}
-
-
 def build_argv(
-    spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None
+    spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None, gate_fd: int | None = None
 ) -> list[str]:
     for source in spec.bind_sources():
         try:
@@ -126,8 +122,15 @@ def build_argv(
         args += ["--ro-bind", str(spec.token), str(IN_SANDBOX_TOKEN)]
     if spec.outputs_link:
         args += ["--symlink", str(spec.scratch / "outputs"), str(IN_SANDBOX_OUTPUTS)]
-    for key, value in sorted(_actor_environment(spec).items()):
-        args += ["--setenv", key, value]
+    env = {"PATH": "/usr/bin", **spec.env}
+    if gate_fd is None:
+        for key, value in sorted(env.items()):
+            args += ["--setenv", key, value]
+    else:
+        # Bubblewrap sets PWD and Python can coerce the locale. Give the gate
+        # the actor's environment as separate arguments for an exact exec.
+        environment_args = [part for pair in sorted(env.items()) for part in pair]
+        argv = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_fd), str(len(env)), *environment_args, *argv]
     args += ["--chdir", str(spec.chdir if spec.chdir is not None else spec.scratch)]
     if info_fd is not None:
         args += ["--info-fd", str(info_fd)]
@@ -252,7 +255,7 @@ RELEASE = b"run\n"
 """The one line that lets the gate exec the actor."""
 
 _GATE = r"""
-import json, os, signal, sys
+import os, signal, sys
 gate = int(sys.argv[1])
 line = b""
 while len(line) < 4 and not line.endswith(b"\n"):
@@ -265,9 +268,11 @@ if line != b"run\n":
     os._exit(125)
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 signal.signal(signal.SIGXFSZ, signal.SIG_DFL)
-argv = sys.argv[3:]
+env_end = 3 + 2 * int(sys.argv[2])
+env = dict(zip(sys.argv[3:env_end:2], sys.argv[4:env_end:2], strict=True))
+argv = sys.argv[env_end:]
 try:
-    os.execvpe(argv[0], argv, json.loads(sys.argv[2]))
+    os.execvpe(argv[0], argv, env)
 except OSError as caught:
     os.write(2, f"va-gate: {argv[0]}: {caught.strerror}\n".encode("utf-8", "replace"))
     os._exit(127)
@@ -403,9 +408,6 @@ def launch(
     actor_argv = tuple(argv)
     if not actor_argv or not actor_argv[0]:
         raise SandboxUnproven("launch-failed", "actor", "the actor must have a nonempty executable argument")
-    # Python can coerce the locale at startup. Pass the configured environment
-    # explicitly at exec so the gate's startup environment stays in the gate.
-    actor_env = json.dumps(_actor_environment(spec))
     info_read, info_write = _pipe_above_stdio()
     try:
         gate_read, gate_write = _pipe_above_stdio()
@@ -413,9 +415,8 @@ def launch(
         os.close(info_read)
         os.close(info_write)
         raise
-    gated = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_read), actor_env, *actor_argv]
     try:
-        command = build_argv(spec, gated, info_fd=info_write)
+        command = build_argv(spec, actor_argv, info_fd=info_write, gate_fd=gate_read)
         if actor_fsize_bytes is not None:
             command = ["/usr/bin/python3", "-I", "-c", _FILE_LIMIT, str(actor_fsize_bytes), *command]
         process = subprocess.Popen(
@@ -470,7 +471,12 @@ def launch(
             raise
     except BaseException as caught:
         os.close(gate_write)
-        _abort(process, pidfd)
+        try:
+            _abort(process, pidfd)
+        except SandboxUnproven as cleanup:
+            if caught is hook_error or not isinstance(caught, Exception):
+                raise caught from cleanup
+            raise
         if caught is hook_error or isinstance(caught, SandboxUnproven) or not isinstance(caught, Exception):
             raise
         raise SandboxUnproven("launch-failed", "bwrap", f"{type(caught).__name__}: {caught}") from caught

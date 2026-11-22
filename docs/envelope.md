@@ -35,7 +35,7 @@ The optional status channel is verified by `stdio.check_report_fd(fd, actor_fds=
 The sandbox environment is specified by `SandboxSpec` in `python/src/autonomy/sandbox/spec.py`:
 - System mounts: `SYSTEM_RO = (Path("/usr"), Path("/etc"))` mounted read-only, with merged-`/usr` symlinks `SYSTEM_LINKS = ("/bin", "/lib", "/lib64", "/sbin")`.
 - Sandbox paths: `IN_SANDBOX_SOCKET = PurePosixPath("/run/va/endpoint.sock")`, `IN_SANDBOX_TOKEN = PurePosixPath("/run/va/token")`, `IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")`.
-- Execution settings: scratch tmpfs, read-only binds, recreated symlinks, working directory, and sanitized environment (`PATH=/usr/bin` following `--clearenv`).
+- Execution settings include scratch tmpfs, read-only binds, recreated symlinks and a working directory. Bubblewrap clears the inherited environment. The probe uses `--setenv` and the launch gate applies the declared environment at exec. Both default to `PATH=/usr/bin`.
 
 Pre-launch verification proceeds through four mandatory phases:
 1. **Static Bind Checks (`autonomy.sandbox.static`):** `system_symlinks` verifies the merged-`/usr` links (`layout-unsupported`). The static bind check compares real paths and inode ancestry (`bind-overlaps-denied`). Missing denied paths still contribute their nearest existing ancestor's inode and its ancestry. Unresolvable denied paths fail with `denied-unreadable`. The input walk checks aliases of entries beneath denied roots. Bind sources passed to bubblewrap must exist and use their absolute real paths (`bind-missing`, `bind-unreadable`). The host must keep that path layout stable through launch.

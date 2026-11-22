@@ -146,7 +146,8 @@ def test_endpoint_exec_waits_for_identity_and_validates_session_ledger(tmp_path,
         row["actor"] = "session:" + "b" * 32
     elif invalid == "permit-mismatch":
         row["permit"] = COORDINATION.permit.to_json()
-    ledger.write_text(json.dumps(row) + "\n")
+    ledger.write_text(json.dumps(row, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n",
+                      encoding="utf-8")
     executable = root / "science"
     executable.write_text(f"#!{sys.executable}\n" + FAKE_ENDPOINT)
     executable.chmod(0o700)

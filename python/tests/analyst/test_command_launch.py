@@ -416,3 +416,20 @@ def test_a_failure_after_launch_still_kills_the_command_and_closes_report_fd(cmd
     finally:
         os.close(report_r)
         del actors[:]
+
+
+def test_command_types_a_denied_symlink_resolution_failure(cmd_world, monkeypatch):
+    denied = cmd_world["tmp"] / "loop"
+    denied.symlink_to(denied)
+    resolve = Path.resolve
+
+    def legacy_resolve(path, *args, **kwargs):
+        if path == denied:
+            raise RuntimeError("Symlink loop")
+        return resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", legacy_resolve)
+    request = dataclasses.replace(cmd_world["request"], denied=(denied,))
+    with pytest.raises(AnalystRefused) as caught:
+        refuse_command(request, cmd_world["env"])
+    assert caught.value.code == "denied-unreadable"

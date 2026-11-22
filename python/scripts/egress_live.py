@@ -52,10 +52,13 @@ def _main(argv: list[str]) -> int:
     if node is None and "NODE_DIR" not in os.environ:
         print("node is not on PATH; set NODE_DIR", file=sys.stderr)
         return 2
-    node_dir = Path(os.environ.get("NODE_DIR") or Path(node).resolve().parent.parent)
-    pi_dir = Path(os.environ.get("PI_DIR") or Path.home() / ".local/share/pi/1.1.0")
+    try:
+        node_dir = Path(os.environ.get("NODE_DIR") or Path(node).resolve().parent.parent).resolve()
+        pi_dir = Path(os.environ.get("PI_DIR") or Path.home() / ".local/share/pi/1.1.0").resolve()
+    except (OSError, RuntimeError) as caught:
+        raise SandboxUnproven("bind-unreadable", "toolchain", f"cannot resolve pi or node: {caught}") from caught
     where.cache.mkdir(parents=True, exist_ok=True)
-    root = Path(tempfile.mkdtemp(prefix="egress-live-", dir=where.cache))
+    root = Path(tempfile.mkdtemp(prefix="egress-live-", dir=where.cache.resolve()))
     run_dir, scratch = root / "run", root / "scratch"
     agent, home = scratch / "agent", scratch / "home"
     for path in (run_dir, agent, home, scratch / "sessions"):

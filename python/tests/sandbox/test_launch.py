@@ -307,9 +307,10 @@ def gate_fds(monkeypatch):
     seen: list[int] = []
     real = bwrap.build_argv
 
-    def spy(spec, argv, *, info_fd):
-        seen.append(int(argv[4]))  # ["/usr/bin/python3", "-I", "-c", _GATE, <fd>, *actor]
-        return real(spec, argv, info_fd=info_fd)
+    def spy(spec, argv, *, info_fd, gate_fd=None):
+        assert gate_fd is not None
+        seen.append(gate_fd)
+        return real(spec, argv, info_fd=info_fd, gate_fd=gate_fd)
 
     monkeypatch.setattr(bwrap, "build_argv", spy)
     return seen
@@ -693,16 +694,17 @@ def test_science_binding_failure_cannot_release_the_actor(tmp_path, stdio):
     assert not marker_path.exists()
 
 
-def test_actor_receives_exact_environment(tmp_path, stdio):
+@pytest.mark.parametrize("size", [1, 70 * 1024])
+def test_actor_receives_exact_environment(tmp_path, stdio, size):
     home = tmp_path / "home"
     home.mkdir()
     output = tmp_path / "environment"
     with output.open("wb") as stream:
-        with closing(launch(SandboxSpec(scratch=tmp_path, env={"HOME": str(home), "A": "1"}),
+        with closing(launch(SandboxSpec(scratch=tmp_path, env={"HOME": str(home), "A": "a" * size, "B": "b" * size}),
                             ["/usr/bin/env", "-0"], **{**stdio, "stdout": stream.fileno()})) as sandbox:
             assert sandbox.wait(timeout=10) == 0
     assert set(output.read_bytes().rstrip(b"\0").split(b"\0")) == {
-        b"PATH=/usr/bin", os.fsencode(f"HOME={home}"), b"A=1",
+        b"PATH=/usr/bin", os.fsencode(f"HOME={home}"), b"A=" + b"a" * size, b"B=" + b"b" * size,
     }
 
 
@@ -802,3 +804,26 @@ def test_second_pipe_failure_releases_the_first_pipe(tmp_path, stdio, monkeypatc
                 os.close(fd)
             except OSError:
                 pass
+
+
+def test_cleanup_failure_keeps_the_launch_callback_error(tmp_path, stdio, monkeypatch):
+    original_abort = bwrap._abort
+
+    class HookFailed(Exception):
+        pass
+
+    error = HookFailed("callback error")
+
+    def hook(*args):
+        raise error
+
+    def abort_with_failure(*args):
+        original_abort(*args)
+        raise SandboxUnproven("launch-failed", "bwrap", "cleanup failed")
+
+    monkeypatch.setattr(bwrap, "_abort", abort_with_failure)
+    with pytest.raises(HookFailed) as caught:
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"], before_release=hook, **stdio)
+    assert caught.value is error
+    assert isinstance(error.__cause__, SandboxUnproven)
+    assert "cleanup" in str(error.__cause__)

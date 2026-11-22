@@ -70,7 +70,7 @@ jobs:
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Namespace and TLS egress proof
-        run: just test-one tests/test_sandbox_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
+        run: just test-one tests/sandbox/test_probe.py tests/test_egress_helper.py tests/test_egress_upstream.py
       - name: Hygiene
         run: just ci-check-hygiene
       - name: Full suite

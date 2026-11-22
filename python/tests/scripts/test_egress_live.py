@@ -5,7 +5,7 @@ import pytest
 
 from autonomy.egress.session import EgressClosed
 
-SCRIPT = Path(__file__).parent.parent / "scripts" / "egress_live.py"
+SCRIPT = Path(__file__).parents[2] / "scripts" / "egress_live.py"
 spec = importlib.util.spec_from_file_location("egress_live", SCRIPT)
 live = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(live)
@@ -41,3 +41,32 @@ def test_an_answer_passes():
 def test_each_failure_is_reported(lines, records, exit_code, closed, reason):
     problems = live.verdict(lines, records, exit_code, closed)
     assert problems and any(reason in problem for problem in problems)
+
+
+def test_live_recipe_proves_canonical_toolchain_and_scratch(tmp_path, monkeypatch):
+    paths = {}
+    for key in ("NODE_DIR", "PI_DIR", "XDG_CACHE_HOME"):
+        real = tmp_path / f"{key}-real"
+        real.mkdir()
+        alias = tmp_path / key
+        alias.symlink_to(real)
+        paths[key] = real
+        monkeypatch.setenv(key, str(alias))
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr(live, "load_route", lambda *args: object())
+    monkeypatch.setattr(live, "egress_denied", lambda *args: (tmp_path / "private",))
+
+    class ProofReached(Exception):
+        pass
+
+    def prove(sandbox, denied):
+        assert sandbox.ro_binds == (paths["NODE_DIR"], paths["PI_DIR"])
+        assert sandbox.scratch.is_relative_to(paths["XDG_CACHE_HOME"])
+        assert sandbox.env["HOME"] == str(sandbox.scratch / "home")
+        assert sandbox.env["PATH"] == f'{paths["NODE_DIR"]}/bin:/usr/bin'
+        raise ProofReached
+
+    monkeypatch.setattr(live, "prove", prove)
+    with pytest.raises(ProofReached):
+        live.main(["fake"])

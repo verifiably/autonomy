@@ -41,9 +41,9 @@ The codebase is organized into the `verifiably-autonomy` package under `python/s
 | `autonomy.channel` | Non-blocking single-line status reporting channel | `python/tests/test_channel.py` |
 | `autonomy.baseline` | Append-only event journaling and lifecycle timestamps | `python/tests/test_baseline.py` |
 | `autonomy.evidence` | Run evidence structures and artifact summaries | `python/tests/test_closing.py` |
-| `autonomy.sandbox.spec` | Bubblewrap sandbox mount configurations and arguments | `python/tests/test_sandbox_static.py` |
-| `autonomy.sandbox.static` | Static bind source resolution and denied path overlap checks | `python/tests/test_sandbox_static.py` |
-| `autonomy.sandbox.bwrap` | Sandbox preflight checks, denial probing, and gated launch | `python/tests/test_sandbox_probe.py`, `python/tests/test_sandbox_launch.py` |
+| `autonomy.sandbox.spec` | Bubblewrap sandbox mount configurations and arguments | `python/tests/sandbox/test_static.py` |
+| `autonomy.sandbox.static` | Static bind source resolution and denied path overlap checks | `python/tests/sandbox/test_static.py` |
+| `autonomy.sandbox.bwrap` | Sandbox preflight checks, denial probing, and gated launch | `python/tests/sandbox/test_probe.py`, `python/tests/sandbox/test_launch.py` |
 | `autonomy.egress.route` | Route TOML loading, validation, and credential protection | `python/tests/test_egress_route.py` |
 | `autonomy.egress.dialect` | Strict parser and schema validator for Anthropic messages | `python/tests/test_egress_dialect.py` |
 | `autonomy.egress.request` | HTTP/1.1 head parser, header filtering, and allowance checks | `python/tests/test_egress_request.py` |
@@ -54,8 +54,8 @@ The codebase is organized into the `verifiably-autonomy` package under `python/s
 | `autonomy.analyst.toolchain` | Pinned `pi` installation and Node.js runtime validation | `python/tests/test_analyst_toolchain.py` |
 | `autonomy.analyst.walk` | Pre-launch recursive directory walk and input hashing | `python/tests/test_analyst_walk.py` |
 | `autonomy.analyst.release` | Symlink-safe descriptor-based output file extraction | `python/tests/test_analyst_release.py` |
-| `autonomy.analyst.launch` | Analyst and command execution orchestrators | `python/tests/test_analyst_check.py`, `python/tests/test_analyst_launch.py`, `python/tests/test_command_check.py`, `python/tests/test_command_launch.py` |
-| `python/scripts/egress_live.py` | Standalone script for manual live model proxy smoke checks | `python/tests/test_egress_live.py`, `python/tests/test_egress_fixtures_script.py` |
+| `autonomy.analyst.launch` | Analyst and command execution orchestrators | `python/tests/test_analyst_check.py`, `python/tests/test_analyst_launch.py`, `python/tests/test_command_check.py`, `python/tests/analyst/test_command_launch.py` |
+| `python/scripts/egress_live.py` | Standalone script for manual live model proxy smoke checks | `python/tests/scripts/test_egress_live.py`, `python/tests/test_egress_fixtures_script.py` |
 | Front door / harness | Justfile recipes, git hooks, and timing routing | `python/tests/test_front_door.py` |
 
 ## Workspace setup and test execution policy
@@ -105,12 +105,12 @@ Git hooks configured via `core.hooksPath .githooks` enforce hygiene and test pol
 
 Certain tests require specific host privileges or external binaries and are marked in pytest:
 
-- `bwrap`: Tests requiring `bubblewrap` and unprivileged user namespaces (`test_sandbox_probe.py`, `test_sandbox_launch.py`, `test_egress_helper.py`, `test_egress_session.py`, `test_analyst_walk.py`, `test_analyst_check.py`, `test_analyst_launch.py`, `test_command_check.py`, `test_command_launch.py`).
+- `bwrap`: Tests requiring `bubblewrap` and unprivileged user namespaces (`sandbox/test_probe.py`, `sandbox/test_launch.py`, `test_egress_helper.py`, `test_egress_session.py`, `test_analyst_walk.py`, `test_analyst_check.py`, `test_analyst_launch.py`, `test_command_check.py`, `analyst/test_command_launch.py`).
 - `pi`: Tests requiring the pinned `pi` 1.1.0 toolchain and Node.js prefix (`test_analyst_check.py`, `test_analyst_launch.py`). These tests resolve `PI_DIR` and `NODE_DIR` through `autonomy.analyst.toolchain` and skip gracefully if the binaries are absent or shadow host utilities.
 
 ### Offline development workspace verification
 
-`just test-one tests/development/test_workspace.py tests/test_analyst_walk.py tests/test_sandbox_probe.py`
+`just test-one tests/development/test_workspace.py tests/test_analyst_walk.py tests/sandbox/test_probe.py`
 exercises the independent Git seed and its confinement with disposable local
 repositories, including a non-tip base, unrelated history and SHA-1 and SHA-256
 object stores. Preparation helpers use the receiver limits for temporary storage
@@ -165,7 +165,7 @@ Hosted verification is defined in `.github/workflows/test.yml` and triggers on e
 1. **Environment Setup:** Provisions Python 3.12, `just`, `uv`, `bubblewrap`, and required shell interpreters.
 2. **Interpreter Verification:** Asserts that `/usr/bin/python3` provides `os.setns`, `os.pidfd_open`, and `signal.pidfd_send_signal`.
 3. **AppArmor Configuration:** Lifts Ubuntu's unprivileged user namespace restriction on the disposable runner VM via `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`.
-4. **Namespace and Egress Proof:** Runs focused tests (`tests/test_sandbox_probe.py`, `tests/test_egress_helper.py`, `tests/test_egress_upstream.py`) before running the broad suite.
+4. **Namespace and Egress Proof:** Runs focused tests (`tests/sandbox/test_probe.py`, `tests/test_egress_helper.py`, `tests/test_egress_upstream.py`) before running the broad suite.
 5. **Hygiene and Full Suite:** Executes `just ci-check-hygiene` followed by `just test-full` with `TT_FORCE=1`.
 
 The hosted workflow omits `pi`-marked tests (as the runner image does not vendor the pinned `pi` distribution), `tasks check` (which requires the private detached records repository), and the paid `just live-egress` recipe. Hosted job runs are grouped by workflow and reference with in-progress cancellation enabled.
