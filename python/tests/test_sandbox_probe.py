@@ -164,7 +164,7 @@ def test_the_probe_reports_both_addresses_unreachable(layout, monkeypatch):
         return result
 
     monkeypatch.setattr(subprocess, "run", spy)
-    probe(SandboxSpec(scratch=layout["scratch"]), [])
+    probe(SandboxSpec(scratch=layout["scratch"]), [layout["corpus"]])
     lines = seen["stdout"].splitlines()
     assert lines[-2] == "ENETUNREACH net:192.0.2.1"
     assert lines[-1].split()[0] in ("ENETUNREACH", "EAFNOSUPPORT")
@@ -191,7 +191,7 @@ def test_a_sandbox_sharing_the_host_network_fails_the_probe(layout, monkeypatch)
 
     monkeypatch.setattr(bwrap, "build_argv", shared)
     with pytest.raises(SandboxUnproven) as caught:
-        bwrap.probe(SandboxSpec(scratch=layout["scratch"]), [])
+        bwrap.probe(SandboxSpec(scratch=layout["scratch"]), [layout["corpus"]])
     assert caught.value.code == "probe-network"
     assert caught.value.path == "net:192.0.2.1"
 
@@ -201,6 +201,9 @@ def test_build_argv_includes_symlinks_chdir_and_outputs_link(tmp_path):
     work = tmp_path / "work"
     real_py = tmp_path / "real-py"
     link_py = tmp_path / "link-py"
+    scratch.mkdir()
+    work.mkdir()
+    real_py.touch()
     spec = SandboxSpec(
         scratch=scratch,
         ro_binds=(work, real_py),
@@ -218,3 +221,21 @@ def test_build_argv_includes_symlinks_chdir_and_outputs_link(tmp_path):
     ]
     assert ["--chdir", str(work)] in [argv[i : i + 2] for i in range(len(argv) - 1)]
 
+
+
+def test_probe_requires_at_least_one_denied_path(layout):
+    with pytest.raises(SandboxUnproven, match="denied path") as caught:
+        probe(SandboxSpec(scratch=layout["scratch"]), iter(()))
+    assert caught.value.code == "probe-failed"
+
+
+@pytest.mark.parametrize("kind", ["relative", "symlink"])
+def test_build_argv_refuses_noncanonical_scratch(layout, monkeypatch, kind):
+    monkeypatch.chdir(layout["tmp"])
+    path = Path("scratch")
+    if kind == "symlink":
+        path = layout["tmp"] / "scratch-link"
+        path.symlink_to(layout["scratch"])
+    with pytest.raises(SandboxUnproven) as caught:
+        build_argv(SandboxSpec(scratch=path), ["/usr/bin/true"], info_fd=None)
+    assert caught.value.code == "bind-unreadable"

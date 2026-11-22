@@ -241,3 +241,31 @@ def test_recreated_link_overlapping_denied_path_is_refused(tmp_path):
         check_binds(in_denied_spec, [denied])
     assert caught.value.code == "bind-overlaps-denied"
 
+
+
+def test_a_missing_denied_path_still_checks_its_ancestors(layout, monkeypatch):
+    from autonomy.sandbox import static
+
+    # Compare two bind roots with the same inode using synthetic identities.
+    alias = layout["tools"]
+    parent = layout["ops"]
+    identity = static._identity
+    monkeypatch.setattr(static, "_identity", lambda path: identity(parent if path == alias else path))
+    with pytest.raises(SandboxUnproven) as caught:
+        check_sources([alias], [parent / "future" / "store"])
+    assert caught.value.code == "bind-overlaps-denied"
+
+
+def test_a_denied_path_resolution_error_is_typed(layout, monkeypatch):
+    target = layout["ops"]
+    resolve = Path.resolve
+
+    def denied_loop(path, *args, **kwargs):
+        if path == target:
+            raise RuntimeError("Symlink loop")
+        return resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", denied_loop)
+    with pytest.raises(SandboxUnproven) as caught:
+        check_sources([layout["scratch"]], [target])
+    assert caught.value.code == "denied-unreadable"

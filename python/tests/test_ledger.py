@@ -129,3 +129,18 @@ def test_load_reads_a_file(tmp_path):
 def test_deeply_nested_json_is_malformed_not_raised():
     # json.loads raises RecursionError, not ValueError, past the interpreter's depth
     malformed(opening() + b"[" * 200_000 + b"\n")
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [b'{"done":[],"done":[]}', b'{"value":NaN}', b'{"value":1e999}', b'{ "done": [] }'],
+)
+def test_complete_ledger_lines_must_use_canonical_json(outcome):
+    row = b'{"invocation":"inv1","line":"invocation-close","outcome":' + outcome + b'}\n'
+    malformed(opening() + inv_open() + row)
+
+
+def test_canonical_utf8_uses_literal_non_ascii_characters():
+    raw = opening().replace(b"session:" + SID.encode(), "café".encode())
+    got = read_ledger(SID, raw)
+    assert isinstance(got, Ledger) and got.actor == "café"

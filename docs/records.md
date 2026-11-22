@@ -178,6 +178,7 @@ Autonomy integrates with verifiable session ledgers via permissions and tier dec
   - `COORDINATION`: `name="coordination"`, routes `ORDINARY_COORDINATION_KINDS = ("project", "question", "hypothesis", "topic", "theme", "task", "decision", "note")` to `"corpus-write"`.
   - `mints(routes)`: `name="mints"`, maps custom record kinds to reachable act families.
 - `ledger.v1` JSONL lines (`python/src/autonomy/ledger.py`):
+  - Each complete line must use canonical UTF-8 JSON with sorted keys, compact separators, literal Unicode and finite numbers. Duplicate keys or any other noncanonical encoding make the ledger unusable. An unterminated final line still marks the ledger incomplete.
   - `session-open`: `{"line": "session-open", "session": "<64-hex>", "actor": "session:<64-hex>", "permit": <Permit>, "world": {"store": "<64-hex>|none", "work": "<64-hex>|none"}, "at": "<timestamp>", "project": "<name>"}`
   - `invocation-open`: `{"line": "invocation-open", "invocation": "<32-hex>", "command": "<cmd>", "input_digest": "<64-hex>", "at": "<timestamp>"}`
   - `act`: `{"line": "act", "invocation": "<32-hex>", "intent": "<64-hex>", "entry": "<64-hex>", "corpus": "store"|"work", "records": ["<kind>"]}`

@@ -10,7 +10,7 @@ import pytest
 
 import autonomy.channel as channel
 from autonomy.channel import LineChannel
-from autonomy.stdio import StdioRefused
+from autonomy.stdio import StdioRefused, classify
 from channels import blocking, drain, fill, one_page_pipe
 
 
@@ -250,3 +250,32 @@ HANGS = {
 def test_a_blocking_write_hangs(name):
     with pytest.raises(subprocess.TimeoutExpired):
         subprocess.run([sys.executable, "-c", textwrap.dedent(HANGS[name])], timeout=2, stdin=subprocess.DEVNULL)
+
+
+@pytest.mark.parametrize("consumer", [LineChannel, classify])
+def test_failed_socket_wrapping_closes_its_duplicate(monkeypatch, consumer):
+    mine, theirs = socket.socketpair()
+    with mine, theirs:
+        duplicates = []
+
+        def cannot_wrap(*, fileno):
+            duplicates.append(fileno)
+            raise OSError(errno.EMFILE, "cannot wrap duplicated socket")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(socket, "socket", cannot_wrap)
+            if consumer is LineChannel:
+                assert consumer(mine.fileno()).dropped
+            else:
+                with pytest.raises(OSError, match="cannot wrap"):
+                    consumer(mine.fileno())
+        (duplicate,) = duplicates
+        try:
+            with pytest.raises(OSError):
+                os.fstat(duplicate)
+        finally:
+            try:
+                os.close(duplicate)
+            except OSError:
+                pass
+        os.fstat(mine.fileno())

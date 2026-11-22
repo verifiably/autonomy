@@ -89,9 +89,22 @@ def prove_development_host() -> None:
         raise SandboxUnproven("userns-unavailable", "bwrap", result.stderr.strip() or f"exit {result.returncode}")
 
 
+def _actor_environment(spec: SandboxSpec) -> dict[str, str]:
+    return {"PATH": "/usr/bin", **spec.env}
+
+
 def build_argv(
     spec: SandboxSpec, argv: Iterable[str], *, info_fd: int | None
 ) -> list[str]:
+    for source in spec.bind_sources():
+        try:
+            real = source.resolve(strict=True)
+        except FileNotFoundError as caught:
+            raise SandboxUnproven("bind-missing", str(source), f"a bind source must exist: {caught}") from caught
+        except (OSError, RuntimeError) as caught:
+            raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must resolve: {caught}") from caught
+        if source != real:
+            raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must be its absolute real path: {real}")
     args = ["bwrap", "--unshare-all"]
     if spec.disable_nested_userns:
         args.extend(_LOCK_USERNS)
@@ -113,8 +126,7 @@ def build_argv(
         args += ["--ro-bind", str(spec.token), str(IN_SANDBOX_TOKEN)]
     if spec.outputs_link:
         args += ["--symlink", str(spec.scratch / "outputs"), str(IN_SANDBOX_OUTPUTS)]
-    env = {"PATH": "/usr/bin", **spec.env}
-    for key, value in sorted(env.items()):
+    for key, value in sorted(_actor_environment(spec).items()):
         args += ["--setenv", key, value]
     args += ["--chdir", str(spec.chdir if spec.chdir is not None else spec.scratch)]
     if info_fd is not None:
@@ -126,7 +138,14 @@ def probe(spec: SandboxSpec, denied: Iterable[Path], *, timeout: float = 60) -> 
     """`ENOENT` on every denied path, and `ENETUNREACH` from a connect to a
     non-loopback IPv4 and IPv6 address. A kernel without IPv6 answers
     `EAFNOSUPPORT`, which is as unreachable."""
-    paths = [str(p.resolve()) for p in denied]
+    paths = []
+    for path in denied:
+        try:
+            paths.append(str(path.resolve()))
+        except (OSError, RuntimeError) as caught:
+            raise SandboxUnproven("denied-unreadable", str(path), f"cannot resolve denied path: {caught}") from caught
+    if not paths:
+        raise SandboxUnproven("probe-failed", "denied", "the probe needs at least one denied path")
     argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
     try:
         result = subprocess.run(argv, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL)
@@ -203,6 +222,8 @@ class Sandboxed:
 LAUNCH_TIMEOUT = 30.0
 """Seconds bwrap may take to report its child before the launch is abandoned."""
 
+_ABORT_TIMEOUT = 5.0
+
 
 def read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
     """Read bwrap's --info-fd JSON object; None when bwrap exits without one or does
@@ -231,7 +252,7 @@ RELEASE = b"run\n"
 """The one line that lets the gate exec the actor."""
 
 _GATE = r"""
-import os, signal, sys
+import json, os, signal, sys
 gate = int(sys.argv[1])
 line = b""
 while len(line) < 4 and not line.endswith(b"\n"):
@@ -244,10 +265,11 @@ if line != b"run\n":
     os._exit(125)
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 signal.signal(signal.SIGXFSZ, signal.SIG_DFL)
+argv = sys.argv[3:]
 try:
-    os.execvp(sys.argv[2], sys.argv[2:])
+    os.execvpe(argv[0], argv, json.loads(sys.argv[2]))
 except OSError as caught:
-    os.write(2, f"va-gate: {sys.argv[2]}: {caught.strerror}\n".encode("utf-8", "replace"))
+    os.write(2, f"va-gate: {argv[0]}: {caught.strerror}\n".encode("utf-8", "replace"))
     os._exit(127)
 """
 """The program bwrap runs in front of the actor, under `/usr/bin/python3 -I`.
@@ -270,7 +292,7 @@ def _pipe_above_stdio() -> tuple[int, int]:
         for fd in ends:
             moved.append(fcntl.fcntl(fd, fcntl.F_DUPFD_CLOEXEC, 3) if fd < 3 else fd)
     except BaseException:
-        for fd in (*ends, *moved):
+        for fd in set(ends).union(moved):
             try:
                 os.close(fd)
             except OSError:
@@ -292,18 +314,24 @@ def _require_open(**streams: int) -> None:
 
 def _abort(process: subprocess.Popen, pidfd: int) -> None:
     """Undo a launch whose gate was never released: kill the namespace through the
-    pidfd when one is held (never by pid), kill and reap bwrap, close the pidfd. The
-    gate's write end closes after this, and EOF makes the gate exit 125 without running
-    the actor even if something survived."""
-    if pidfd >= 0:
+    pidfd when one is held, then kill and reap bwrap within the cleanup timeout."""
+    try:
+        if pidfd >= 0:
+            try:
+                signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            finally:
+                os.close(pidfd)
+    except OSError as caught:
+        raise SandboxUnproven("launch-failed", "bwrap", f"namespace cleanup failed: {caught}") from caught
+    finally:
         try:
-            signal.pidfd_send_signal(pidfd, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        os.close(pidfd)
-    if process.poll() is None:
-        process.kill()
-    process.wait()
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=_ABORT_TIMEOUT)
+        except (OSError, subprocess.TimeoutExpired) as caught:
+            raise SandboxUnproven("launch-failed", "bwrap", f"process cleanup failed: {caught}") from caught
 
 
 def _check_network_namespace(child_pid: int, pidfd: int) -> None:
@@ -372,9 +400,20 @@ def launch(
             "held by a handle that survives pid reuse",
         )
     _require_open(stdin=stdin, stdout=stdout, stderr=stderr)
+    actor_argv = tuple(argv)
+    if not actor_argv or not actor_argv[0]:
+        raise SandboxUnproven("launch-failed", "actor", "the actor must have a nonempty executable argument")
+    # Python can coerce the locale at startup. Pass the configured environment
+    # explicitly at exec so the gate's startup environment stays in the gate.
+    actor_env = json.dumps(_actor_environment(spec))
     info_read, info_write = _pipe_above_stdio()
-    gate_read, gate_write = _pipe_above_stdio()
-    gated = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_read), *argv]
+    try:
+        gate_read, gate_write = _pipe_above_stdio()
+    except BaseException:
+        os.close(info_read)
+        os.close(info_write)
+        raise
+    gated = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_read), actor_env, *actor_argv]
     try:
         command = build_argv(spec, gated, info_fd=info_write)
         if actor_fsize_bytes is not None:
@@ -408,6 +447,10 @@ def launch(
             pidfd = os.pidfd_open(child)
         except OSError as caught:
             raise SandboxUnproven("launch-failed", "bwrap", f"no handle on child {child}: {caught.strerror}") from caught
+        if process.poll() is not None:
+            os.close(pidfd)
+            pidfd = -1
+            raise SandboxUnproven("launch-failed", "bwrap", "bwrap exited while acquiring the child handle")
         _check_network_namespace(child, pidfd)
         if before_release is not None:
             try:
@@ -417,16 +460,20 @@ def launch(
                 raise
         try:
             with release_guard(child, pidfd) if release_guard is not None else nullcontext():
-                os.write(gate_write, RELEASE)
+                try:
+                    os.write(gate_write, RELEASE)
+                except BrokenPipeError as caught:
+                    raise SandboxUnproven("launch-failed", "bwrap", "the actor gate closed before release") from caught
         except BaseException as caught:
             if release_guard is not None:
                 hook_error = caught
             raise
     except BaseException as caught:
+        os.close(gate_write)
         _abort(process, pidfd)
         if caught is hook_error or isinstance(caught, SandboxUnproven) or not isinstance(caught, Exception):
             raise
         raise SandboxUnproven("launch-failed", "bwrap", f"{type(caught).__name__}: {caught}") from caught
-    finally:
+    else:
         os.close(gate_write)
     return Sandboxed(process, child, pidfd)

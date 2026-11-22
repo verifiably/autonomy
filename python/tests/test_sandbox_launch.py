@@ -691,3 +691,114 @@ def test_science_binding_failure_cannot_release_the_actor(tmp_path, stdio):
                ["/usr/bin/touch", str(marker_path)], before_release=refuse_binding, **stdio)
     assert ready.is_set()
     assert not marker_path.exists()
+
+
+def test_actor_receives_exact_environment(tmp_path, stdio):
+    home = tmp_path / "home"
+    home.mkdir()
+    output = tmp_path / "environment"
+    with output.open("wb") as stream:
+        with closing(launch(SandboxSpec(scratch=tmp_path, env={"HOME": str(home), "A": "1"}),
+                            ["/usr/bin/env", "-0"], **{**stdio, "stdout": stream.fileno()})) as sandbox:
+            assert sandbox.wait(timeout=10) == 0
+    assert set(output.read_bytes().rstrip(b"\0").split(b"\0")) == {
+        b"PATH=/usr/bin", os.fsencode(f"HOME={home}"), b"A=1",
+    }
+
+
+def test_gate_passes_a_leading_dash_as_the_actor_name(tmp_path, stdio):
+    executable = tmp_path / "-actor"
+    executable.write_text("#!/usr/bin/sh\nexit 12\n")
+    executable.chmod(0o700)
+    env = {"PATH": str(tmp_path), "HOME": str(tmp_path)}
+    with closing(launch(SandboxSpec(scratch=tmp_path, env=env), ["-actor"], **stdio)) as sandbox:
+        assert sandbox.wait(timeout=10) == 12
+
+
+def test_launch_rejects_empty_actor_argv(tmp_path, stdio, monkeypatch):
+    def no_child(*args, **kwargs):
+        pytest.fail("invalid argv reached Popen")
+
+    monkeypatch.setattr(subprocess, "Popen", no_child)
+    with pytest.raises(SandboxUnproven) as caught:
+        launch(SandboxSpec(scratch=tmp_path), iter(()), **stdio)
+    assert caught.value.code == "launch-failed"
+
+
+def test_launch_discards_a_pidfd_when_bwrap_has_exited(tmp_path, stdio, monkeypatch):
+    started = recording_popen(monkeypatch)
+    handle = os.open(os.devnull, os.O_RDONLY)
+    signalled = []
+    checked = []
+
+    def acquire(pid):
+        started[0].kill()
+        started[0].wait(timeout=5)
+        return handle
+
+    def namespace_check(*args):
+        checked.append(args)
+        raise SandboxUnproven("probe-network", "test", "unexpected namespace check")
+
+    monkeypatch.setattr(os, "pidfd_open", acquire)
+    monkeypatch.setattr(bwrap, "_check_network_namespace", namespace_check)
+    monkeypatch.setattr(signal, "pidfd_send_signal", lambda *args: signalled.append(args))
+    with pytest.raises(SandboxUnproven) as caught:
+        launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"], **stdio)
+    assert caught.value.code == "launch-failed"
+    assert not signalled and not checked
+    with pytest.raises(OSError):
+        os.fstat(handle)
+
+
+@pytest.mark.parametrize("failure", ["signal", "timeout"])
+def test_abort_closes_pidfd_and_bounds_reaping(monkeypatch, failure):
+    handle = os.open(os.devnull, os.O_RDONLY)
+    killed = []
+
+    def send(*args):
+        if failure == "signal":
+            raise PermissionError("pidfd signal refused")
+
+    def wait(timeout=None):
+        assert timeout is not None
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired("bwrap", timeout)
+        return -signal.SIGKILL
+
+    process = SimpleNamespace(poll=lambda: None, kill=lambda: killed.append(True), wait=wait)
+    monkeypatch.setattr(signal, "pidfd_send_signal", send)
+    try:
+        with pytest.raises(SandboxUnproven, match="cleanup"):
+            bwrap._abort(process, handle)
+        assert killed == [True]
+        with pytest.raises(OSError):
+            os.fstat(handle)
+    finally:
+        if not killed:
+            os.close(handle)
+
+
+def test_second_pipe_failure_releases_the_first_pipe(tmp_path, stdio, monkeypatch):
+    create = bwrap._pipe_above_stdio
+    calls = 0
+
+    def one_pipe():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("pipe allocation failed")
+        return create()
+
+    monkeypatch.setattr(bwrap, "_pipe_above_stdio", one_pipe)
+    before = open_fds()
+    try:
+        with pytest.raises(OSError, match="allocation"):
+            launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/true"], **stdio)
+        assert open_fds() == before
+    finally:
+        for fd in open_fds() - before:
+            try:
+                os.close(fd)
+            except OSError:
+                pass

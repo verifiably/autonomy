@@ -42,4 +42,4 @@ extraPaths = ["tests"]
 [tool.uv]
 # The sandbox needs os.pidfd_open and signal.pidfd_send_signal (docs/envelope.md);
 # uv's managed CPython builds omit both, so the environment uses the system interpreter.
-python-preference = "system"
+python-preference = "only-system"

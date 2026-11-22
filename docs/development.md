@@ -11,7 +11,7 @@ This guide serves contributors and automated agents developing, maintaining, or 
 ### Host requirements
 
 - **Operating System:** Linux kernel 5.8 or later (requires kernel support for `os.setns` with `NS_GET_USERNS`, `os.pidfd_open`, and `signal.pidfd_send_signal`).
-- **Python:** Python 3.12 or later. The test runner uses the system interpreter at `/usr/bin/python3` to ensure kernel namespace and pidfd features are available without virtualenv isolation overhead.
+- **Python:** Install a system Python satisfying `python/pyproject.toml`. Local setup uses only system interpreters. The test workflow pins `/usr/bin/python3`, and the sandbox gate and probe use that path inside the container. The orchestrator's interpreter needs the Linux namespace and pidfd functions.
 - **Package and Workspace Managers:** `uv` (fast Python package manager) and `just` (command runner).
 - **Process Isolation:** `bubblewrap` (`bwrap`) installed and functional, with unprivileged user namespaces enabled (`kernel.apparmor_restrict_unprivileged_userns=0` on systems with Ubuntu AppArmor restrictions).
 - **Optional Toolchain for Analyst:** Pinned `pi` 1.1.0 installation (resolved via `--pi-dir`, `PI_DIR`, or `~/.local/share/pi/1.1.0`) and Node.js (resolved via `--node-dir`, `NODE_DIR`, or `PATH`). The Node prefix must not contain `rg` or `fd` binaries in its `bin/` directory, preventing them from shadowing host tools.

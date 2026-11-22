@@ -1,6 +1,7 @@
-"""The static bind check (docs/envelope.md): no bind source may be,
-contain, or lie inside a denied path, by real path or by (st_dev, st_ino) ancestry,
-so a symlinked or bind-mounted alias of a corpus is caught before anything runs."""
+"""Compare bind roots and their ancestors against denied paths (docs/envelope.md).
+
+The input walk covers aliases of individual entries under a denied root.
+"""
 
 from __future__ import annotations
 
@@ -52,17 +53,19 @@ def _ancestry(path: Path) -> set[tuple[int, int]]:
 
 
 def _target(path: Path) -> tuple[Path, tuple[int, int] | None, set[tuple[int, int]]]:
-    """A denied path for comparison. One that does not exist yet (an unconfigured
-    store root) still takes part by path; only the inode comparisons need it to
-    exist. One that exists but cannot be stat'ed is refused, never downgraded to a
-    path-only comparison that a bind-mount alias would pass."""
-    real = path.resolve(strict=False)
+    """Use the denied path and the ancestry of its nearest existing component."""
     try:
-        return real, _identity(real), _ancestry(real)
-    except (FileNotFoundError, NotADirectoryError):
-        return real, None, set()
-    except OSError as caught:
-        raise SandboxUnproven("denied-unreadable", str(path), f"a denied path must be stat-able: {caught}") from caught
+        real = path.resolve(strict=False)
+        for candidate in (real, *real.parents):
+            try:
+                inode = _identity(candidate)
+            except (FileNotFoundError, NotADirectoryError):
+                continue
+            ancestry = {inode, *(_identity(parent) for parent in candidate.parents)}
+            return real, inode if candidate == real else None, ancestry
+    except (OSError, RuntimeError) as caught:
+        raise SandboxUnproven("denied-unreadable", str(path), f"cannot resolve denied path ancestry: {caught}") from caught
+    raise SandboxUnproven("denied-unreadable", str(path), "no existing ancestor of the denied path")
 
 
 def check_sources(sources: Iterable[Path], denied: Iterable[Path], *, exempt: Iterable[Path] = ()) -> None:

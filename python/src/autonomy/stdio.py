@@ -60,9 +60,18 @@ def check_no_default_socket_timeout(fd: int) -> None:
         raise StdioRefused(fd, "a socket, and a process-wide default socket timeout is set")
 
 
-def _socket_kind(fd: int) -> StdioKind:
+def _duplicate_socket(fd: int) -> socket.socket:
     check_no_default_socket_timeout(fd)
-    probe = socket.socket(fileno=os.dup(fd))  # a private duplicate; its close leaves `fd` open
+    duplicate = os.dup(fd)
+    try:
+        return socket.socket(fileno=duplicate)
+    except BaseException:
+        os.close(duplicate)
+        raise
+
+
+def _socket_kind(fd: int) -> StdioKind:
+    probe = _duplicate_socket(fd)
     try:
         family = probe.getsockopt(socket.SOL_SOCKET, socket.SO_DOMAIN)
         kind = probe.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE)

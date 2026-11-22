@@ -31,7 +31,7 @@ import socket
 import stat
 from collections.abc import Callable
 
-from autonomy.stdio import check_no_default_socket_timeout
+from autonomy.stdio import _duplicate_socket
 
 POLL_WAIT = 1.0
 """Seconds a line may wait for its descriptor to poll writable."""
@@ -56,9 +56,8 @@ class LineChannel:
             self.dropped = True
             return
         if stat.S_ISSOCK(info.st_mode):
-            check_no_default_socket_timeout(fd)
             try:
-                self._socket = socket.socket(fileno=os.dup(fd))
+                self._socket = _duplicate_socket(fd)
             except OSError:
                 self.dropped = True  # no descriptor left (EMFILE): as a failed private open
         elif stat.S_ISCHR(info.st_mode) and info.st_rdev == _NULL_RDEV:
