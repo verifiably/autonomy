@@ -409,6 +409,8 @@ class Endpoint:
             os.close(fd)
 
     def close(self, *, grace: float | None = None) -> None:
+        if self.pidfd < 0:
+            return
         self.control.stream.close()
         try:
             _reap(self.process, self.pidfd, self.seal_timeout + _EXIT_GRACE if grace is None else grace)

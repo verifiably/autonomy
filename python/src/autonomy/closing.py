@@ -17,6 +17,12 @@ Disposition = Literal["clean", "unwired", "quarantined"]
 
 SEVERITY: Mapping[str, Literal["unwired", "quarantined"] | None] = MappingProxyType(
     {
+        "actor-mismatch": "unwired",
+        "baseline-raced": "unwired",
+        "endpoint-unavailable": "unwired",
+        "run-stopped-before-release": "unwired",
+        "sandbox-unproven": "unwired",
+        "seal-failed": "unwired",
         "baseline-pending": "unwired",
         "baseline-unavailable": "unwired",
         "ledger-unavailable": "unwired",

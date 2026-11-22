@@ -13,6 +13,7 @@ import select
 import signal
 import socket
 import subprocess
+import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +25,7 @@ from autonomy.egress.helper import make_listener
 from autonomy.egress.proxy import BOOT, IN_SANDBOX_CA, IN_SANDBOX_CREDENTIAL, receive_message, send_message
 from autonomy.egress.route import LoadedRoute, Route
 from autonomy.membership import Finding
+from autonomy.process import exited as pidfd_exited
 from autonomy.sandbox.bwrap import read_info
 from autonomy.sandbox.static import system_symlinks
 from autonomy.sandbox.static import SandboxUnproven, check_sources
@@ -225,18 +227,25 @@ class EgressSession:
         send_message(self._control, {"op": "renew"})
 
     def exited(self) -> bool:
-        return bool(select.select([self.pidfd], [], [], 0)[0])
+        return pidfd_exited(self.pidfd)
 
-    def close(self, timeout: float = CLOSE_TIMEOUT) -> EgressClosed:
-        """Close step 0: sent together with the seal, waiting on both."""
+    def send_close(self) -> None:
         if self.pidfd < 0:
             raise RuntimeError("this proxy session is already released")
         send_message(self._control, {"op": "close"})
-        exited = bool(select.select([self.pidfd], [], [], timeout)[0])
-        if not exited:
+
+    def wait_close(self, deadline: float) -> EgressClosed:
+        timed_out = not pidfd_exited(self.pidfd, deadline - time.monotonic())
+        if timed_out:
             self._kill_namespace()
         self._release()
-        return _settle(self.run_dir, timed_out=not exited)
+        return _settle(self.run_dir, timed_out=timed_out)
+
+    def close(self, timeout: float = CLOSE_TIMEOUT) -> EgressClosed:
+        """Send close and wait to the deadline measured at dispatch."""
+        deadline = time.monotonic() + timeout
+        self.send_close()
+        return self.wait_close(deadline)
 
     def kill(self) -> None:
         """For a start or hand-off that failed: no closing line is expected."""

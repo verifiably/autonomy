@@ -43,6 +43,11 @@ bounds. The 64-byte token is held in a separate mode-`0600` file. The launch
 process waits at an exec barrier until `endpoint-starting` durably records its
 PID, boot ID and start ticks. An accepted `session-open` event carries the
 endpoint's session ID, original ledger path and opening basis.
+The supervisor journals `proved` after the sandbox walk and probe, and
+`actor-releasing` with the actor's PID, boot ID and start ticks before release.
+`close-start` records the first trigger. `seal-request` records dispatch,
+and `sealed` carries a validated acknowledgement payload. A seal failure or
+timeout is recorded as `seal-failed` or `seal-timeout`.
 
 ## Disposition record
 

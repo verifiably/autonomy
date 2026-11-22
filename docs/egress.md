@@ -5,7 +5,9 @@ Type: protocol, data model; document types 1. Currently unversioned.
 This document defines the route configuration data model and the runtime proxy network protocol mediating all communication between confined actor workloads and upstream model providers. The proxy operates in coordination with the [actor sandbox and envelope protocol](envelope.md) (which denies raw network connectivity to the actor), while egress accounting and session receipts are stored in [run directory records](records.md). The proxy process enforces cryptographic, syntactic, and policy boundaries over outbound requests.
 
 The supervisor and proxy receive listener descriptors with `MSG_CMSG_CLOEXEC`
-so a concurrent exec cannot inherit a received descriptor.
+so a concurrent exec cannot inherit a received descriptor. The session's
+close request and bounded wait are separate operations so an endpoint seal can
+be dispatched while egress is settling. The timeout starts at close dispatch.
 
 ## Custody boundary
 

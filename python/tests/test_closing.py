@@ -9,6 +9,8 @@ from autonomy.tiers import REPORT_ONLY
 from builders import INCOMPLETE, LATER, LATER_SID, act, corpus, evidence, intent, ledger, reg, settle
 
 SPEC_ROWS = {
+    "actor-mismatch": "unwired", "baseline-raced": "unwired", "endpoint-unavailable": "unwired",
+    "run-stopped-before-release": "unwired", "sandbox-unproven": "unwired", "seal-failed": "unwired",
     "baseline-pending": "unwired",
     "baseline-unavailable": "unwired", "ledger-unavailable": "unwired", "read-unavailable": "unwired",
     "ledger-malformed": "unwired", "seal-missing": "unwired", "chain-discontinuous": "quarantined",
