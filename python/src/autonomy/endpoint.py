@@ -357,7 +357,8 @@ class Endpoint:
             raise EndpointError("endpoint startup requires an operator invocation")
         deadline = time.monotonic() + timeout
         runtime = launch.dirs.socket_dir.resolve()
-        socket_path, control_path, token = (runtime / name for name in ("endpoint.sock", "ctl.sock", "token"))
+        socket_path, token = runtime / "endpoint.sock", runtime / "token"
+        control_path = runtime.with_suffix(".ctl")
         if any(len(os.fsencode(path)) > _SOCKET_MAX for path in (socket_path, control_path)):
             raise EndpointError("endpoint Unix socket path exceeds the host limit")
         listener: socket.socket | None = None

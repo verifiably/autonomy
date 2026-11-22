@@ -56,11 +56,40 @@ The envelope defines distinct lifecycles across three commands:
 
 #### Science mode
 
-1. **Refusal:** Validates `lease >= LEASE_FLOOR (10.0)` (`lease-below-floor`), stdio fds, report fd, tier configuration (`TierRefused`), and unique route kinds (`route-repeated`).
-2. **Resolution:** Checks `XDG_RUNTIME_DIR` is an absolute path (`runtime-dir-unset`), resolves `HOME` (`home-unknown`), and loads route TOML/credentials (`RouteRefused`). Failure exits 2 (`EXIT_REFUSED`).
-3. **Allocation:** Atomically creates `<state>/runs/<run-id>/`, `<cache>/scratch/<run-id>/`, and `$XDG_RUNTIME_DIR/va/<run-id[:12]>/` (mode `0700`; `allocation-failed`), and writes opening report line.
-4. **Execution:** Currently invokes `endpoint_side_unbuilt`, recording finding `baseline-unavailable`.
-5. **Verdict:** Derives disposition `"unwired"`, atomically hard-links `<run_dir>/disposition.json`, writes closing report line, and exits 4 (`EXIT_CODES["unwired"]`).
+`autonomy run --tier TIER [--deadline SECONDS] [--toolchain PATH] -- ACTOR …`
+supervises one science actor. It uses the operator's `SCIENCE_CONFIG` and the
+resolved `science` executable. The monotonic run deadline defaults to 3600
+seconds. Repeat `--toolchain` to admit the actor's required read-only runtime
+paths. Operator tier, stdio, runtime and route refusals exit 2 before an
+opening report. An inherited science handle permits local allocation and
+closes unwired before reading the science config or opening a writer.
+
+The supervisor serializes overlapping starts through allocation and baseline
+capture. It refuses an unfinished writer on a matching chain and fails closed
+if an unfinished writer's roots cannot be read. Resolving heads requires
+successful admission. The actor stays behind the gate until the endpoint
+ledger agrees with the tier and actor, written heads match the baseline, the
+sandbox passes the same bind and network proof used for launch, and the
+endpoint acknowledges the actor's PID namespace. A routed run also requires a
+listener acknowledgement from the proxy.
+
+The supervisor renews the endpoint and route leases. Actor, endpoint or proxy
+exit, an elapsed deadline, or a stop signal starts closing. The supervisor
+sends the route close and endpoint seal independently, waits for the seal,
+then terminates and reaps the actor namespace. The final check accounts for the
+written intervals and publishes `disposition.json`. The exit is 0 for clean,
+3 for quarantined or 4 for unwired. The report fd carries the opening and
+closing lines when available. [Run directory records](records.md)
+
+`autonomy run stop ID` sends SIGTERM through the verified supervisor pidfd.
+`autonomy run close ID` recovers a lost science supervisor from protected
+state alone. It confirms the endpoint's death before reading any chain. An
+acknowledged seal bounds the interval. A seal file alone also needs the
+matching ledger's session-close and the absence of evidence of a seal
+failure. Otherwise recovery uses detached closing tips. Recovery verifies
+the original chain identities after a config edit. An unavailable original
+interval closes unwired once writer death is established. An already
+terminal close prints the same stored disposition and returns its exit.
 
 #### Development mode
 

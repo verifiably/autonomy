@@ -19,12 +19,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import autonomy.analyst.launch as analyst
-from autonomy import development
+from autonomy import development, science_run
 from autonomy.analyst.toolchain import AnalystRefused
 from autonomy.channel import LineChannel
 from autonomy.run import (
-    EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, DevelopmentProgress, Diag, Progress, RunRefused, RunRequest,
-    endpoint_side_unbuilt, execute,
+    DEADLINE_DEFAULT, EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, DevelopmentProgress, Diag,
+    Progress, RunRefused, RunRequest,
 )
 from autonomy.tiers import TierRefused, tier
 
@@ -46,8 +46,12 @@ class _Diagnostics:
 
     def __init__(self) -> None:
         self._channel: LineChannel | None = None
+        self._private_log = False
 
     def __call__(self, message: str) -> None:
+        if self._private_log:
+            os.write(2, (_PREFIX + message + "\n").encode("utf-8", "replace"))
+            return
         if self._channel is None:
             self._channel = LineChannel(2)
         for line in message.splitlines():
@@ -57,6 +61,7 @@ class _Diagnostics:
     def close(self) -> None:
         if self._channel is not None:
             self._channel.close()
+            self._channel = None
 
 
 class _Stop(Exception):
@@ -115,7 +120,7 @@ def _parser(diag: Diag) -> _Parser:
         "run",
         help="run one actor under the envelope",
         description="Run one actor under the envelope. Exit 0 clean, 3 quarantined, 4 unwired, 2 refused.",
-        epilog="For offline development use autonomy run --development --help. Use run stop ID or run close ID for development runs.",
+        epilog="For offline development use autonomy run --development --help. Use run stop ID to stop a run or run close ID to recover its verdict.",
     )
     run.add_argument("--tier", required=True, help="report-only, coordination or mints; publishes is refused")
     run.add_argument(
@@ -133,6 +138,14 @@ def _parser(diag: Diag) -> _Parser:
     run.add_argument(
         "--model-route", metavar="NAME",
         help="the model route under <config>/routes/NAME.toml: the actor's only network path",
+    )
+    run.add_argument(
+        "--deadline", type=_seconds, default=DEADLINE_DEFAULT, metavar="SECONDS",
+        help=f"monotonic run deadline (default {DEADLINE_DEFAULT:g})",
+    )
+    run.add_argument(
+        "--toolchain", action="append", default=[], type=Path, metavar="PATH",
+        help="an actor runtime path bound read-only after verification; repeat for each path",
     )
     run.add_argument("actor", nargs="+", metavar="ACTOR", help="the actor's argv, after --")
     analyst_parser = commands.add_parser(
@@ -173,7 +186,7 @@ def _parser(diag: Diag) -> _Parser:
     return parser
 
 
-def _run(args: argparse.Namespace, diag: Diag, progress: Progress) -> int:
+def _run(args: argparse.Namespace, diag: _Diagnostics, progress: Progress) -> int:
     try:
         routes = dict(args.route)
         if len(routes) != len(args.route):
@@ -182,8 +195,10 @@ def _run(args: argparse.Namespace, diag: Diag, progress: Progress) -> int:
             chosen = tier(args.tier, routes or None)
         except TierRefused as caught:
             raise RunRefused(caught.code, str(caught).removeprefix(f"{caught.code}: ")) from None
-        request = RunRequest(chosen, args.lease, args.report_fd, tuple(args.actor), args.model_route)
-        return execute(request, os.environ, endpoint_side_unbuilt, diag=diag, progress=progress)
+        request = RunRequest(chosen, args.lease, args.report_fd, tuple(args.actor), args.model_route,
+                             args.deadline, tuple(args.toolchain))
+        return science_run.execute(request, os.environ, diag=diag, progress=progress,
+                                   actor_launched=lambda run_dir: _release_supervisor_stdio(diag, run_dir))
     except RunRefused as caught:
         diag(f"refused: {caught.code}: {caught.message}")
         return EXIT_REFUSED
@@ -210,12 +225,21 @@ def _development_options(options: Sequence[str]) -> list[str]:
     return normalized
 
 
-def _release_supervisor_stdio(diag: _Diagnostics) -> None:
+def _release_supervisor_stdio(diag: _Diagnostics, run_dir: Path | None = None) -> None:
     diag.close()
     null = os.open(os.devnull, os.O_RDWR | os.O_CLOEXEC)
     try:
-        for fd in (0, 1, 2):
-            os.dup2(null, fd)
+        os.dup2(null, 0)
+        os.dup2(null, 1)
+        if run_dir is None:
+            os.dup2(null, 2)
+        else:
+            log = os.open(run_dir / "orchestrator.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_CLOEXEC, 0o600)
+            try:
+                os.dup2(log, 2)
+                diag._private_log = True
+            finally:
+                os.close(log)
     finally:
         os.close(null)
 
@@ -252,14 +276,13 @@ def _development_run(
                                actor_launched=lambda: _release_supervisor_stdio(diag))
 
 
-def _development_control(action: str, options: Sequence[str], diag: Diag) -> int:
+def _run_control(action: str, options: Sequence[str], diag: Diag) -> int:
     parser = _Parser(prog=f"autonomy run {action}", diag=diag)
     parser.add_argument("run_id", nargs="?", metavar="RUN_ID")
     args = parser.parse_args(options)
     if args.run_id is None:
-        raise RunRefused("development-run-invalid", "supply the recorded development run ID")
-    command = development.stop if action == "stop" else development.close
-    return command(args.run_id, os.environ, diag=diag)
+        raise RunRefused("run-invalid", "supply the recorded run ID")
+    return science_run.control(action, args.run_id, os.environ, diag=diag, emit=sys.stdout.write)
 
 
 def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -> int:
@@ -336,8 +359,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if before[:1] == ["run"]:
             if len(before) > 1 and before[1] in ("stop", "close"):
                 if before != raw_argv:
-                    raise RunRefused("development-run-invalid", "control commands take only the recorded run ID")
-                return _development_control(before[1], before[2:], diag)
+                    raise RunRefused("run-invalid", "control commands take only the recorded run ID")
+                return _run_control(before[1], before[2:], diag)
             if "--development" in before[1:]:
                 progress = DevelopmentProgress()
                 return _development_run(before[1:], actor, diag, progress)

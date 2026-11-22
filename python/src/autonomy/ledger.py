@@ -42,6 +42,8 @@ class Ledger:
     open_invocations: tuple[str, ...]
     closed: bool
     torn_tail: bool
+    world: str | None = None
+    opened_at: str | None = None
 
     @property
     def incomplete(self) -> bool:
@@ -162,4 +164,6 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
         open_invocations=tuple(i for i in opened if i not in closed_invocations),
         closed=session_closed,
         torn_tail=torn_tail,
+        world=head["world"] if isinstance(head["world"], str) else None,
+        opened_at=head["at"] if isinstance(head["at"], str) else None,
     )

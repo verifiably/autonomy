@@ -376,10 +376,10 @@ def test_an_unusable_runtime_dir_exits_2_and_keeps_nothing(tmp_path, pipes, held
 
 
 RAISING_STEPS = """
-import autonomy.cli as cli
-def steps(opened):
+from autonomy.science_run._admission import Admission
+def steps(self, opened):
     raise {kind}("steps failed\\nafter allocation")
-cli.endpoint_side_unbuilt = steps
+Admission.capture = steps
 """
 
 REPORT_FD_CLOSED = """

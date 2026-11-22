@@ -188,17 +188,15 @@ def _entry(row: dict) -> Entry:
                     _bare_path(location)
                 return Intent(digest, _text(row["actor"]), "holdings", act, location, store_id)
             _fields(row, "type digest actor kind")
-            if row["kind"] is None and row["actor"] is None:
-                return Intent(digest, None, None, None, None)
-            return Intent(digest, _text(row["actor"]), _text(row["kind"]), None, None)
+            actor = None if row["actor"] is None else _text(row["actor"])
+            kind = None if row["kind"] is None else _text(row["kind"])
+            return Intent(digest, actor, kind, None, None)
         case "registration":
             _fields(row, "type digest txid fulfills consumer_tag initial final")
             fulfills = None if row["fulfills"] is None else _matches(row["fulfills"], _DIGEST)
             tag = None if row["consumer_tag"] is None else _text(row["consumer_tag"])
             initial, final = _surface_paths(row["initial"]), _surface_paths(row["final"])
-            if initial != final:
-                raise ReadUnavailable("registration surfaces describe different paths")
-            return Registration(digest, _matches(row["txid"], _TXID), fulfills, tag, frozenset(initial))
+            return Registration(digest, _matches(row["txid"], _TXID), fulfills, tag, frozenset((*initial, *final)))
         case "settlement":
             _fields(row, "type digest txid registration committed")
             if type(row["committed"]) is not bool:

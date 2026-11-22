@@ -74,12 +74,27 @@ def read_config(path: Path) -> Config:
     world_id = values["world_id"]
     if not isinstance(world_id, str) or not re.fullmatch(r"[0-9a-f]{32}", world_id):
         raise ValueError("invalid configured science world ID")
+    def contract_files(key: str) -> tuple[Path, ...]:
+        entries = values.get(key, [])
+        if not isinstance(entries, list):
+            raise ValueError(f"{key} must be a contract list")
+        files = []
+        for entry in entries:
+            if isinstance(entry, str):
+                files.append(resolve(entry))
+            elif isinstance(entry, dict) and isinstance(entry.get("predecessors"), list):
+                files.extend(resolve(item) for item in (entry["document"], *entry["predecessors"]))
+            else:
+                raise ValueError(f"invalid {key} entry")
+        return tuple(files)
+
     operations = resolve(values["operations_root"])
     store = resolve(values["store_root"])
     stores = (store, *paths("read_store_roots", optional=True))
     extra = tuple(resolve(values[key]) for key in ("sharing_root", "service_socket") if key in values)
+    bindings = (*contract_files("contracts"), *contract_files("read_contracts"))
     return Config(path, hashlib.sha256(data).hexdigest(), world, world_id, write_root, corpora, store, stores,
-                  operations, (path, world, operations, *corpora, *stores, *extra))
+                  operations, (path, world, operations, *corpora, *stores, *extra, *bindings))
 
 
 def operator(env: Mapping[str, str]) -> tuple[Config | None, ScienceReader | None, str | None]:

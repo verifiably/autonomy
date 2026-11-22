@@ -10,7 +10,7 @@ import autonomy.channel as channel
 from autonomy.baseline import append_event
 from autonomy.membership import Finding
 from autonomy.run import (
-    Progress, RunRefused, RunRequest, allocate, endpoint_side_unbuilt, execute, places, write_disposition,
+    Progress, RunRefused, RunRequest, allocate, execute, places, write_disposition,
 )
 from autonomy.tiers import REPORT_ONLY
 from channels import drain, fill, one_page_pipe, read_all
@@ -57,11 +57,15 @@ def events(run_dir: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
 
+def _unavailable(_opened):
+    return (Finding("baseline-unavailable", "science", "fixture evidence unavailable"),)
+
+
 def test_a_run_closes_with_its_disposition_and_both_report_lines(tmp_path, env, actor):
     read_end, write_end = os.pipe()
     said: list[str] = []
     try:
-        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=said.append, actor_fds=actor, progress=Progress())
+        code = execute(request(write_end), env, _unavailable, diag=said.append, actor_fds=actor, progress=Progress())
         lines = read_all(read_end).decode().splitlines()  # EOF: execute closed the report fd
     finally:
         os.close(read_end)
@@ -87,14 +91,14 @@ def test_the_closing_line_follows_a_durable_disposition(tmp_path, env, actor, mo
     )
     read_end, write_end = os.pipe()
     try:
-        execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
+        execute(request(write_end), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=Progress())
     finally:
         os.close(read_end)
     assert seen == [[], ["disposition.json"]]
 
 
 def test_without_a_report_fd_only_the_exit_code_tells(tmp_path, env, actor):
-    assert execute(request(), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress()) == 4
+    assert execute(request(), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=Progress()) == 4
     assert len(runs(tmp_path)) == 1
 
 
@@ -102,7 +106,7 @@ def test_a_full_report_pipe_never_holds_the_run(tmp_path, env, actor):
     read_end, write_end = one_page_pipe()
     fill(write_end)  # never read
     try:
-        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
+        code = execute(request(write_end), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=Progress())
     finally:
         os.close(read_end)
     assert code == 4
@@ -113,7 +117,7 @@ def test_a_full_report_pipe_never_holds_the_run(tmp_path, env, actor):
 
 def test_a_lease_below_the_floor_is_refused_before_anything_exists(tmp_path, env, actor):
     with pytest.raises(RunRefused) as caught:
-        execute(request(lease=5.0), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
+        execute(request(lease=5.0), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=Progress())
     assert caught.value.code == "lease-below-floor"
     assert not (tmp_path / "state" / "verifiably-autonomy").exists()
 
@@ -123,7 +127,7 @@ def test_refused_stdio_allocates_nothing_and_writes_nothing_on_the_report_fd(tmp
     read_end, write_end = os.pipe()
     try:
         with pytest.raises(RunRefused) as caught:
-            execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None,
+            execute(request(write_end), env, _unavailable, diag=lambda _: None,
                     actor_fds=(actor[0], actor[1], regular), progress=Progress())
         assert drain(read_end) == b""
     finally:
@@ -138,7 +142,7 @@ def test_a_report_fd_on_the_actors_channel_is_refused(tmp_path, env, actor):
     duplicate = os.dup(write_end)
     try:
         with pytest.raises(RunRefused) as caught:
-            execute(request(duplicate), env, endpoint_side_unbuilt, diag=lambda _: None,
+            execute(request(duplicate), env, _unavailable, diag=lambda _: None,
                     actor_fds=(actor[0], write_end, actor[2]), progress=Progress())
     finally:
         for fd in (read_end, write_end, duplicate):
@@ -149,7 +153,7 @@ def test_a_report_fd_on_the_actors_channel_is_refused(tmp_path, env, actor):
 def test_an_unset_runtime_dir_is_refused(tmp_path, env, actor):  # Review Focus 5
     del env["XDG_RUNTIME_DIR"]
     with pytest.raises(RunRefused) as caught:
-        execute(request(), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
+        execute(request(), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=Progress())
     assert caught.value.code == "runtime-dir-unset"
     assert runs(tmp_path) == []
 
@@ -234,7 +238,7 @@ def test_a_failed_allocation_writes_nothing_on_the_report_fd_and_closes_it(tmp_p
     read_end, write_end = os.pipe()
     try:
         with pytest.raises(RunRefused) as caught:
-            execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=progress)
+            execute(request(write_end), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=progress)
         assert read_all(read_end) == b""  # EOF, and no line
     finally:
         os.close(read_end)
@@ -339,7 +343,7 @@ def test_a_report_line_too_long_for_one_write_is_unwritten_and_the_run_closes(tm
     env["XDG_CACHE_HOME"] = str(long_dir(tmp_path, "cache-long"))
     read_end, write_end = os.pipe()
     try:
-        code = execute(request(write_end), env, endpoint_side_unbuilt, diag=lambda _: None, actor_fds=actor, progress=Progress())
+        code = execute(request(write_end), env, _unavailable, diag=lambda _: None, actor_fds=actor, progress=Progress())
         assert read_all(read_end) == b""  # dropped whole, nothing after it, and the fd closed
     finally:
         os.close(read_end)
@@ -383,7 +387,7 @@ def test_a_model_route_reaches_the_steps(tmp_path, env, actor):
     def steps(opened):
         seen["route"] = opened.route
         seen["config"] = opened.places.config
-        return endpoint_side_unbuilt(opened)
+        return _unavailable(opened)
 
     code = execute(request_with_route("anthropic"), env, steps, diag=lambda _: None, progress=Progress(), actor_fds=actor)
     assert code == 4
@@ -397,7 +401,7 @@ def test_without_a_route_the_steps_get_none(tmp_path, env, actor):
 
     def steps(opened):
         seen["route"] = opened.route
-        return endpoint_side_unbuilt(opened)
+        return _unavailable(opened)
 
     execute(request(), env, steps, diag=lambda _: None, progress=Progress(), actor_fds=actor)
     assert seen == {"route": None}
@@ -419,7 +423,7 @@ def test_a_route_refusal_keeps_nothing_and_writes_no_report_line(tmp_path, env, 
         with pytest.raises(RunRefused) as caught:
             execute(
                 RunRequest(REPORT_ONLY, 60.0, write_end, ("/usr/bin/true",), model_route="anthropic"),
-                env, endpoint_side_unbuilt, diag=lambda _: None, progress=Progress(), actor_fds=actor,
+                env, _unavailable, diag=lambda _: None, progress=Progress(), actor_fds=actor,
             )
         assert caught.value.code == case
         assert runs(tmp_path) == []

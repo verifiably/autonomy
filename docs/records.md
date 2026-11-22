@@ -72,6 +72,9 @@ The terminal verdict is written to `<run_dir>/disposition.json` by `run.write_di
 ```
 
 The disposition must be one of `"clean"`, `"unwired"`, or `"quarantined"`.
+A science disposition groups verified member digests by written chain ID.
+Its `closing_heads` holds the world tip and maps for written and mount tips
+where available, or null when the original interval cannot be read.
 Publication invariant: To ensure atomic publication without concurrent corruption or partial reads, the record is written to temporary path `<run_dir>/.disposition.json.<16-hex>.tmp` with mode `0600`, fsynced, hard-linked to `<run_dir>/disposition.json` via `os.link` (which fails if the target already exists), unlinked from the temporary path, and the directory is fsynced.
 
 ## Events log

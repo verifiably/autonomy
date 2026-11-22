@@ -1,7 +1,4 @@
-"""The run supervisor (docs/envelope.md, docs/records.md): steps 1 and 2, and the close's records
-(`disposition.json`, the report fd's two lines, the exit code). Steps 3 to 9 are a
-`Steps` callable; until science's run endpoint exists, `endpoint_side_unbuilt` closes
-every run `unwired` before any chain is read or the actor starts."""
+"""Allocate runs and publish their reports and terminal dispositions."""
 
 from __future__ import annotations
 
@@ -92,6 +89,10 @@ def _xdg(env: Mapping[str, str], name: str, *default: str) -> Path:
     return _absolute(env.get(name, "")) or _home(env).joinpath(*default)
 
 
+def state_root(env: Mapping[str, str]) -> Path:
+    return _xdg(env, "XDG_STATE_HOME", ".local", "state") / "verifiably-autonomy"
+
+
 def places(env: Mapping[str, str]) -> Places:
     runtime = _absolute(env.get("XDG_RUNTIME_DIR", ""))
     if runtime is None:
@@ -99,7 +100,7 @@ def places(env: Mapping[str, str]) -> Places:
             "runtime-dir-unset", "XDG_RUNTIME_DIR must name an absolute directory: the endpoint's socket lives there"
         )
     return Places(
-        state=_xdg(env, "XDG_STATE_HOME", ".local", "state") / "verifiably-autonomy",
+        state=state_root(env),
         cache=_xdg(env, "XDG_CACHE_HOME", ".cache") / "verifiably-autonomy",
         runtime=runtime,
         config=_xdg(env, "XDG_CONFIG_HOME", ".config") / "verifiably-autonomy",
@@ -215,25 +216,22 @@ def _open_local(where: Places, route: LoadedRoute | None) -> Iterator[RunDirs]:
     yield allocate(where)
 
 
-Steps = Callable[[Opened], Sequence[Finding]]
+@dataclass(frozen=True)
+class RunResult:
+    findings: tuple[Finding, ...]
+    members: Mapping[str, Sequence[str]]
+    closing_heads: Mapping[str, object] | None
+
+
+Steps = Callable[[Opened], Sequence[Finding] | RunResult]
 """Steps 3 to 9 and the close's seal and check: everything between the report fd's
 first line and `disposition.json`. Returns the run's findings."""
 
 
-def endpoint_side_unbuilt(opened: Opened) -> tuple[Finding, ...]:
-    """This build has no science reads and no endpoint, so step 3 cannot capture a
-    baseline. The run closes `unwired` before any chain is read or the actor starts."""
-    return (
-        Finding(
-            "baseline-unavailable",
-            "science",
-            "this build has no science reads or run endpoint yet; the baseline cannot be captured "
-            "and the actor never starts",
-        ),
-    )
-
-
-def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding]) -> None:
+def write_disposition(
+    run_dir: Path, run_id: str, disposition: Disposition, findings: Sequence[Finding], *,
+    members: Mapping[str, Sequence[str]] | None = None, closing_heads: Mapping[str, object] | None = None,
+) -> None:
     """Published once and atomically, before the closing line. The record is written
     and fsynced under a temporary name in the run directory, then hard-linked to its
     final name: `link` refuses a name that exists, so a disposition is never replaced.
@@ -248,8 +246,8 @@ def write_disposition(run_dir: Path, run_id: str, disposition: Disposition, find
         "disposition": disposition,
         "findings": [{"code": f.code, "ref": f.ref, "message": f.message} for f in findings],
         "closed_at": utc_now(),
-        "members": {},
-        "closing_heads": None,
+        "members": dict(members) if members is not None else {},
+        "closing_heads": dict(closing_heads) if closing_heads is not None else None,
     }
     publish_bytes(run_dir / DISPOSITION, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"))
 
@@ -302,10 +300,15 @@ def execute(
                 _line({"run": dirs.run_id, "run_dir": str(dirs.run_dir), "scratch": str(dirs.scratch)})
             ):
                 append_event(dirs.run_dir, "report-unwritten", line="run")
-            findings = tuple(steps(Opened(request, dirs, stdio, where, route)))
+            result = steps(Opened(request, dirs, stdio, where, route))
+            findings = result.findings if isinstance(result, RunResult) else tuple(result)
             disposition = disposition_of(findings)
             code = EXIT_CODES[disposition]
-            write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
+            if isinstance(result, RunResult):
+                write_disposition(dirs.run_dir, dirs.run_id, disposition, findings,
+                                  members=result.members, closing_heads=result.closing_heads)
+            else:
+                write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
             if report is not None and not report.write_line(
                 _line({"run": dirs.run_id, "disposition": disposition, "exit": code})
             ):
