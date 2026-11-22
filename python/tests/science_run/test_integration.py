@@ -555,26 +555,42 @@ endpoint.load_ledger = wrong_actor
         assert _line(report)["disposition"] == "unwired"
 
 
-def test_preclaim_corpus_movement_refuses_gate_release(world):
+@pytest.mark.parametrize("detached_available", [True, False])
+def test_preclaim_corpus_movement_refuses_gate_release(world, detached_available):
     prelude = f"""
 from autonomy.endpoint import Endpoint
+from autonomy.science_reads import ReadUnavailable, ScienceReader
 import subprocess
 start = Endpoint.start.__func__
+heads = ScienceReader.heads
+def fail_once(self, **kwargs):
+    ScienceReader.heads = heads
+    assert kwargs["resolve"] is False
+    raise ReadUnavailable("fixture detached read failed")
 def write_before_claim(cls, launch, env, *, timeout):
     result = subprocess.run([{str(world.science.with_name("python"))!r}, "-c",
                              {_ATTENDED_WRITE!r}, {world.env["SCIENCE_CONFIG"]!r}],
                             env={world.env!r}, stdin=subprocess.DEVNULL, capture_output=True, timeout=15)
     assert result.returncode == 0, result.stderr.decode()
-    return start(cls, launch, env, timeout=timeout)
+    endpoint = start(cls, launch, env, timeout=timeout)
+    if not {detached_available!r}:
+        ScienceReader.heads = fail_once
+    return endpoint
 Endpoint.start = classmethod(write_before_claim)
 """
     with _run(world, ["/usr/bin/echo", "actor marker"], prelude=prelude) as (child, report):
         opened = _line(report)
         out, _ = child.communicate(timeout=50)
         directory = Path(opened["run_dir"])
-        assert child.returncode == 4, _disposition(directory)
+        assert child.returncode == (4 if detached_available else 3), _disposition(directory)
         assert out == b""
-        assert "baseline-raced" in {f["code"] for f in _disposition(directory)["findings"]}
+        findings = {f["code"] for f in _disposition(directory)["findings"]}
+        if detached_available:
+            assert "baseline-raced" in findings and "entry-foreign" not in findings
+            (race,) = [row for row in _events(directory) if row["event"] == "baseline-raced"]
+            assert len(race["tips"]) == 1
+        else:
+            assert {"read-unavailable", "entry-foreign"} <= findings and "baseline-raced" not in findings
         assert "actor-releasing" not in {row["event"] for row in _events(directory)}
 
 
@@ -867,3 +883,97 @@ def test_process_group_signal_seals_before_the_actor_is_reaped(world):
         assert next(row for row in rows if row["event"] == "close-start")["cause"] == "sighup"
         names = [row["event"] for row in rows]
         assert names.index("sealed") < names.index("actor-exit")
+
+
+def test_real_endpoint_lease_expiry_during_probe_keeps_actor_held(world):
+    prelude = """
+import time
+from autonomy.science_run import _supervisor
+
+prove = _supervisor._prove
+
+def wait_past_lease(opened, opening, endpoint, stop):
+    spec = prove(opened, opening, endpoint, stop)
+    seal = opened.dirs.run_dir / "seal.json"
+    until = time.monotonic() + 15
+    while time.monotonic() < until and not seal.exists():
+        time.sleep(0.025)
+    assert seal.exists(), "endpoint did not seal while the probe held the gate"
+    return spec
+
+_supervisor._prove = wait_past_lease
+_supervisor.Heartbeat._run = lambda self: None
+"""
+    with _run(world, ["/usr/bin/echo", "actor marker"], options=("--lease", "10"), prelude=prelude) as (child, report):
+        opened = _line(report)
+        out, err = child.communicate(timeout=38)
+        directory = Path(opened["run_dir"])
+        assert child.returncode == 4, err.decode()
+        assert out == b""
+        assert json.loads((directory / "seal.json").read_bytes())["cause"] == "lease"
+        assert "actor-releasing" not in {row["event"] for row in _events(directory)}
+        assert "endpoint-unavailable" in {row["code"] for row in _disposition(directory)["findings"]}
+        assert _line(report)["disposition"] == "unwired"
+
+
+_FAIL_SEAL_SYNC = r"""
+import os, sys
+from pathlib import Path
+from science.cli import main
+from science.run_endpoint import service
+
+if sys.argv[1:3] == ["serve", "--run"]:
+    persist = service.persist_seal
+
+    def fail_seal_directory_sync(run_dir, document):
+        fsync = os.fsync
+
+        def injected(fd):
+            if (run_dir / "seal.json").is_file() and os.path.samestat(os.fstat(fd), run_dir.stat()):
+                raise OSError("fixture: directory sync failed after publishing the seal")
+            return fsync(fd)
+
+        os.fsync = injected
+        try:
+            return persist(run_dir, document)
+        finally:
+            os.fsync = fsync
+
+    service.persist_seal = fail_seal_directory_sync
+raise SystemExit(main())
+"""
+
+
+def test_visible_seal_with_failed_directory_sync_keeps_later_foreign_evidence(world, tmp_path):
+    from autonomy.process import ProcessIdentity, exited
+
+    bin_dir = tmp_path / "seal-bin"
+    bin_dir.mkdir()
+    shim = bin_dir / "science"
+    shim.write_text(f"#!{world.science.with_name('python')}\n" + _FAIL_SEAL_SYNC)
+    shim.chmod(0o700)
+    world.env["PATH"] = f"{bin_dir}:{world.env['PATH']}"
+    with _run(world, _IDLE) as (child, report):
+        opened = _line(report)
+        directory = Path(opened["run_dir"])
+        _actor_ready(child)
+        identity = next(row for row in _events(directory) if row["event"] == "endpoint-starting")
+        endpoint = ProcessIdentity(identity["pid"], identity["start_time"], identity["boot_id"]).pin()
+        assert endpoint is not None
+        try:
+            child.kill()
+            child.wait(timeout=5)
+            assert exited(endpoint, 10), "endpoint did not finish its failed seal"
+        finally:
+            os.close(endpoint)
+    seal = json.loads((directory / "seal.json").read_bytes())
+    assert b'"error":"OSError"' in (directory / "endpoint.log").read_bytes()
+    assert "sealed" not in {row["event"] for row in _events(directory)}
+
+    _attended_write(world)
+    recovered = world.control("close", opened["run"])
+    assert recovered.returncode == 3, (recovered.stdout, recovered.stderr)
+    receipt = json.loads(recovered.stdout)
+    corpus = next(row for row in seal["sealed_tips"] if row["role"] == "corpus")
+    assert receipt["closing_heads"]["written"][corpus["id"]] != corpus["tip"]
+    assert {row["code"] for row in receipt["findings"]} >= {"session-unclosed", "seal-missing", "entry-foreign"}

@@ -16,18 +16,17 @@ import signal
 import socket
 import struct
 import subprocess
-import sys
 import threading
 import time
 
-from autonomy.baseline import append_event, decode_object, publish_json, write_all
+from autonomy.baseline import append_event, decode_object, publish_json
 from autonomy.ledger import LedgerUnusable, load_ledger
-from autonomy.process import ProcessIdentity, exited, send_signal
+from autonomy.process import ProcessSurvived, exited, send_signal, spawn_recorded
 from autonomy.run import RunDirs
 from autonomy.science_reads import ChainHead, has_handle
 from autonomy.tiers import Permit
 
-__all__ = ["Control", "Endpoint", "EndpointError", "EndpointSurvived", "Launch", "SessionOpen", "check_seal"]
+__all__ = ["Control", "Endpoint", "EndpointError", "Launch", "SessionOpen", "check_seal"]
 
 _VERSION = "control.v1"
 _LIMIT = 16384
@@ -37,25 +36,12 @@ _SID = re.compile(r"[0-9a-f]{32}")
 _TERMINAL = {"sealed", "seal-timeout", "seal-failed"}
 _ACK_TIMEOUT = 5.0
 _EXIT_GRACE = 5.0
-_BARRIER = """
-import os, sys
-fd, executable, launch = int(sys.argv[1]), sys.argv[2], sys.argv[3]
-release = os.read(fd, 1)
-os.close(fd)
-if release != b'x':
-    sys.exit(4)
-os.execv(executable, [executable, 'serve', '--run', launch])
-"""
 
 
 class EndpointError(Exception):
     def __init__(self, message: str, *, code: str = "endpoint-unavailable") -> None:
         super().__init__(message)
         self.code = code
-
-
-class EndpointSurvived(RuntimeError):
-    """The writer's death could not be established."""
 
 
 @dataclass(frozen=True)
@@ -271,40 +257,15 @@ def _receive_peer(listener: socket.socket, pidfd: int, pid: int, deadline: float
 
 
 def _spawn(launch: Launch, env: Mapping[str, str], source: Path) -> tuple[subprocess.Popen, int]:
-    read_end, write_end = os.pipe2(os.O_CLOEXEC)
-    process = None
-    pidfd = None
-    try:
-        fd = os.open(launch.dirs.run_dir / "endpoint.log",
-                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
-        with os.fdopen(fd, "wb") as log:
-            process = subprocess.Popen(
-                [sys.executable, "-I", "-c", _BARRIER, str(read_end), str(launch.executable), str(source)],
-                pass_fds=(read_end,), env={key: value for key, value in env.items() if key != "SCIENCE_CONFIG"},
-                stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True,
-            )
-        pidfd = os.pidfd_open(process.pid)
-        identity = ProcessIdentity.capture(process.pid)
-        append_event(launch.dirs.run_dir, "endpoint-starting", **identity.fields())
-        write_all(write_end, b"x")
-        return process, pidfd
-    except BaseException:
-        if process is not None:
-            try:
-                if pidfd is not None:
-                    send_signal(pidfd, signal.SIGKILL)
-                else:
-                    process.kill()   # This is our unreaped child, still behind the exec barrier.
-                process.wait(timeout=_EXIT_GRACE)
-            except subprocess.TimeoutExpired as error:
-                raise EndpointSurvived("endpoint exec barrier child did not exit") from error
-            finally:
-                if pidfd is not None:
-                    os.close(pidfd)
-        raise
-    finally:
-        os.close(read_end)
-        os.close(write_end)
+    fd = os.open(launch.dirs.run_dir / "endpoint.log",
+                 os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+    with os.fdopen(fd, "wb") as log:
+        return spawn_recorded(
+            [str(launch.executable), "serve", "--run", str(source)],
+            env={key: value for key, value in env.items() if key != "SCIENCE_CONFIG"},
+            record=lambda identity: append_event(launch.dirs.run_dir, "endpoint-starting", **identity.fields()),
+            stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+        )
 
 
 def _opening(control: Control, launch: Launch, deadline: float) -> SessionOpen:
@@ -336,7 +297,7 @@ def _reap(process: subprocess.Popen, pidfd: int, grace: float) -> None:
             send_signal(pidfd, signal.SIGKILL)
             process.wait(timeout=_EXIT_GRACE)
     except subprocess.TimeoutExpired as error:
-        raise EndpointSurvived("science endpoint has not confirmed exit") from error
+        raise ProcessSurvived("science endpoint has not confirmed exit") from error
     finally:
         os.close(pidfd)
 

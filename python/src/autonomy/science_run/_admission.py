@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
-from contextlib import contextmanager
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 import fcntl
 import os
@@ -11,20 +11,19 @@ from pathlib import Path
 import re
 import stat
 
-from autonomy.baseline import append_event, decode_object, fsync_dir, publish_json, read_private_bytes, read_record, utc_now
+from autonomy.baseline import ADMISSION_LOCK, append_event, fsync_dir, is_publication_alias, lock, publish_json, read_events, read_record, utc_now
 from autonomy.development import valid_run as valid_development_run
 from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import LoadedRoute
 from autonomy.membership import Finding
-from autonomy.process import ProcessIdentity
-from autonomy.run import EXIT_CODES, Opened, Places, Progress, RunDirs, RunRefused, RunRequest, allocate, ensure_run_parents
+from autonomy.process import ProcessIdentity, ProcessSurvived
+from autonomy.run import Opened, Places, Progress, RunDirs, RunRefused, RunRequest, allocate, ensure_run_parents, read_disposition
 from autonomy.science_reads import ChainHead, Heads, ReadUnavailable, ScienceReader
 from autonomy.science_run._config import Config, operator
 
 _RUN_ID = re.compile(r"[0-9a-f]{32}")
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _RECORD_ERRORS = (OSError, ValueError, KeyError, TypeError, RecursionError)
-ADMISSION_LOCK = "admission.lock"
 SUPERVISOR_LOCK = "supervisor.lock"
 SEAL_TIMEOUT = 30.0
 START_TIMEOUT = 30.0
@@ -40,21 +39,6 @@ class Opening:
     toolchain: tuple[Path, ...]
 
 
-@contextmanager
-def lock(path: Path, *, create: bool = False, nowait: bool = False) -> Iterator[int]:
-    flags = os.O_RDWR | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK
-    fd = os.open(path, flags | (os.O_CREAT if create else 0), 0o600)
-    try:
-        info = os.fstat(fd)
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
-                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_nlink != 1):
-            raise ValueError(f"invalid run lock {path.name}")
-        fcntl.flock(fd, fcntl.LOCK_EX | (fcntl.LOCK_NB if nowait else 0))
-        yield fd
-    finally:
-        os.close(fd)
-
-
 def _retired(run_dir: Path, env: Mapping[str, str]) -> bool:
     try:
         record = read_record(run_dir / "run.json")
@@ -62,41 +46,31 @@ def _retired(run_dir: Path, env: Mapping[str, str]) -> bool:
         record = None
     if record is not None and record.get("mode") == "development":
         return valid_development_run(run_dir, env)
-    try:
-        record = read_record(run_dir / "disposition.json")
-    except FileNotFoundError:
+    return read_disposition(run_dir) is not None
+
+
+def _no_possible_writer(run_dir: Path, *, resolvers_reaped: bool = False) -> bool:
+    events, torn = read_events(run_dir)
+    names = {path.name for path in run_dir.iterdir()}
+    staged = {"run.json", "baseline.json", "launch.json", "disposition.json"}
+    permitted = (staged - {"disposition.json"}) | {"events.jsonl", SUPERVISOR_LOCK, "endpoint.log"}
+    if any(name not in permitted and not any(is_publication_alias(name, final) for final in staged) for name in names):
         return False
-    return (
-        type(record.get("version")) is int and record["version"] == 1
-        and record.get("run") == run_dir.name and record.get("disposition") in EXIT_CODES
-        and "mode" not in record and isinstance(record.get("findings"), list)
-        and isinstance(record.get("members"), dict) and isinstance(record.get("closed_at"), str)
-    )
-
-
-def _journal(run_dir: Path) -> tuple[dict[str, object], ...]:
-    try:
-        raw = read_private_bytes(run_dir / "events.jsonl")
-    except FileNotFoundError:
-        return ()
-    if not raw.endswith(b"\n"):
-        raise ValueError("incomplete event journal")
-    return tuple(decode_object(line) for line in raw[:-1].split(b"\n"))
-
-
-def _no_possible_writer(run_dir: Path) -> bool:
-    events = _journal(run_dir)
-    permitted = {"run.json", "events.jsonl", SUPERVISOR_LOCK, "baseline.json"}
-    if any(path.name not in permitted and not path.name.startswith(".disposition.json.") for path in run_dir.iterdir()):
-        return False
-    # No release of an endpoint process is possible before its identity is durable.
+    # Each resolver and endpoint records its identity before it can write.
     allowed = {"allocated", "report-unwritten"}
-    if any(row.get("event") not in allowed for row in events):
+    if resolvers_reaped:
+        allowed.add("baseline-resolving")
+    if (torn and not events) or any(row.get("event") not in allowed for row in events):
+        return False
+    after_allocation = {"baseline.json", "launch.json", "endpoint.log"}
+    has_staging = any(name in after_allocation or any(is_publication_alias(name, final) for final in after_allocation)
+                      for name in names)
+    if not events and has_staging:
         return False
     try:
         metadata = read_record(run_dir / "run.json")
     except FileNotFoundError:
-        return all(row.get("event") == "report-unwritten" for row in events)
+        return not has_staging and not torn and all(row.get("event") == "report-unwritten" for row in events)
     return (
         type(metadata.get("version")) is int and metadata["version"] == 1
         and metadata.get("run") == run_dir.name and metadata.get("mode") == "science"
@@ -126,8 +100,8 @@ def _roots(run_dir: Path) -> tuple[tuple[str, str, Path], ...]:
 
 
 def _overlapping(where: Places, config: Config, reader: ScienceReader | None,
-                 request: RunRequest, env: Mapping[str, str]) -> None:
-    candidate = config.written(request)
+                 env: Mapping[str, str], *, until: float | None = None) -> None:
+    footprint = {config.world_root, *config.corpora, *config.stores}
     known: list[tuple[Path, tuple[tuple[str, str, Path], ...]]] = []
 
     def refuse(run_dir: Path) -> None:
@@ -149,19 +123,20 @@ def _overlapping(where: Places, config: Config, reader: ScienceReader | None,
                 raise
         except _RECORD_ERRORS:
             refuse(run_dir)
-        if set(candidate.values()) & {root for _, _, root in roots}:
+        if footprint & {root for _, _, root in roots}:
             refuse(run_dir)
         known.append((run_dir, roots))
     if not known or reader is None:
         return
     # Detached inspection cannot resolve work from an unfinished interval.
     config.verify()
-    heads = reader.heads(resolve=False)
+    heads = reader.heads(resolve=False, until=until)
     config.verify()
-    chains = _written(heads, candidate)
-    identities = {(chain.role, chain.chain_id) for chain in chains}
+    identities = {(chain.role, chain.chain_id) for chain in heads.chains}
+    inspected_roots = {chain.root for chain in heads.chains}
     for run_dir, roots in known:
-        if identities & {(role, chain_id) for role, chain_id, _ in roots}:
+        if (identities & {(role, chain_id) for role, chain_id, _ in roots}
+                or inspected_roots & {root for _, _, root in roots}):
             refuse(run_dir)
 
 
@@ -181,8 +156,11 @@ def _chains(chains: tuple[ChainHead, ...]) -> dict[str, object]:
 class Admission:
     """Hold the lifetime lock through publication and the admission lock through baseline capture."""
 
-    def __init__(self, request: RunRequest, env: Mapping[str, str]) -> None:
+    def __init__(self, request: RunRequest, env: Mapping[str, str], *, until: float | None = None,
+                 cancelled: Callable[[], bool] | None = None) -> None:
         self.request = request
+        self.until = until
+        self.cancelled = cancelled
         self.env = env
         self._fd: int | None = None
 
@@ -190,12 +168,14 @@ class Admission:
     def open(self, where: Places, _route: LoadedRoute | None, progress: Progress | None = None) -> Iterator[RunDirs]:
         self.config, self.reader, self.unavailable = operator(self.env)
         ensure_run_parents(where)
-        with lock(where.state / ADMISSION_LOCK, create=True) as admission_fd:
+        with self._opening_lock(where) as admission_fd:
             if self.config is not None:
                 try:
-                    _overlapping(where, self.config, self.reader, self.request, self.env)
+                    _overlapping(where, self.config, self.reader, self.env, until=self.until)
                 except ReadUnavailable as error:
                     self.unavailable = str(error)
+            if self.cancelled is not None and self.cancelled():
+                raise RunRefused("admission-interrupted", "opening was stopped before allocation")
             dirs = allocate(where, progress=progress)
             for directory in (where.state, where.cache, dirs.run_dir.parent, dirs.scratch.parent, dirs.socket_dir.parent):
                 fsync_dir(directory)
@@ -217,6 +197,16 @@ class Admission:
                 finally:
                     self._fd = None
 
+    @contextmanager
+    def _opening_lock(self, where: Places) -> Iterator[int]:
+        with ExitStack() as stack:
+            try:
+                fd = stack.enter_context(lock(where.state / ADMISSION_LOCK, create=True, until=self.until,
+                                              cancelled=self.cancelled))
+            except TimeoutError as error:
+                raise RunRefused("admission-interrupted", str(error)) from error
+            yield fd
+
     def capture(self, opened: Opened) -> Opening | Finding:
         if self._fd is None:
             raise RuntimeError("baseline capture requires an admitted run")
@@ -230,9 +220,12 @@ class Admission:
         config, reader = self.config, self.reader
         if self.unavailable is not None or config is None or reader is None:
             return Finding("baseline-unavailable", "science", self.unavailable or "science evidence is unavailable")
+        def record(identity: ProcessIdentity) -> None:
+            append_event(opened.dirs.run_dir, "baseline-resolving", **identity.fields())
+
         try:
             config.verify()
-            heads = reader.heads(resolve=True)
+            heads = reader.heads(resolve=True, record=record, until=self.until)
             config.verify()
             written = _written(heads, config.written(opened.request))
             declared = {("corpus", path) for path in config.corpora} | {("store", path) for path in config.stores}
@@ -241,6 +234,8 @@ class Admission:
             if len({head.chain_id for head in heads.chains}) != len(heads.chains):
                 raise ReadUnavailable("chain identities cannot share a baseline key")
             toolchain = tuple(path.absolute().resolve() for path in opened.request.toolchain)
+        except ProcessSurvived:
+            raise
         except (ReadUnavailable, OSError, RuntimeError) as error:
             return Finding("baseline-unavailable", "science", str(error))
         if heads.world_pending or any(head.pending for head in heads.chains):

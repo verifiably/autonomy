@@ -5,18 +5,20 @@ from __future__ import annotations
 import json
 import os
 import pwd
+import re
 import secrets
 import signal
 import stat
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
 
-from autonomy.baseline import append_event, publish_bytes, utc_now
+from autonomy.baseline import append_event, decode_object, fsync_dir, publish_bytes, read_private_bytes, utc_now
 from autonomy.channel import LineChannel
-from autonomy.closing import Disposition, disposition_of
+from autonomy.closing import SEVERITY, Disposition, disposition_of
 from autonomy.egress.errors import RouteRefused
 from autonomy.egress.route import LoadedRoute, load_route
 from autonomy.membership import Finding
@@ -265,6 +267,55 @@ def write_disposition(
         "closing_heads": dict(closing_heads) if closing_heads is not None else None,
     }
     publish_bytes(run_dir / DISPOSITION, (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+
+
+def read_disposition(run_dir: Path) -> tuple[bytes, int] | None:
+    """Read and validate a published science receipt before relying on it."""
+    def check_digest(value: object, length: int) -> None:
+        if not isinstance(value, str) or re.fullmatch(f"[0-9a-f]{{{length}}}", value) is None:
+            raise ValueError("invalid science receipt identity")
+
+    try:
+        raw = read_private_bytes(run_dir / DISPOSITION)
+    except FileNotFoundError:
+        return None
+    doc = decode_object(raw)
+    if (set(doc) != {"version", "run", "disposition", "findings", "closed_at", "members", "closing_heads"}
+            or type(doc["version"]) is not int or doc["version"] != 1 or doc["run"] != run_dir.name
+            or not isinstance(doc["members"], dict) or not isinstance(doc["findings"], list)):
+        raise ValueError("invalid stored science disposition")
+    stamp = doc["closed_at"]
+    if not isinstance(stamp, str) or datetime.fromisoformat(stamp.replace("Z", "+00:00")).tzinfo is None:
+        raise ValueError("invalid stored science disposition timestamp")
+    for chain_id, entries in doc["members"].items():
+        check_digest(chain_id, 32)
+        if not isinstance(entries, list) or len(set(entries)) != len(entries):
+            raise ValueError("invalid terminal chain members")
+        for digest in entries:
+            check_digest(digest, 64)
+    heads = doc["closing_heads"]
+    if heads is not None:
+        if not isinstance(heads, dict) or set(heads) != {"world", "written", "mounts"}:
+            raise ValueError("invalid terminal closing heads")
+        if heads["world"] is not None:
+            check_digest(heads["world"], 64)
+        for entries in (heads["written"], heads["mounts"]):
+            if not isinstance(entries, dict):
+                raise ValueError("invalid terminal chain heads")
+            for chain_id, tip in entries.items():
+                check_digest(chain_id, 32)
+                check_digest(tip, 64)
+    findings = []
+    for row in doc["findings"]:
+        if (not isinstance(row, dict) or set(row) != {"code", "ref", "message"}
+                or not all(isinstance(item, str) for item in row.values()) or row["code"] not in SEVERITY):
+            raise ValueError("invalid stored finding")
+        findings.append(Finding(row["code"], row["ref"], row["message"]))
+    if doc["disposition"] != disposition_of(findings):
+        raise ValueError("stored disposition disagrees with its findings")
+    fsync_dir(run_dir)
+    return raw, EXIT_CODES[doc["disposition"]]
+
 
 
 def _route(name: str | None, where: Places) -> LoadedRoute | None:

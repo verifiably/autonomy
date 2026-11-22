@@ -64,10 +64,13 @@ paths. Operator tier, stdio, runtime and route refusals exit 2 before an
 opening report. An inherited science handle permits local allocation and
 closes unwired before reading the science config or opening a writer.
 
-The supervisor serializes overlapping starts through allocation and baseline
-capture. It refuses an unfinished writer on a matching chain and fails closed
-if an unfinished writer's roots cannot be read. Resolving heads requires
-successful admission. The actor stays behind the gate until the endpoint
+The supervisor serializes allocation and baseline capture. Admission checks
+the whole resolving footprint, including the configured read mounts, for
+unfinished writers. A detached heads read can identify a matching chain at
+a different root. If an unfinished writer's footprint is unknown, admission
+refuses to resolve. A resolving process waits for its identity to be journaled
+before it can write. Admission waits respect the opening deadline and stop
+signals. The actor stays behind the gate until the endpoint
 ledger agrees with the tier and actor, written heads match the baseline, the
 sandbox passes the same bind and network proof used for launch, and the
 endpoint acknowledges the actor's PID namespace. A routed run also requires a
@@ -84,14 +87,21 @@ line. The run journal records each drop and the durable receipt determines
 the exit. [Run directory records](records.md)
 
 `autonomy run stop ID` sends SIGTERM through the verified supervisor pidfd.
+Initialized runs can be stopped while another run holds the admission lock.
+Science and development share that lock during mode publication.
+
 `autonomy run close ID` recovers a lost science supervisor from protected
-state alone. It confirms the endpoint's death before reading any chain. An
-acknowledged seal bounds the interval. A seal file alone also needs the
-matching ledger's session-close and the absence of evidence of a seal
-failure. Otherwise recovery uses detached closing tips. Recovery verifies
-the original chain identities after a config edit. An unavailable original
-interval closes unwired once writer death is established. An already
-terminal close prints the same stored disposition and returns its exit.
+state alone. It confirms that any recorded resolver, endpoint and actor
+have exited before reading the written chains. An acknowledged seal bounds
+the interval. A seal file alone also needs the matching ledger's session-close
+and a complete journal without a seal failure. Otherwise recovery uses
+detached closing tips. Recovery verifies the original chain identities after
+a config edit. An unavailable interval contributes an unwired finding and
+readable chains still contribute their evidence. If the corpus interval is
+unavailable, store records that could belong to a ledgered corpus intent
+remain unverified. Independent foreign evidence still quarantines the run.
+An already terminal close reuses the validated receipt and returns its
+durable exit even if the output consumer closes.
 
 #### Development mode
 

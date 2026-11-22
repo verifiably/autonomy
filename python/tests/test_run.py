@@ -656,3 +656,103 @@ def test_signal_between_mkdir_and_rollback_registration_keeps_no_run(env, monkey
         allocate(where)
     assert not any((where.state / "runs").iterdir())
     assert not any((where.cache / "scratch").iterdir())
+
+
+def test_admission_refuses_resolving_an_orphan_read_mount(tmp_path, env):
+    first_env, _ = _science_world(tmp_path / "first", env)
+    next_env, calls = _science_world(tmp_path / "second", env, chain_id="e" * 32, write_root="corpus")
+    where = places(env)
+    first = _opening(first_env)
+    with first.open(where, None) as dirs:
+        first.capture(_opened(first, dirs, where))
+    config = Path(next_env["SCIENCE_CONFIG"])
+    config.write_text(config.read_text().replace('["corpus"]', json.dumps(["corpus", str(tmp_path / "first" / "corpus")])))
+    with pytest.raises(RunRefused, match=dirs.run_id):
+        with _opening(next_env).open(where, None):
+            pytest.fail("a resolving read could reach an unfinished mount")
+    assert not calls.exists()
+
+
+def test_admission_deadline_and_initialized_stop_work_while_opening_is_frozen(tmp_path, env, monkeypatch):
+    import subprocess
+    import sys
+
+    from autonomy.process import ProcessIdentity
+    from autonomy.science_run._admission import ADMISSION_LOCK, lock
+
+    configured, _ = _science_world(tmp_path / "world", env)
+    where = places(configured)
+    with subprocess.Popen([sys.executable, "-c", "import time; time.sleep(15)"], env=configured,
+                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as owner:
+        try:
+            identity = ProcessIdentity.capture(owner.pid)
+            monkeypatch.setattr(ProcessIdentity, "capture", classmethod(lambda cls, pid: identity))
+            first = _opening(configured)
+            with first.open(where, None) as dirs:
+                first.capture(_opened(first, dirs, where))
+                with lock(where.state / ADMISSION_LOCK):
+                    started = subprocess.run([sys.executable, "-m", "autonomy", "run", "--tier", "report-only",
+                                              "--deadline", "0.25", "--", "/usr/bin/true"],
+                                             env=configured, stdin=subprocess.DEVNULL, capture_output=True, timeout=3)
+                    assert started.returncode == 2 and b"admission-interrupted" in started.stderr
+                    stopped = subprocess.run([sys.executable, "-m", "autonomy", "run", "stop", dirs.run_id],
+                                             env=configured, stdin=subprocess.DEVNULL, capture_output=True, timeout=3)
+                    assert stopped.returncode == 0, stopped.stderr.decode()
+                    assert owner.wait(timeout=2) < 0
+        finally:
+            if owner.poll() is None:
+                owner.kill()
+                owner.wait(timeout=3)
+
+
+def test_orphan_close_reaps_a_resolving_process_before_retiring_the_record(tmp_path, env):
+    import subprocess
+    import sys
+    import time
+
+    from autonomy.process import ProcessIdentity, exited
+
+    configured, _ = _science_world(tmp_path / "world", env)
+    executable = Path(configured["PATH"]) / "science"
+    ready = tmp_path / "resolving"
+    source = executable.read_text()
+    first, rest = source.split("\n", 1)
+    executable.write_text(first + "\n" + f"""import os, time, sys
+from pathlib import Path
+if "--resolve" in sys.argv:
+    Path({str(ready)!r}).write_text(str(os.getpid()))
+    time.sleep(25)
+""" + rest)
+    command = [sys.executable, "-m", "autonomy"]
+    args = [*command, "run", "--tier", "report-only", "--", "/usr/bin/true"]
+    with subprocess.Popen(args, env=configured, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE) as supervisor:
+        writer_fd = None
+        try:
+            until = time.monotonic() + 5
+            while not ready.exists() and time.monotonic() < until:
+                time.sleep(0.02)
+            assert ready.exists()
+            writer = ProcessIdentity.capture(int(ready.read_text()))
+            writer_fd = writer.pin()
+            assert writer_fd is not None
+            supervisor.kill()
+            supervisor.wait(timeout=3)
+            (run_dir,) = runs(tmp_path)
+            closed = subprocess.run([*command, "run", "close", run_dir.name],
+                                    env=configured, stdin=subprocess.DEVNULL, capture_output=True, timeout=8)
+            assert closed.returncode == 4, closed.stderr.decode()
+            assert exited(writer_fd)
+            assert (run_dir / "disposition.json").is_file()
+        finally:
+            if supervisor.poll() is None:
+                supervisor.kill()
+                supervisor.wait(timeout=3)
+            if writer_fd is not None:
+                from autonomy.process import send_signal
+                import signal
+
+                if not exited(writer_fd):
+                    send_signal(writer_fd, signal.SIGKILL)
+                    assert exited(writer_fd, 3)
+                os.close(writer_fd)

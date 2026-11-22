@@ -25,7 +25,7 @@ from autonomy.egress.helper import make_listener
 from autonomy.egress.proxy import BOOT, IN_SANDBOX_CA, IN_SANDBOX_CREDENTIAL, receive_message, send_message
 from autonomy.egress.route import LoadedRoute, Route
 from autonomy.membership import Finding
-from autonomy.process import exited as pidfd_exited
+from autonomy.process import ProcessIdentity, exited as pidfd_exited
 from autonomy.sandbox.bwrap import read_info
 from autonomy.sandbox.static import system_symlinks
 from autonomy.sandbox.static import SandboxUnproven, check_sources
@@ -124,9 +124,11 @@ def unproven(error: EgressUnproven) -> Finding:
     return Finding("egress-unproven", error.code, error.message)
 
 
-def _settle(run_dir: Path, timed_out: bool) -> EgressClosed:
+def _settle(run_dir: Path, timed_out: bool, *, journal: bool = True) -> EgressClosed:
     line = closing_line(run_dir / EGRESS_RECORDS)
     result = EgressClosed(None if line is None else line["closed"], None if line is None else line["last_seq"], timed_out)
+    if not journal:
+        return result
     if timed_out:
         append_event(run_dir, "egress-close-timeout")
     elif line is None:
@@ -298,10 +300,21 @@ def _why(reply: dict | None, timeout: float) -> str:
     return f"an unexpected answer: {reply}"
 
 
-def kill_orphan(run_dir: Path, timeout: float = CLOSE_TIMEOUT) -> EgressClosed | None:
+def kill_orphan(run_dir: Path, timeout: float = CLOSE_TIMEOUT, *,
+                identity: ProcessIdentity | None = None, journal: bool = True) -> EgressClosed | None:
     """*Orphans*: the proxy of a run whose orchestrator died has seen EOF and
     closed, or it is wedged. Wait up to `timeout` for its exit, then kill it. Returns
     None when the run started no proxy."""
+    if identity is not None:
+        pidfd = identity.pin()
+        timed_out = False
+        if pidfd is not None:
+            try:
+                if not pidfd_exited(pidfd, timeout):
+                    timed_out = _kill_and_confirm(pidfd, identity.pid)
+            finally:
+                os.close(pidfd)
+        return _settle(run_dir, timed_out, journal=journal)
     events_path = run_dir / EVENTS
     events = [json.loads(line) for line in events_path.read_text().splitlines()] if events_path.exists() else []
     started = next((event for event in reversed(events) if event["event"] == "egress-proxy"), None)

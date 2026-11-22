@@ -190,3 +190,54 @@ def test_journal_failure_still_dispatches_both_closes(tmp_path, monkeypatch):
     with pytest.raises(OSError, match="close journal unavailable"):
         _supervisor.finish(tmp_path, Endpoint(), Proxy(), None, (), "sigterm")
     assert sorted(observed) == ["endpoint closed", "proxy close", "seal"]
+
+
+def test_selected_route_denies_credentials_from_every_configured_route(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from autonomy.egress.route import load_route
+    from autonomy.science_run import _supervisor
+    from egress_fixtures import pi_route, write_credential, write_route
+
+    config = tmp_path / "config"
+    selected = write_credential(tmp_path / "chosen")
+    other = write_credential(tmp_path / "another")
+    for name, credential in (("one", selected), ("two", other)):
+        write_route(config, name, pi_route(credential=credential, upstream="https://127.0.0.1:1"))
+    route = load_route(config, "one")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    opened = SimpleNamespace(route=route, dirs=SimpleNamespace(scratch=scratch, run_dir=scratch),
+                             places=SimpleNamespace(config=config, state=tmp_path / "state"))
+    endpoint = SimpleNamespace(actor_socket=tmp_path / "sock", token=tmp_path / "token")
+    opening = SimpleNamespace(config=SimpleNamespace(denied=()), heads=SimpleNamespace(chains=()), toolchain=())
+
+    class Inspected(Exception):
+        pass
+
+    def check(_spec, denied):
+        assert selected in denied and other in denied
+        raise Inspected
+
+    monkeypatch.setattr(_supervisor.bwrap, "preflight", lambda: None)
+    monkeypatch.setattr(_supervisor, "check_binds", check)
+    with pytest.raises(Inspected):
+        _supervisor._prove(opened, opening, endpoint, None)
+
+
+def test_failed_postclaim_read_does_not_assert_a_baseline_race(tmp_path):
+    from types import SimpleNamespace
+
+    from autonomy.endpoint import EndpointError
+    from autonomy.science_reads import ReadUnavailable
+    from autonomy.science_run._supervisor import _checked_heads
+
+    def fail(**_):
+        raise ReadUnavailable("unavailable fixture heads")
+
+    opening = SimpleNamespace(config=SimpleNamespace(verify=lambda: None),
+                              reader=SimpleNamespace(heads=fail))
+    with pytest.raises(EndpointError) as caught:
+        _checked_heads(opening, tmp_path)
+    assert caught.value.code == "read-unavailable"
+    assert not (tmp_path / "events.jsonl").exists()

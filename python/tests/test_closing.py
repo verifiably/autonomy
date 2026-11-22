@@ -171,3 +171,23 @@ def test_egress_findings_are_reported_and_unproven_is_unwired():
 
     assert SEVERITY["egress-unproven"] == "unwired"
     assert SEVERITY["egress-lost"] is None and SEVERITY["egress-close-timeout"] is None
+
+
+def test_missing_corpus_evidence_does_not_make_its_ledgered_store_entries_foreign():
+    from autonomy.evidence import Chain
+
+    store = Chain("s" * 32, "store", True, (reg("r", paths={"file"}), settle("s", "r")))
+    verdict = close(evidence([store], ledger=ledger(act("r", "missing")),
+                             unavailable_roles=frozenset({"corpus"})))
+    assert verdict.disposition == "unwired"
+    assert "entry-foreign" not in codes(verdict)
+    assert verdict.members == ()
+
+
+def test_a_foreign_store_transaction_can_still_be_proved_with_a_complete_ledger():
+    from autonomy.evidence import Chain
+
+    store = Chain("s" * 32, "store", True, (reg("foreign", paths={"file"}), settle("s", "foreign")))
+    verdict = close(evidence([store], ledger=ledger(), unavailable_roles=frozenset({"corpus"})))
+    assert verdict.disposition == "quarantined"
+    assert "entry-foreign" in codes(verdict)

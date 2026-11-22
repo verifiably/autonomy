@@ -50,6 +50,7 @@ def classify(
     *,
     sealed: bool,
     later_ledgers: Iterable[Ledger] = (),
+    corpus_unavailable: bool = False,
 ) -> Membership:
     findings: list[Finding] = []
     live: list[Chain] = []
@@ -73,6 +74,7 @@ def classify(
 
     owner: dict[str, str | None] = {}
     member_regs: set[str] = set()
+    unreadable_regs: set[str] = set()
     qualifiers: list[str] = []
     for chain in live:
         regs = [(i, e) for i, e in enumerate(chain.entries) if isinstance(e, Registration) and e.digest not in after]
@@ -84,8 +86,13 @@ def classify(
                 fits = e.fulfills == line.intent or (chain.role == "store" and e.fulfills is None)
                 if line.intent in member_intents and fits:
                     member_regs.add(e.digest)
-            elif ledger.incomplete and owner[e.digest] in in_progress and i > last_recorded:
-                qualifiers.append(e.digest)
+                elif fits and chain.role == "store" and corpus_unavailable and line.intent not in intents:
+                    unreadable_regs.add(e.digest)
+            elif ledger.incomplete and i > last_recorded:
+                if owner[e.digest] in in_progress:
+                    qualifiers.append(e.digest)
+                elif chain.role == "store" and corpus_unavailable:
+                    unreadable_regs.add(e.digest)
     crash = qualifiers[0] if len(qualifiers) == 1 else None
     owning = {o for o in owner.values() if o is not None}
     fulfilled = {
@@ -121,6 +128,8 @@ def classify(
                 else:
                     findings.append(Finding("entry-foreign", e.digest, "an intent neither the ledger nor the run's actor explains"))
             elif isinstance(e, Registration):
+                if e.digest in unreadable_regs:
+                    continue
                 if e.digest in member_regs:
                     members.append(e.digest)
                 elif e.digest == crash:
@@ -128,6 +137,8 @@ def classify(
                 else:
                     findings.append(Finding("entry-foreign", e.digest, "a registration the ledger does not explain"))
             else:
+                if e.registration in unreadable_regs:
+                    continue
                 if e.registration in member_regs:
                     members.append(e.digest)
                 elif e.registration == crash:

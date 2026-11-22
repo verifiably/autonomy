@@ -21,6 +21,7 @@ from pathlib import Path
 import autonomy.analyst.launch as analyst
 from autonomy import development, science_run
 from autonomy.analyst.toolchain import AnalystRefused
+from autonomy.baseline import write_all
 from autonomy.channel import LineChannel
 from autonomy.run import (
     DEADLINE_DEFAULT, EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, DevelopmentProgress, Diag,
@@ -284,7 +285,7 @@ def _run_control(action: str, options: Sequence[str], diag: Diag) -> int:
     args = parser.parse_args(options)
     if args.run_id is None:
         raise RunRefused("run-invalid", "supply the recorded run ID")
-    return science_run.control(action, args.run_id, os.environ, diag=diag, emit=sys.stdout.write)
+    return science_run.control(action, args.run_id, os.environ, diag=diag, emit=lambda receipt: write_all(1, receipt.encode()))
 
 
 def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -> int:

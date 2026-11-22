@@ -115,19 +115,27 @@ def _check_gate(stop: Stop, endpoint: Endpoint, heartbeat: Heartbeat, proxy: Egr
         raise EgressUnproven("proxy-unlistening", "proxy exited before gate release")
 
 
-def _checked_heads(opening: Opening) -> None:
+def _checked_heads(opening: Opening, run_dir: Path) -> None:
     try:
         opening.config.verify()
         after = opening.reader.heads(resolve=False)
         opening.config.verify()
     except ReadUnavailable as error:
-        raise EndpointError(str(error), code="baseline-raced") from error
-    if (after.world_genesis != opening.heads.world_genesis or after.world_head != opening.heads.world_head
-            or after.world_pending):
-        raise EndpointError("world changed before the endpoint took its claim", code="baseline-raced")
+        raise EndpointError(str(error), code="read-unavailable") from error
     table = {(chain.role, chain.chain_id): chain for chain in after.chains}
-    if any(table.get((chain.role, chain.chain_id)) != chain for chain in opening.written):
-        raise EndpointError("written chain changed before the endpoint took its claim", code="baseline-raced")
+    world_changed = (after.world_genesis != opening.heads.world_genesis or after.world_head != opening.heads.world_head
+                     or bool(after.world_pending))
+    chains_changed = any(table.get((chain.role, chain.chain_id)) != chain for chain in opening.written)
+    if world_changed or chains_changed:
+        raced_tips = {}
+        for chain in opening.written:
+            observed = table.get((chain.role, chain.chain_id))
+            if (observed is not None and (observed.root, observed.genesis) == (chain.root, chain.genesis)
+                    and observed.tip != chain.tip):
+                raced_tips[chain.chain_id] = observed.tip
+        detail = "world changed" if world_changed else "written chain changed"
+        append_event(run_dir, "baseline-raced", tips=raced_tips, detail=detail)
+        raise EndpointError(f"{detail} before the endpoint took its claim", code="baseline-raced")
 
 
 def _prove(opened: Opened, opening: Opening, endpoint: Endpoint, stop: Stop) -> tuple[SandboxSpec, tuple[Path, ...]]:
@@ -139,11 +147,10 @@ def _prove(opened: Opened, opening: Opening, endpoint: Endpoint, stop: Stop) -> 
         "VERIFIABLY_ENDPOINT": str(IN_SANDBOX_SOCKET), "VERIFIABLY_TOKEN_FILE": str(IN_SANDBOX_TOKEN),
     }
     route = opened.route
-    if route is None:
-        route_denied = all_egress_denied(opened.places.config)
-    else:
+    route_denied = all_egress_denied(opened.places.config)
+    if route is not None:
         env["VERIFIABLY_MODEL_URL"] = MODEL_URL
-        route_denied = egress_denied(opened.places.config, route)
+        route_denied += egress_denied(opened.places.config, route)
         if route.route.ca_file is not None:
             route_denied += (route.route.ca_file,)
     denied = tuple(dict.fromkeys((
@@ -281,7 +288,7 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
             findings: tuple[Finding, ...] = ()
             cause = "startup-failure"
             try:
-                _checked_heads(opening)
+                _checked_heads(opening, run_dir)
                 _check_gate(stop, endpoint, heartbeat, None)
                 spec, denied = _prove(opened, opening, endpoint, stop)
                 _check_gate(stop, endpoint, heartbeat, None)
@@ -307,8 +314,6 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
                 cause = str(error)
                 findings = (Finding("run-stopped-before-release", "supervisor", cause),)
             except EndpointError as error:
-                if error.code == "baseline-raced":
-                    append_event(run_dir, "baseline-raced", detail=str(error))
                 findings = (Finding(error.code, "endpoint", str(error)),)
             except EgressUnproven as error:
                 findings = (unproven(error),)

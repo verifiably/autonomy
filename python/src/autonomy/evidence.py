@@ -70,3 +70,4 @@ class RunEvidence:
     basis_open: str | None
     basis_seal: str | None
     later_ledgers: tuple[Ledger, ...] = ()
+    unavailable_roles: frozenset[Literal["corpus", "store"]] = frozenset()

@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 import json
 import math
+import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import time
 from typing import Literal, cast
 
 from autonomy.evidence import Chain, Entry, Intent, Registration, Settlement
+from autonomy.process import ProcessIdentity, ProcessSurvived, send_signal, spawn_recorded
 
 __all__ = ["ChainHead", "Heads", "ReadUnavailable", "ScienceReader", "has_handle"]
 
@@ -226,6 +229,27 @@ def _refusal(result: subprocess.CompletedProcess[str], command: str, *, first_pa
     raise ReadUnavailable(f"science {command} refused: {code}")
 
 
+def _recorded_read(
+    argv: list[str], env: Mapping[str, str], record: Callable[[ProcessIdentity], None], deadline: float,
+) -> subprocess.CompletedProcess[str]:
+    child, pidfd = spawn_recorded(argv, env=env, record=record, stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
+    try:
+        stdout, stderr = child.communicate(timeout=max(0, deadline - time.monotonic()))
+        return subprocess.CompletedProcess(argv, child.returncode, stdout, stderr)
+    except BaseException:
+        send_signal(pidfd, signal.SIGKILL)
+        try:
+            child.wait(timeout=5)
+        except subprocess.TimeoutExpired as error:
+            raise ProcessSurvived("resolving science read did not exit") from error
+        raise
+    finally:
+        os.close(pidfd)
+        child.stdout.close()
+        child.stderr.close()
+
+
 class ScienceReader:
     """Detached or resolving operator reads from one configured executable."""
 
@@ -241,9 +265,12 @@ class ScienceReader:
         self._env = dict(env)
         self._timeout = timeout
 
-    def _read(self, command: str, *args: str) -> list[dict[str, object]]:
+    def _read(self, command: str, *args: str, until: float | None = None,
+              record: Callable[[ProcessIdentity], None] | None = None) -> list[dict[str, object]]:
         base = [str(self.executable), command, "--config", str(self.config), *args]
         deadline = time.monotonic() + self._timeout
+        if until is not None:
+            deadline = min(deadline, until)
         seen: set[str] = set()
         fragments: list[str] = []
         cursor: str | None = None
@@ -253,8 +280,11 @@ class ScienceReader:
                 raise ReadUnavailable(f"science {command} timed out")
             argv = [*base, "--continue", cursor] if cursor is not None else base
             try:
-                result = subprocess.run(argv, env=self._env, stdin=subprocess.DEVNULL, capture_output=True,
-                                        encoding="utf-8", timeout=remaining)
+                if record is None:
+                    result = subprocess.run(argv, env=self._env, stdin=subprocess.DEVNULL, capture_output=True,
+                                            encoding="utf-8", timeout=remaining)
+                else:
+                    result = _recorded_read(argv, self._env, record, deadline)
             except (OSError, UnicodeError, subprocess.TimeoutExpired) as error:
                 raise ReadUnavailable(f"science {command} failed: {type(error).__name__}") from error
             if result.returncode != 0:
@@ -269,8 +299,9 @@ class ScienceReader:
             seen.add(cursor)
             fragments.append(result.stdout[:trailer.start()])
 
-    def heads(self, *, resolve: bool) -> Heads:
-        rows = self._read("heads", *(("--resolve",) if resolve else ()))
+    def heads(self, *, resolve: bool, until: float | None = None,
+              record: Callable[[ProcessIdentity], None] | None = None) -> Heads:
+        rows = self._read("heads", *(("--resolve",) if resolve else ()), until=until, record=record)
         if len(rows) != 1:
             raise ReadUnavailable("heads must contain exactly one row")
         row = rows[0]

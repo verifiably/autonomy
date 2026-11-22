@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 import os
 from pathlib import Path
 import select
 import signal
+import subprocess
+import sys
 import uuid
 
-__all__ = ["ProcessIdentity", "exited", "send_signal"]
+from autonomy.baseline import write_all
+
+__all__ = ["ProcessIdentity", "ProcessSurvived", "exited", "send_signal", "spawn_recorded"]
 
 
 def _boot_id() -> str:
@@ -79,3 +84,58 @@ class ProcessIdentity:
             raise
         os.close(pidfd)
         return None
+
+
+class ProcessSurvived(RuntimeError):
+    """A child may still be able to write after its supervisor failed."""
+
+
+_EXEC_BARRIER = """
+import os, sys
+fd = int(sys.argv[1])
+release = os.read(fd, 1)
+os.close(fd)
+if release != b'x':
+    sys.exit(4)
+os.execv(sys.argv[2], sys.argv[2:])
+"""
+
+
+def spawn_recorded(
+    argv: Sequence[str], *, env: Mapping[str, str], record: Callable[[ProcessIdentity], None],
+    stdin, stdout, stderr, encoding: str | None = None,
+) -> tuple[subprocess.Popen, int]:
+    """Release the exec barrier only after the child identity is durable."""
+    read_end, write_end = os.pipe2(os.O_CLOEXEC)
+    child = None
+    pidfd = None
+    try:
+        child = subprocess.Popen(
+            [sys.executable, "-I", "-c", _EXEC_BARRIER, str(read_end), *argv],
+            pass_fds=(read_end,), env=env, stdin=stdin, stdout=stdout, stderr=stderr,
+            encoding=encoding, start_new_session=True,
+        )
+        pidfd = os.pidfd_open(child.pid)
+        record(ProcessIdentity.capture(child.pid))
+        write_all(write_end, b"x")
+        return child, pidfd
+    except BaseException:
+        if child is not None:
+            try:
+                if pidfd is None:
+                    child.kill()  # This unreaped child is still behind the exec barrier.
+                else:
+                    send_signal(pidfd, signal.SIGKILL)
+                child.wait(timeout=5)
+            except subprocess.TimeoutExpired as error:
+                raise ProcessSurvived("exec barrier child did not exit") from error
+            finally:
+                if pidfd is not None:
+                    os.close(pidfd)
+                for stream in (child.stdout, child.stderr):
+                    if stream is not None:
+                        stream.close()
+        raise
+    finally:
+        os.close(read_end)
+        os.close(write_end)

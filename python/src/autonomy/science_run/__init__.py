@@ -16,8 +16,9 @@ def execute(
     request: RunRequest, env: Mapping[str, str], *, diag: Diag, progress: Progress,
     actor_launched: Callable[[Path], None],
 ) -> int:
-    admission = Admission(request, env)
     with Stop(request.deadline) as stop:
+        admission = Admission(request, env, until=stop.deadline, cancelled=stop.requested)
+
         def steps(opened: Opened) -> RunResult:
             opening = admission.capture(opened)
             if isinstance(opening, Finding):

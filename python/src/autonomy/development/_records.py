@@ -10,12 +10,13 @@ import os
 import re
 import secrets
 import stat
+import time
 from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from autonomy.baseline import EVENTS, append_event, fsync_dir, publish_bytes, utc_now
+from autonomy.baseline import ADMISSION_LOCK, EVENTS, append_event, fsync_dir, lock, publish_bytes, utc_now
 from autonomy.closing import disposition_of
 from autonomy.membership import Finding
 from autonomy.run import EXIT_CODES, RunRefused, _xdg
@@ -164,35 +165,39 @@ def allocate_run(
     made: list[Path] = []
     retained = False
     try:
-        for directory in (run_dir, scratch):
-            _durable_parents(directory.parent)
-            directory.mkdir(mode=0o700)
-            made.append(directory)
-            fsync_dir(directory.parent)
-        for name in (_SUPERVISOR, _PUBLICATION):
-            fd = os.open(run_dir / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
-            os.close(fd)
-        with _locked(run_dir / _SUPERVISOR, nowait=True):
-            digest = publish_json(run_dir / "run.json", {
-                "version": 1, "run": run_id, "mode": MODE, "created_at": utc_now(),
-                "repository": str(repository), "base": base, "ref": REF,
-                "deadline_seconds": deadline_seconds, "scratch": str(scratch),
-            })
-            append_event(run_dir, "allocated", run=run_id, mode=MODE)
+        for parent in (run_dir.parent, scratch.parent):
+            _durable_parents(parent)
+        with ExitStack() as lifetime:
+            with lock(places.state / ADMISSION_LOCK, create=True, until=time.monotonic() + deadline_seconds):
+                try:
+                    for directory in (run_dir, scratch):
+                        directory.mkdir(mode=0o700)
+                        made.append(directory)
+                        fsync_dir(directory.parent)
+                    for name in (_SUPERVISOR, _PUBLICATION):
+                        fd = os.open(run_dir / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, 0o600)
+                        os.close(fd)
+                    lifetime.enter_context(_locked(run_dir / _SUPERVISOR, nowait=True))
+                    digest = publish_json(run_dir / "run.json", {
+                        "version": 1, "run": run_id, "mode": MODE, "created_at": utc_now(),
+                        "repository": str(repository), "base": base, "ref": REF,
+                        "deadline_seconds": deadline_seconds, "scratch": str(scratch),
+                    })
+                    append_event(run_dir, "allocated", run=run_id, mode=MODE)
+                except BaseException:
+                    for directory in reversed(made):
+                        if directory == run_dir:
+                            for name in (_SUPERVISOR, _PUBLICATION, "run.json", "events.jsonl"):
+                                (directory / name).unlink(missing_ok=True)
+                        directory.rmdir()
+                        fsync_dir(directory.parent)
+                    raise
             retained = True
             yield RunPaths(run_id, run_dir, scratch, digest)
-    except BaseException as caught:
+    except (OSError, RunRefused) as caught:
         if retained:
             raise
-        for directory in reversed(made):
-            if directory == run_dir:
-                for name in (_SUPERVISOR, _PUBLICATION, "run.json", "events.jsonl"):
-                    (directory / name).unlink(missing_ok=True)
-            directory.rmdir()
-            fsync_dir(directory.parent)
-        if isinstance(caught, (OSError, RunRefused)):
-            raise RunRefused("allocation-failed", f"cannot allocate a development run: {caught}; restore state or cache storage") from caught
-        raise
+        raise RunRefused("allocation-failed", f"cannot allocate a development run: {caught}; restore state or cache storage") from caught
 
 
 def read_journal(run: RunPaths) -> tuple[dict[str, object], ...]:

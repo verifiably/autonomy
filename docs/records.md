@@ -45,8 +45,13 @@ PID, boot ID and start ticks. An accepted `session-open` event carries the
 endpoint's session ID, original ledger path and opening basis.
 The supervisor journals `proved` after the sandbox walk and probe, and
 `actor-releasing` with the actor's PID, boot ID and start ticks before release.
-`baseline-raced` records observed movement before the actor could be
-released. A refused baseline race leaves the written interval unclassified.
+`baseline-resolving` records the resolver's PID, boot ID and start ticks before
+it can exec. `baseline-raced` records observed movement before the actor
+could be released. Its `tips` map identifies written chains with measured
+pre-claim movement. The closing check first verifies continuity, then exempts
+only the prefixes through those tips while the actor was still held. An
+unavailable opening heads read leaves the closing intervals eligible for
+classification.
 `close-start` records the first trigger. `seal-request` records dispatch,
 and `sealed` carries a validated acknowledgement payload. A seal failure or
 timeout is recorded as `seal-failed` or `seal-timeout`.
@@ -81,7 +86,9 @@ Publication invariant: To ensure atomic publication without concurrent corruptio
 A science run uses the terminal exit after that directory sync, even if a
 later report or diagnostic fails. A final sync failure leaves the linked
 record available to `run close` and the original invocation exits 4 without
-a closing report.
+a closing report. Recovery recognizes the temporary name if it still links to
+the same private inode at interruption. Admission and close use the same
+terminal validation.
 
 ## Events log
 
@@ -92,7 +99,7 @@ The lifecycle event journal is maintained in `<run_dir>/events.jsonl` via `basel
 | `allocated` | `run`, `scratch`, `release`, `inputs`, `denied`, toolchain details | `analyst`, `command` | Emitted immediately after run and scratch directories are created. |
 | `unproven` | `code`, `path`, `message` | `analyst`, `command` | Emitted when pre-launch verification fails (`SandboxUnproven` or `EgressUnproven`). |
 | `proved` | `walk_seconds` | `analyst`, `command` | Emitted when static checks, input walks, and sandbox probes succeed. |
-| `egress-proxy` | `pid`, `start_time` | `analyst` | Emitted when egress proxy container starts. |
+| `egress-proxy` | `pid`, `start_time` | `analyst`, science `run` | Emitted when the egress proxy container starts. Science recovery also verifies the boot ID from the allocation before looking up a proxy PID. |
 | `egress-ready` | none | `analyst` | Emitted when proxy acknowledges route configuration. |
 | `proxy` | `pid` | `analyst` | Emitted recording proxy PID. |
 | `egress-listening` | none | `analyst` | Emitted when proxy accepts listener socket in actor namespace. |
@@ -102,6 +109,12 @@ The lifecycle event journal is maintained in `<run_dir>/events.jsonl` via `basel
 | `egress-close-timeout` | `timeout` | `analyst` | Emitted when proxy fails to shut down within timeout. |
 | `report-unwritten` | `line` (`"run"` or `"closing"`) | all | Emitted when non-blocking `--report-fd` channel drops a line. |
 | `closed` | exit codes, egress status, release counts, log hashes | `analyst`, `command` | Emitted when actor process exits and output release concludes. |
+
+Science recovery preserves an incomplete final event and uses the complete
+prefix to establish process identities. If those identities prove that the
+writers have exited, the torn tail contributes a `read-unavailable` finding.
+Recovery refuses an incomplete allocation identity when the possible writers
+cannot be established.
 
 ## Epoch, walk, and release records
 

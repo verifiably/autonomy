@@ -113,7 +113,7 @@ def close(evidence: RunEvidence) -> Verdict:
         elif evidence.basis_open != evidence.basis_seal:
             add("basis-moved", "basis", "the derivation context changed between open and seal")
 
-    if evidence.chains is None:
+    if evidence.chains is None or evidence.unavailable_roles:
         add("read-unavailable", "chains", "a written chain's interval could not be read")
 
     ledger = evidence.ledger
@@ -143,6 +143,7 @@ def close(evidence: RunEvidence) -> Verdict:
                 evidence.run_actor,
                 sealed=evidence.sealed,
                 later_ledgers=evidence.later_ledgers,
+                corpus_unavailable="corpus" in evidence.unavailable_roles,
             )
             findings.extend(result.findings)
             members = result.members
@@ -180,6 +181,8 @@ def _ledgerless(evidence: RunEvidence) -> list[Finding]:
                 out.append(Finding("entry-foreign", entry.digest, "an intent under another actor"))
             elif isinstance(entry, Registration) and entry.fulfills is not None:
                 target = intents.get(entry.fulfills)
+                if target is None and chain.role == "store" and "corpus" in evidence.unavailable_roles:
+                    continue
                 if target is None or not admissible(target.actor):
                     out.append(Finding("entry-foreign", entry.digest, "a registration fulfilling an intent the run did not write"))
     return out

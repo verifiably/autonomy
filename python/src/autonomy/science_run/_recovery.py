@@ -14,17 +14,17 @@ import stat
 import time
 
 from autonomy import development
-from autonomy.baseline import decode_object, fsync_dir, read_private_bytes, read_record
-from autonomy.closing import SEVERITY, close as classify, disposition_of
+from autonomy.baseline import ADMISSION_LOCK, lock, read_events, read_record
+from autonomy.closing import close as classify, disposition_of
 from autonomy.egress.session import EgressClosed, kill_orphan
 from autonomy.endpoint import EndpointError, SessionOpen, check_seal
 from autonomy.evidence import Chain, RunEvidence
 from autonomy.ledger import Ledger, LedgerUnusable, load_ledger
 from autonomy.membership import Finding
 from autonomy.process import ProcessIdentity, exited, send_signal
-from autonomy.run import DISPOSITION, EXIT_CODES, Diag, RunRefused, RunResult, state_root, write_disposition
+from autonomy.run import Diag, RunRefused, RunResult, read_disposition, state_root, write_disposition
 from autonomy.science_reads import ChainHead, Heads, ReadUnavailable, ScienceReader
-from autonomy.science_run._admission import ADMISSION_LOCK, SUPERVISOR_LOCK, _journal, _no_possible_writer, lock
+from autonomy.science_run._admission import START_TIMEOUT, SUPERVISOR_LOCK, _no_possible_writer
 from autonomy.science_run._config import Config, read_config
 from autonomy.tiers import Permit
 
@@ -110,13 +110,14 @@ def _session(events: Sequence[dict], operations: Path) -> SessionOpen | None:
 
 
 def trusted_seal(run_dir: Path, written: tuple[ChainHead, ...], session: SessionOpen | None,
-                 ledger: Ledger | LedgerUnusable | None, events: Sequence[dict]) -> dict[str, object] | None:
+                 ledger: Ledger | LedgerUnusable | None, events: Sequence[dict], *,
+                 torn: bool = False) -> dict[str, object] | None:
     if any(row.get("event") in ("seal-timeout", "seal-failed") for row in events):
         return None
     ack = _event(events, "sealed")
     if ack is not None and session is not None:
         return check_seal(ack["seal"], written)
-    if (session is None or not isinstance(ledger, Ledger) or not ledger.closed or ledger.incomplete
+    if (torn or session is None or not isinstance(ledger, Ledger) or not ledger.closed or ledger.incomplete
             or ledger.session_id != session.session_id or ledger.actor != f"session:{session.session_id}"):
         return None
     try:
@@ -192,7 +193,7 @@ def _inspect(snapshot: Baseline, metadata: Mapping[str, object], env: Mapping[st
 
 def _evidence(
     run_dir: Path, snapshot: Baseline, metadata: Mapping[str, object], events: Sequence[dict],
-    env: Mapping[str, str], findings: list[Finding],
+    env: Mapping[str, str], findings: list[Finding], *, torn: bool,
 ) -> RunResult:
     operations = _path(metadata["operations"])
     session = _session(events, operations)
@@ -201,7 +202,7 @@ def _evidence(
         findings.append(Finding("actor-mismatch", ledger.session_id, "ledger does not identify this run actor and world"))
         ledger = LedgerUnusable(ledger.session_id, "ledger-malformed", "wrong actor or world")
     try:
-        seal = trusted_seal(run_dir, snapshot.written, session, ledger, events)
+        seal = trusted_seal(run_dir, snapshot.written, session, ledger, events, torn=torn)
     except _ERRORS + (EndpointError,):
         findings.append(Finding("seal-failed", "seal", "invalid journaled seal"))
         seal = None
@@ -218,12 +219,18 @@ def _evidence(
         return RunResult(tuple(findings), {}, None)
 
     baseline_raced = _event(events, "baseline-raced")
-    refused_claim = baseline_raced is not None and _event(events, "actor-releasing") is None
-    if refused_claim and not any(f.code == "baseline-raced" for f in findings):
-        findings.append(Finding("baseline-raced", "endpoint", "the actor was held after a baseline race"))
+    raced_tips = {}
+    if baseline_raced is not None and _event(events, "actor-releasing") is None:
+        if not any(f.code == "baseline-raced" for f in findings):
+            findings.append(Finding("baseline-raced", "endpoint", "the actor was held after a baseline race"))
+        raw = baseline_raced.get("tips", {})
+        if isinstance(raw, dict) and all(isinstance(key, str) and _ID.fullmatch(key)
+                                         and isinstance(tip, str) and _DIGEST.fullmatch(tip) for key, tip in raw.items()):
+            raced_tips = raw
     available = {c.chain_id: c for c in heads.chains} if heads is not None else {}
     through = {row["id"]: row["tip"] for row in seal["sealed_tips"]} if seal is not None else {}
     intervals: list[Chain] = []
+    unavailable = set()
     for chain in snapshot.written:
         current = available.get(chain.chain_id)
         if heads is not None and (current is None or (current.role, current.root, current.genesis) !=
@@ -232,18 +239,26 @@ def _evidence(
             continue
         tip = through.get(chain.chain_id) if seal is not None else (current.tip if current is not None else None)
         if tip is None:
+            unavailable.add(chain.role)
             findings.append(Finding("read-unavailable", chain.chain_id, "the through-tip could not be established"))
             continue
         through[chain.chain_id] = tip
-        if refused_claim:
-            # The actor was held. This observed movement preceded the acquired claim.
-            continue
         try:
             config.verify()
             interval = reader.interval(chain, after=chain.tip, through=tip)
             config.verify()
+            if interval.on_chain and chain.chain_id in raced_tips:
+                # The unchanged chain prefix through the measured tip preceded the claim.
+                raced_tip = raced_tips[chain.chain_id]
+                for index, entry in enumerate(interval.entries):
+                    if entry.digest == raced_tip:
+                        interval = Chain(chain.chain_id, chain.role, True, interval.entries[index + 1:])
+                        break
+                else:
+                    interval = Chain(chain.chain_id, chain.role, False, ())
             intervals.append(interval)
         except ReadUnavailable as error:
+            unavailable.add(chain.role)
             findings.append(Finding("read-unavailable", chain.chain_id, str(error)))
 
     mount_heads = {c.chain_id: available[c.chain_id].tip for c in snapshot.mounts if c.chain_id in available}
@@ -257,6 +272,7 @@ def _evidence(
         {c.chain_id: c.tip for c in snapshot.mounts}, mount_heads if heads is not None else None,
         session.basis_open if session is not None else None, seal["basis_seal"] if seal is not None else None,
         _later(operations, ledger, snapshot.world_id, events) if seal is None else (),
+        frozenset(unavailable),
     ))
     members = set(verdict.members)
     grouped = {chain.chain_id: [entry.digest for entry in chain.entries if entry.digest in members] for chain in intervals}
@@ -269,12 +285,15 @@ def collect(run_dir: Path, env: Mapping[str, str], initial: Sequence[Finding] = 
     if orphan:
         findings.append(Finding("orchestrator-lost", "events.jsonl", "the supervisor is gone"))
     try:
-        snapshot = _baseline(run_dir)
-    except _ERRORS:
-        findings.append(Finding("baseline-unavailable", "baseline.json", "the original baseline is unavailable"))
-        return RunResult(tuple(findings), {}, None)
-    try:
-        return _evidence(run_dir, snapshot, read_record(run_dir / "run.json"), _journal(run_dir), env, findings)
+        events, torn = read_events(run_dir)
+        if torn:
+            findings.append(Finding("read-unavailable", "events.jsonl", "the last event was incomplete"))
+        try:
+            snapshot = _baseline(run_dir)
+        except _ERRORS:
+            findings.append(Finding("baseline-unavailable", "baseline.json", "the original baseline is unavailable"))
+            return RunResult(tuple(findings), {}, None)
+        return _evidence(run_dir, snapshot, read_record(run_dir / "run.json"), events, env, findings, torn=torn)
     except _ERRORS:
         findings.append(Finding("read-unavailable", "events.jsonl", "the protected interval metadata is unavailable"))
         return RunResult(tuple(findings), {}, None)
@@ -285,10 +304,10 @@ def _identity(row: Mapping[str, object]) -> ProcessIdentity:
 
 
 def _supervisor(events: Sequence[dict], run_id: str) -> ProcessIdentity | None:
-    record = _event(events, "allocated")
-    if record is None:
+    if not events or all(row.get("event") == "report-unwritten" for row in events):
         return None
-    if record.get("run") != run_id or record.get("mode") != "science":
+    record = events[0]
+    if record.get("event") != "allocated" or record.get("run") != run_id or record.get("mode") != "science":
         raise ValueError("invalid science allocation event")
     return _identity(record)
 
@@ -314,9 +333,14 @@ def _terminate_recorded(row: Mapping[str, object], seconds: float, *, seal_path:
         os.close(pidfd)
 
 
-def _orphan_findings(run_dir: Path, meta: Mapping[str, object], events: Sequence[dict]) -> tuple[Finding, ...]:
+def _orphan_findings(
+    run_dir: Path, meta: Mapping[str, object], events: Sequence[dict],
+    owner: ProcessIdentity | None, *, torn: bool,
+) -> tuple[Finding, ...]:
+    for resolver in (row for row in events if row.get("event") == "baseline-resolving"):
+        _terminate_recorded(resolver, 0)
     endpoint = _event(events, "endpoint-starting")
-    if endpoint is None and not _no_possible_writer(run_dir):
+    if endpoint is None and not _no_possible_writer(run_dir, resolvers_reaped=True):
         raise ValueError("cannot confirm writer absence without an endpoint identity")
     if endpoint is not None:
         seconds = meta["seal_timeout_seconds"]
@@ -330,52 +354,26 @@ def _orphan_findings(run_dir: Path, meta: Mapping[str, object], events: Sequence
     if settlements:
         last = settlements[-1]
         result = EgressClosed(last.get("cause"), last.get("last_seq"), last.get("event") == "egress-close-timeout")
+    elif (proxy := _event(events, "egress-proxy")) is not None:
+        if owner is None:
+            raise ValueError("cannot confirm proxy boot identity")
+        identity = ProcessIdentity(proxy["pid"], proxy["start_time"], owner.boot_id)
+        result = kill_orphan(run_dir, identity=identity, journal=not torn)
     else:
-        result = kill_orphan(run_dir) if _event(events, "egress-proxy") is not None else None
+        result = None
     return result.findings() if result is not None else ()
 
 
 def _terminal(run_dir: Path, emit: Callable[[str], None]) -> int | None:
-    try:
-        raw = read_private_bytes(run_dir / DISPOSITION)
-    except FileNotFoundError:
+    receipt = read_disposition(run_dir)
+    if receipt is None:
         return None
-    doc = decode_object(raw)
-    if (set(doc) != {"version", "run", "disposition", "findings", "closed_at", "members", "closing_heads"}
-            or type(doc["version"]) is not int or doc["version"] != 1 or doc["run"] != run_dir.name
-            or not isinstance(doc["members"], dict) or not isinstance(doc["findings"], list)):
-        raise ValueError("invalid stored science disposition")
-    _timestamp(doc["closed_at"])
-    for chain_id, entries in doc["members"].items():
-        _match(chain_id, _ID)
-        if not isinstance(entries, list) or len(set(entries)) != len(entries):
-            raise ValueError("invalid terminal chain members")
-        for digest in entries:
-            _match(digest, _DIGEST)
-    heads = doc["closing_heads"]
-    if heads is not None:
-        if not isinstance(heads, dict) or set(heads) != {"world", "written", "mounts"}:
-            raise ValueError("invalid terminal closing heads")
-        if heads["world"] is not None:
-            _match(heads["world"], _DIGEST)
-        for entries in (heads["written"], heads["mounts"]):
-            if not isinstance(entries, dict):
-                raise ValueError("invalid terminal chain heads")
-            for chain_id, tip in entries.items():
-                _match(chain_id, _ID)
-                _match(tip, _DIGEST)
-    findings = []
-    for row in doc["findings"]:
-        if (not isinstance(row, dict) or set(row) != {"code", "ref", "message"}
-                or not all(isinstance(item, str) for item in row.values()) or row["code"] not in SEVERITY):
-            raise ValueError("invalid stored finding")
-        findings.append(Finding(row["code"], row["ref"], row["message"]))
-    if doc["disposition"] != disposition_of(findings):
-        raise ValueError("stored disposition disagrees with its findings")
-    fsync_dir(run_dir)
-    emit(raw.decode())
-    return EXIT_CODES[doc["disposition"]]
-
+    raw, code = receipt
+    try:
+        emit(raw.decode())
+    except (OSError, ValueError):
+        pass  # The receipt and exit are durable even when the consumer closes its output.
+    return code
 
 def _lookup(state: Path, run_id: str) -> tuple[Path, dict[str, object]]:
     _match(run_id, _ID)
@@ -388,13 +386,24 @@ def _lookup(state: Path, run_id: str) -> tuple[Path, dict[str, object]]:
     try:
         meta = read_record(path / "run.json")
     except FileNotFoundError:
-        if any((path / record).exists() for record in ("grant.json", "publication.lock", "candidate.json")):
-            raise ValueError("run mode is ambiguous")
         return path, {}
     if (type(meta.get("version")) is not int or meta["version"] != 1 or meta.get("run") != run_id
             or meta.get("mode") not in ("science", "development")):
         raise ValueError("run identity is invalid")
     return path, meta
+
+
+def _locate(state: Path, run_id: str) -> tuple[Path, dict[str, object]]:
+    run_dir, meta = _lookup(state, run_id)
+    if meta.get("mode") == "development":
+        return run_dir, meta
+    if meta and _supervisor(read_events(run_dir)[0], run_id) is not None:
+        return run_dir, meta
+    with lock(state / ADMISSION_LOCK, create=True, until=time.monotonic() + START_TIMEOUT):
+        run_dir, meta = _lookup(state, run_id)
+        if not meta and any((run_dir / name).exists() for name in ("grant.json", "publication.lock", "candidate.json")):
+            raise ValueError("run mode is ambiguous")
+        return run_dir, meta
 
 
 def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emit: Callable[[str], None]) -> int:
@@ -404,8 +413,7 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
     try:
         _match(run_id, _ID)
         try:
-            with lock(state / ADMISSION_LOCK, create=True):
-                run_dir, meta = _lookup(state, run_id)
+            run_dir, meta = _locate(state, run_id)
         except FileNotFoundError:
             raise RunRefused("development-run-invalid", f"run {run_id} does not exist") from None
         if meta.get("mode") == "development":
@@ -416,9 +424,9 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
 
         if (status := _terminal(run_dir, emit)) is not None:
             return status
-        events = _journal(run_dir)
+        events, torn = read_events(run_dir)
         owner = _supervisor(events, run_id)
-        if meta and owner is None and not _no_possible_writer(run_dir):
+        if (torn and not events) or (meta and owner is None and not _no_possible_writer(run_dir)):
             raise ValueError("cannot confirm supervisor identity")
         pidfd = owner.pin() if owner is not None else None
         if pidfd is not None:
@@ -434,8 +442,8 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
         with lock(run_dir / SUPERVISOR_LOCK, create=owner is None):
             if (status := _terminal(run_dir, emit)) is not None:
                 return status
-            events = _journal(run_dir)
-            findings = _orphan_findings(run_dir, meta, events)
+            events, torn = read_events(run_dir)
+            findings = _orphan_findings(run_dir, meta, events, owner, torn=torn)
             result = collect(run_dir, env, findings, orphan=True)
             write_disposition(run_dir, run_id, disposition_of(result.findings), result.findings,
                               members=result.members, closing_heads=result.closing_heads)
