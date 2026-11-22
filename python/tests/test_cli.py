@@ -619,3 +619,83 @@ def test_help_output_has_no_historical_decision_citations():
     assert "docs/" + "specs" not in combined
 
 
+
+
+@pytest.mark.parametrize("code", [0, 3])
+def test_durable_disposition_wins_over_diagnostics_and_final_close_failure(tmp_path, pipes, code):
+    report = pipes["report_write"]
+    io = pipes["io"]
+    io.prelude = f"""
+from autonomy import cli, science_run
+from autonomy.membership import Finding
+original = science_run.run_reported
+def reported(request, env, steps, **kwargs):
+    findings = () if {code} == 0 else (Finding("entry-foreign", "entry", "foreign"),)
+    return original(request, env, lambda opened: findings, **kwargs)
+science_run.run_reported = reported
+say = cli._Diagnostics.__call__
+def failing_say(self, message):
+    if " closed " in message:
+        raise OSError("diagnostics failed after publication")
+    return say(self, message)
+cli._Diagnostics.__call__ = failing_say
+close = cli._Diagnostics.close
+def failing_close(self):
+    close(self)
+    raise RuntimeError("closing diagnostics failed")
+cli._Diagnostics.close = failing_close
+"""
+    status, _ = autonomy(tmp_path, [*RUN, "--report-fd", str(report), *ACTOR], io)
+    assert status == code
+    directory, = runs(tmp_path)
+    doc = json.loads((directory / "disposition.json").read_bytes())
+    assert doc["disposition"] == ("clean" if code == 0 else "quarantined")
+    lines = [json.loads(row) for row in drain(pipes["report"]).splitlines()]
+    assert [row["run"] for row in lines] == [directory.name, directory.name]
+    assert lines[1]["exit"] == code
+
+
+def test_linked_disposition_without_directory_sync_exits_four_and_is_recoverable(tmp_path, pipes):
+    report = pipes["report_write"]
+    io = pipes["io"]
+    io.prelude = """
+from autonomy import baseline, science_run
+original = science_run.run_reported
+def reported(request, env, steps, **kwargs):
+    return original(request, env, lambda opened: (), **kwargs)
+science_run.run_reported = reported
+sync = baseline.fsync_dir
+def failing_sync(directory):
+    if (directory / "disposition.json").exists():
+        raise OSError("final directory fsync failed")
+    return sync(directory)
+baseline.fsync_dir = failing_sync
+"""
+    status, _ = autonomy(tmp_path, [*RUN, "--report-fd", str(report), *ACTOR], io)
+    assert status == 4
+    directory, = runs(tmp_path)
+    receipt = (directory / "disposition.json").read_bytes()
+    assert json.loads(receipt)["disposition"] == "clean"
+    assert len(drain(pipes["report"]).splitlines()) == 1
+    env = environment(tmp_path)
+    del env["XDG_RUNTIME_DIR"]
+    recovered = subprocess.run(
+        [sys.executable, "-m", "autonomy", "run", "close", directory.name],
+        env=env, stdin=subprocess.DEVNULL, capture_output=True, timeout=10,
+    )
+    assert recovered.returncode == 0 and recovered.stdout == receipt
+
+
+def test_a_half_closed_report_socket_admits_the_run_and_drops_both_lines(tmp_path, pipes):
+    io = pipes["io"]
+    here, there = socket.socketpair()
+    with here, there:
+        here.shutdown(socket.SHUT_WR)
+        io.pass_fds = (here.fileno(),)
+        status, _ = autonomy(tmp_path, [*RUN, "--report-fd", str(here.fileno()), *ACTOR], io)
+        assert status == 4
+        assert there.recv(1) == b""
+    directory, = runs(tmp_path)
+    doc = json.loads((directory / "disposition.json").read_bytes())
+    assert doc["disposition"] == "unwired"
+    assert [row["line"] for row in events(directory) if row["event"] == "report-unwritten"] == ["run", "closing"]

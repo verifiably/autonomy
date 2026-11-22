@@ -73,13 +73,15 @@ sandbox passes the same bind and network proof used for launch, and the
 endpoint acknowledges the actor's PID namespace. A routed run also requires a
 listener acknowledgement from the proxy.
 
-The supervisor renews the endpoint and route leases. Actor, endpoint or proxy
+The supervisor renews the endpoint and route leases until stop or deadline. Actor, endpoint or proxy
 exit, an elapsed deadline, or a stop signal starts closing. The supervisor
 sends the route close and endpoint seal independently, waits for the seal,
 then terminates and reaps the actor namespace. The final check accounts for the
 written intervals and publishes `disposition.json`. The exit is 0 for clean,
 3 for quarantined or 4 for unwired. The report fd carries the opening and
-closing lines when available. [Run directory records](records.md)
+closing lines when available. A half-closed report socket can lose either
+line. The run journal records each drop and the durable receipt determines
+the exit. [Run directory records](records.md)
 
 `autonomy run stop ID` sends SIGTERM through the verified supervisor pidfd.
 `autonomy run close ID` recovers a lost science supervisor from protected

@@ -58,13 +58,17 @@ class Stop:
             self._cause = "deadline"
         return self._cause
 
+    def requested(self) -> bool:
+        return self._cause is not None or self.now() >= self.deadline
+
     def remaining(self, ceiling: float) -> float:
         return min(ceiling, max(0, self.deadline - self.now()))
 
 
 class Heartbeat:
-    def __init__(self, control: Control, period: float) -> None:
+    def __init__(self, control: Control, period: float, *, stop: Stop) -> None:
         self.control = control
+        self.run_stop = stop
         self.period = period
         self.proxy: EgressSession | None = None
         self.failed = threading.Event()
@@ -83,7 +87,10 @@ class Heartbeat:
         self.stopping.set()
 
     def _run(self) -> None:
-        while not self.stopping.wait(min(self.period, max(0, self.control.expires - time.monotonic()))):
+        while not self.run_stop.requested():
+            delay = min(self.run_stop.remaining(self.period), max(0, self.control.expires - time.monotonic()))
+            if self.stopping.wait(delay) or self.run_stop.requested():
+                return
             try:
                 self.control.renew()
                 proxy = self.proxy
@@ -234,8 +241,12 @@ def _close_proxy(proxy: EgressSession) -> tuple[Finding, ...]:
 
 def finish(run_dir: Path, endpoint: Endpoint, proxy: EgressSession | None, actor: bwrap.Sandboxed | None,
            written: tuple[ChainHead, ...], cause: str) -> tuple[Finding, ...]:
-    append_event(run_dir, "close-start", cause=cause)
-    append_event(run_dir, "seal-request")
+    journal_error: BaseException | None = None
+    try:
+        append_event(run_dir, "close-start", cause=cause)
+        append_event(run_dir, "seal-request")
+    except BaseException as error:
+        journal_error = error
     with ThreadPoolExecutor(max_workers=2, thread_name_prefix="science-close") as workers:
         sealing = workers.submit(_seal, endpoint, run_dir, written)
         egress = workers.submit(_close_proxy, proxy) if proxy is not None else None
@@ -244,7 +255,10 @@ def finish(run_dir: Path, endpoint: Endpoint, proxy: EgressSession | None, actor
         finally:
             if actor is not None:
                 _stop_actor(actor, run_dir)
-        return findings + (egress.result() if egress is not None else ())
+        settled = egress.result() if egress is not None else ()
+    if journal_error is not None:
+        raise journal_error
+    return findings + settled
 
 
 def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, str], *,
@@ -263,7 +277,7 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
     actor = None
     proxy = None
     try:
-        with Heartbeat(endpoint.control, opened.request.lease / 3) as heartbeat:
+        with Heartbeat(endpoint.control, opened.request.lease / 3, stop=stop) as heartbeat:
             findings: tuple[Finding, ...] = ()
             cause = "startup-failure"
             try:
@@ -293,6 +307,8 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
                 cause = str(error)
                 findings = (Finding("run-stopped-before-release", "supervisor", cause),)
             except EndpointError as error:
+                if error.code == "baseline-raced":
+                    append_event(run_dir, "baseline-raced", detail=str(error))
                 findings = (Finding(error.code, "endpoint", str(error)),)
             except EgressUnproven as error:
                 findings = (unproven(error),)

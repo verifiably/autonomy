@@ -121,7 +121,7 @@ def test_deadline_stays_latched():
 
 
 def test_heartbeat_keeps_a_waiting_endpoint_alive_then_stops():
-    from autonomy.science_run._supervisor import Heartbeat
+    from autonomy.science_run._supervisor import Heartbeat, Stop
 
     left, right = socket.socketpair()
     with left, right, ThreadPoolExecutor(1) as worker:
@@ -137,7 +137,56 @@ def test_heartbeat_keeps_a_waiting_endpoint_alive_then_stops():
                 seen.set()
 
         remote = worker.submit(peer)
-        with Heartbeat(control, 0.05) as beat:
+        with Stop(30) as stop, Heartbeat(control, 0.05, stop=stop) as beat:
             assert seen.wait(2)
             remote.result(timeout=2)
         assert not beat.failed.is_set()
+
+
+def test_heartbeat_never_renews_after_stop_is_requested():
+    from autonomy.science_run._supervisor import Heartbeat, Stop
+
+    left, right = socket.socketpair()
+    with left, right, Stop(30) as stop:
+        control = Control(left, lease=1.0)
+        os.kill(os.getpid(), signal.SIGTERM)
+        with Heartbeat(control, 0.05, stop=stop):
+            right.settimeout(0.2)
+            with pytest.raises(TimeoutError):
+                right.recv(4096)
+
+
+def test_journal_failure_still_dispatches_both_closes(tmp_path, monkeypatch):
+    from autonomy.science_run import _supervisor
+
+    observed = []
+
+    def unavailable(*args, **kwargs):
+        raise OSError("close journal unavailable")
+
+    monkeypatch.setattr(_supervisor, "append_event", unavailable)
+
+    class Endpoint:
+        seal_timeout = 1
+
+        @property
+        def control(self):
+            return self
+
+        def seal(self, deadline):
+            observed.append("seal")
+            raise EOFError
+
+        def close(self, *, grace=None):
+            observed.append("endpoint closed")
+
+    class Proxy:
+        def send_close(self):
+            observed.append("proxy close")
+
+        def wait_close(self, deadline):
+            return EgressClosed("close", 0, False)
+
+    with pytest.raises(OSError, match="close journal unavailable"):
+        _supervisor.finish(tmp_path, Endpoint(), Proxy(), None, (), "sigterm")
+    assert sorted(observed) == ["endpoint closed", "proxy close", "seal"]

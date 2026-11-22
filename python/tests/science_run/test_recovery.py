@@ -75,7 +75,7 @@ def test_damaged_development_header_cannot_be_used_as_science(env):
     assert not (dirs.run_dir / "disposition.json").exists()
 
 
-def _prepared(tmp_path, env, monkeypatch):
+def _prepared(tmp_path, env, monkeypatch, *, endpoint_pid=None):
     running = ProcessIdentity.capture(os.getpid())
     survivor = ProcessIdentity(running.pid, running.start_time + 1, running.boot_id)
     monkeypatch.setattr(ProcessIdentity, "capture", classmethod(lambda cls, pid: survivor))
@@ -84,14 +84,13 @@ def _prepared(tmp_path, env, monkeypatch):
     admission = _opening(configured)
     with admission.open(where, None) as dirs:
         opening = admission.capture(_opened(admission, dirs, where))
-    append_event(dirs.run_dir, "endpoint-starting", **survivor.fields())
+    endpoint = ProcessIdentity(endpoint_pid, survivor.start_time, survivor.boot_id) if endpoint_pid else survivor
+    append_event(dirs.run_dir, "endpoint-starting", **endpoint.fields())
     return dirs, opening, configured, calls
 
 
 def test_unconfirmed_endpoint_prevents_chain_reads_and_terminal_publication(tmp_path, env, monkeypatch):
-    dirs, _, configured, calls = _prepared(tmp_path, env, monkeypatch)
-    append_event(dirs.run_dir, "endpoint-starting", pid=1, start_time=1,
-                 boot_id=ProcessIdentity.capture(os.getpid()).boot_id)
+    dirs, _, configured, calls = _prepared(tmp_path, env, monkeypatch, endpoint_pid=1)
 
     def pin(self):
         if self.pid == 1:
@@ -147,6 +146,32 @@ def test_file_only_seal_needs_matching_session_close_and_no_failure(tmp_path, en
     closed = Ledger(sid, f"session:{sid}", REPORT_ONLY.permit, (), (), True, False,
                     world=opening.config.world_id)
     events = [{"event": "session-open"}]
+    from dataclasses import replace
+
     assert trusted_seal(dirs.run_dir, opening.written, session, closed, events) == published
+    assert trusted_seal(dirs.run_dir, opening.written, session, replace(closed, closed=False), events) is None
     assert trusted_seal(dirs.run_dir, opening.written, None, closed, events) is None
     assert trusted_seal(dirs.run_dir, opening.written, session, closed, [*events, {"event": "seal-timeout"}]) is None
+
+
+def test_recovery_reuses_a_recorded_egress_settlement(tmp_path, env, monkeypatch):
+    from autonomy.science_run import _recovery
+
+    dirs, _, configured, _ = _prepared(tmp_path, env, monkeypatch)
+    append_event(dirs.run_dir, "egress-proxy", **ProcessIdentity.capture(os.getpid()).fields())
+    append_event(dirs.run_dir, "egress-close-timeout")
+
+    def must_not_settle(_path):
+        pytest.fail("recovery attempted a second proxy settlement")
+
+    monkeypatch.setattr(_recovery, "kill_orphan", must_not_settle)
+    code, (receipt,) = control("close", dirs.run_id, configured)
+    assert code == 4
+    assert "egress-close-timeout" in {f["code"] for f in json.loads(receipt)["findings"]}
+
+
+def test_run_stop_refuses_a_reused_supervisor_pid(tmp_path, env, monkeypatch):
+    dirs, _, configured, _ = _prepared(tmp_path, env, monkeypatch)
+    with pytest.raises(RunRefused, match="use run close"):
+        control("stop", dirs.run_id, configured)
+    assert not (dirs.run_dir / "disposition.json").exists()

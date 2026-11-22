@@ -26,6 +26,7 @@ packages = ["src/autonomy"]
 testpaths = ["tests"]
 pythonpath = ["tests"]
 markers = [
+    "science_endpoint: needs the qualified science executable and certified fixture storage",
     "bwrap: needs bubblewrap and unprivileged user namespaces",
     "pi: needs hq's pinned pi install (PI_DIR or ~/.local/share/pi/1.1.0) and node",
 ]

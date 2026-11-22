@@ -638,3 +638,21 @@ def test_concurrent_start_cannot_admit_before_the_first_baseline(tmp_path, env):
             refusal = second.result(timeout=3)
             assert refusal.code == "orphaned-run" and dirs.run_id in refusal.message
     assert calls.read_text() == "resolve\n"
+
+
+def test_signal_between_mkdir_and_rollback_registration_keeps_no_run(env, monkeypatch):
+    import signal
+
+    where = places(env)
+    actual = Path.mkdir
+
+    def interrupt_after_mkdir(path, *args, **kwargs):
+        actual(path, *args, **kwargs)
+        if path.parent == where.state / "runs":
+            os.kill(os.getpid(), signal.SIGINT)
+
+    monkeypatch.setattr(Path, "mkdir", interrupt_after_mkdir)
+    with pytest.raises(KeyboardInterrupt):
+        allocate(where)
+    assert not any((where.state / "runs").iterdir())
+    assert not any((where.cache / "scratch").iterdir())

@@ -210,9 +210,11 @@ def read_info(fd: int, process: subprocess.Popen) -> dict[str, object] | None:
     decoder = json.JSONDecoder()
     buffer = ""
     deadline = time.monotonic() + LAUNCH_TIMEOUT
+    poll = select.poll()
+    poll.register(fd, select.POLLIN)
     while True:
         remaining = deadline - time.monotonic()
-        if remaining <= 0 or not select.select([fd], [], [], remaining)[0]:
+        if remaining <= 0 or not poll.poll(max(1, int(1000 * remaining))):
             return None
         chunk = os.read(fd, 4096)
         if not chunk:

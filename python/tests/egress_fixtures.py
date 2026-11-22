@@ -144,7 +144,8 @@ def tls(tmp_path_factory) -> Tls:
         ["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes",
          "-keyout", str(key), "-out", str(cert), "-days", "2", "-subj", "/CN=localhost",
          "-addext", "subjectAltName=DNS:localhost,DNS:other,IP:127.0.0.1"],
-        check=True, capture_output=True, stdin=subprocess.DEVNULL,
+        check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=10,
+        env={"PATH": "/usr/bin", "HOME": str(directory)},
     )
     return Tls(cert, key)
 

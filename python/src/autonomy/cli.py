@@ -200,6 +200,8 @@ def _run(args: argparse.Namespace, diag: _Diagnostics, progress: Progress) -> in
         return science_run.execute(request, os.environ, diag=diag, progress=progress,
                                    actor_launched=lambda run_dir: _release_supervisor_stdio(diag, run_dir))
     except RunRefused as caught:
+        if progress.dirs is not None:
+            raise
         diag(f"refused: {caught.code}: {caught.message}")
         return EXIT_REFUSED
 
@@ -327,7 +329,7 @@ def _unexpected(caught: BaseException, diag: Diag, progress: Progress | analyst.
     directory exists, or 4 when one does. That run has no `disposition.json` and is
     left for `run close`, and `execute` has already closed its report fd; without a
     run directory, the process's exit closes it."""
-    if isinstance(progress, DevelopmentProgress) and progress.durable_exit is not None:
+    if isinstance(progress, (Progress, DevelopmentProgress)) and progress.durable_exit is not None:
         return progress.durable_exit
     if isinstance(progress, (analyst.Progress, DevelopmentProgress)):
         run_dir = progress.run_dir
@@ -377,14 +379,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     except _Stop as stop:
         return stop.status
     except RunRefused as caught:
-        if isinstance(progress, DevelopmentProgress) and progress.run_dir is not None:
+        if (isinstance(progress, DevelopmentProgress) and progress.run_dir is not None
+                or isinstance(progress, Progress) and progress.dirs is not None):
             return _unexpected(caught, diag, progress)
-        diag(f"refused: {caught.code}: {caught.message}")
+        try:
+            diag(f"refused: {caught.code}: {caught.message}")
+        except BaseException:
+            return _unexpected(caught, diag, progress)
         return EXIT_REFUSED
     except BaseException as caught:
         return _unexpected(caught, diag, progress, label=label)
     finally:
         try:
             diag.close()
-        except OSError:
+        except BaseException:
             pass

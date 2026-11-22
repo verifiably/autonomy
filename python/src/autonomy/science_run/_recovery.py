@@ -217,6 +217,10 @@ def _evidence(
         findings.append(Finding("read-unavailable", "config", "the original interval could not be verified"))
         return RunResult(tuple(findings), {}, None)
 
+    baseline_raced = _event(events, "baseline-raced")
+    refused_claim = baseline_raced is not None and _event(events, "actor-releasing") is None
+    if refused_claim and not any(f.code == "baseline-raced" for f in findings):
+        findings.append(Finding("baseline-raced", "endpoint", "the actor was held after a baseline race"))
     available = {c.chain_id: c for c in heads.chains} if heads is not None else {}
     through = {row["id"]: row["tip"] for row in seal["sealed_tips"]} if seal is not None else {}
     intervals: list[Chain] = []
@@ -231,6 +235,9 @@ def _evidence(
             findings.append(Finding("read-unavailable", chain.chain_id, "the through-tip could not be established"))
             continue
         through[chain.chain_id] = tip
+        if refused_claim:
+            # The actor was held. This observed movement preceded the acquired claim.
+            continue
         try:
             config.verify()
             interval = reader.interval(chain, after=chain.tip, through=tip)
@@ -396,8 +403,11 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
     state = state_root(env).resolve()
     try:
         _match(run_id, _ID)
-        with lock(state / ADMISSION_LOCK, create=True):
-            run_dir, meta = _lookup(state, run_id)
+        try:
+            with lock(state / ADMISSION_LOCK, create=True):
+                run_dir, meta = _lookup(state, run_id)
+        except FileNotFoundError:
+            raise RunRefused("development-run-invalid", f"run {run_id} does not exist") from None
         if meta.get("mode") == "development":
             if not development.valid_run(run_dir, env):
                 raise ValueError("development run identity is damaged")
@@ -408,7 +418,7 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
             return status
         events = _journal(run_dir)
         owner = _supervisor(events, run_id)
-        if meta and owner is None:
+        if meta and owner is None and not _no_possible_writer(run_dir):
             raise ValueError("cannot confirm supervisor identity")
         pidfd = owner.pin() if owner is not None else None
         if pidfd is not None:
@@ -421,7 +431,7 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
             raise RunRefused("run-supervisor-live", f"run {run_id} is active; use run stop")
         if action == "stop":
             raise RunRefused("run-supervisor-gone", f"run {run_id} has no live supervisor; use run close")
-        with lock(run_dir / SUPERVISOR_LOCK, create=not meta):
+        with lock(run_dir / SUPERVISOR_LOCK, create=owner is None):
             if (status := _terminal(run_dir, emit)) is not None:
                 return status
             events = _journal(run_dir)

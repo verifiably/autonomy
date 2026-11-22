@@ -45,6 +45,8 @@ PID, boot ID and start ticks. An accepted `session-open` event carries the
 endpoint's session ID, original ledger path and opening basis.
 The supervisor journals `proved` after the sandbox walk and probe, and
 `actor-releasing` with the actor's PID, boot ID and start ticks before release.
+`baseline-raced` records observed movement before the actor could be
+released. A refused baseline race leaves the written interval unclassified.
 `close-start` records the first trigger. `seal-request` records dispatch,
 and `sealed` carries a validated acknowledgement payload. A seal failure or
 timeout is recorded as `seal-failed` or `seal-timeout`.
@@ -76,6 +78,10 @@ A science disposition groups verified member digests by written chain ID.
 Its `closing_heads` holds the world tip and maps for written and mount tips
 where available, or null when the original interval cannot be read.
 Publication invariant: To ensure atomic publication without concurrent corruption or partial reads, the record is written to temporary path `<run_dir>/.disposition.json.<16-hex>.tmp` with mode `0600`, fsynced, hard-linked to `<run_dir>/disposition.json` via `os.link` (which fails if the target already exists), unlinked from the temporary path, and the directory is fsynced.
+A science run uses the terminal exit after that directory sync, even if a
+later report or diagnostic fails. A final sync failure leaves the linked
+record available to `run close` and the original invocation exits 4 without
+a closing report.
 
 ## Events log
 

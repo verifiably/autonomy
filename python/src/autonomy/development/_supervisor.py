@@ -139,7 +139,8 @@ def _await_actor(actor: Sandboxed, run: RunPaths, until: float) -> tuple[int | N
         if time.monotonic() >= until:
             cause = "deadline"
             break
-        return exit_status, "exit", _exited(actor.pidfd)
+        # The outer wrapper can exit just before its namespace init.
+        return exit_status, "exit", _exited(actor.pidfd, int(_KILL_WAIT * 1000))
     try:
         ended = _terminate(actor.pidfd)
         return actor.wait(timeout=_KILL_WAIT), cause, ended

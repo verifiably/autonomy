@@ -197,3 +197,24 @@ def test_recovery_never_signals_a_reused_or_unverified_pid(supervisor, monkeypat
     assert supervisor._recover_namespace(identity)
     assert not supervisor._recover_namespace(replace(identity, boot_id="00000000-0000-0000-0000-000000000000"))
     assert calls == []
+
+
+def test_actor_exit_waits_for_its_namespace_pidfd(tmp_path):
+    from subprocess import DEVNULL, Popen
+    import sys
+    import time
+    from types import SimpleNamespace
+
+    from autonomy.development._supervisor import _await_actor
+
+    with Popen([sys.executable, "-c", "import time; time.sleep(0.3)"],
+               env={"PATH": "/usr/bin", "HOME": str(tmp_path)},
+               stdin=DEVNULL, stdout=DEVNULL, stderr=DEVNULL) as namespace:
+        pidfd = os.pidfd_open(namespace.pid)
+        try:
+            # The bwrap wrapper can be reaped before the namespace init is readable.
+            actor = SimpleNamespace(wait=lambda *, timeout: 0, pidfd=pidfd)
+            assert _await_actor(actor, SimpleNamespace(run_dir=tmp_path), time.monotonic() + 2) == (0, "exit", True)
+        finally:
+            os.close(pidfd)
+            namespace.wait(timeout=3)

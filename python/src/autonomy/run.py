@@ -6,6 +6,7 @@ import json
 import os
 import pwd
 import secrets
+import signal
 import stat
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
@@ -134,7 +135,16 @@ def ensure_run_parents(where: Places) -> None:
         raise RunRefused("allocation-failed", f"cannot prepare {path}: {caught}") from caught
 
 
-def allocate(where: Places) -> RunDirs:
+@contextmanager
+def _hold_stop_signals() -> Iterator[None]:
+    state = signal.pthread_sigmask(signal.SIG_BLOCK, (signal.SIGINT, signal.SIGTERM, signal.SIGHUP))
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, state)
+
+
+def allocate(where: Places, *, progress: Progress | None = None) -> RunDirs:
     """Step 1. The socket directory's name is the run id's first 12 hex digits, short
     because of the 107-byte AF_UNIX path limit. Each directory is new: a collision
     fails rather than sharing one.
@@ -152,10 +162,17 @@ def allocate(where: Places) -> RunDirs:
     path = run_dir
     try:
         for path in (run_dir, scratch, socket_dir):
-            path.mkdir(mode=0o700)
-            made.append(path)
-        return RunDirs(run_id, run_dir, scratch.resolve(), socket_dir)
+            with _hold_stop_signals():
+                path.mkdir(mode=0o700)
+                made.append(path)
+        with _hold_stop_signals():
+            dirs = RunDirs(run_id, run_dir, scratch.resolve(), socket_dir)
+            if progress is not None:
+                progress.dirs = dirs
+        return dirs
     except BaseException as caught:
+        if progress is not None:
+            progress.dirs = None
         for created in reversed(made):
             created.rmdir()
         if isinstance(caught, OSError):
@@ -183,12 +200,10 @@ def check_run_stdio(report_fd: int | None, actor_fds: tuple[int, int, int]) -> t
 
 @dataclass
 class Progress:
-    """How far `execute` got, for a caller that must account for a run when `execute`
-    raises: `dirs` is set the moment step 1 has made the run's directories. Set, the
-    run directory exists and has no `disposition.json` unless `execute` returned;
-    None, `execute` left nothing on disk."""
+    """Retained run and durable disposition checkpoints for unexpected errors."""
 
     dirs: RunDirs | None = None
+    durable_exit: int | None = None
 
 
 @dataclass
@@ -208,12 +223,12 @@ class Opened:
     route: LoadedRoute | None
 
 
-RunOpener = Callable[[Places, LoadedRoute | None], AbstractContextManager[RunDirs]]
+RunOpener = Callable[[Places, LoadedRoute | None, Progress], AbstractContextManager[RunDirs]]
 
 
 @contextmanager
-def _open_local(where: Places, route: LoadedRoute | None) -> Iterator[RunDirs]:
-    yield allocate(where)
+def _open_local(where: Places, _route: LoadedRoute | None, progress: Progress) -> Iterator[RunDirs]:
+    yield allocate(where, progress=progress)
 
 
 @dataclass(frozen=True)
@@ -293,8 +308,7 @@ def execute(
     try:
         if request.report_fd is not None:
             report = LineChannel(request.report_fd)
-        with open_run(where, route) as dirs:
-            progress.dirs = dirs
+        with open_run(where, route, progress) as dirs:
             diag(f"run {dirs.run_id} in {dirs.run_dir}")
             if report is not None and not report.write_line(
                 _line({"run": dirs.run_id, "run_dir": str(dirs.run_dir), "scratch": str(dirs.scratch)})
@@ -304,11 +318,13 @@ def execute(
             findings = result.findings if isinstance(result, RunResult) else tuple(result)
             disposition = disposition_of(findings)
             code = EXIT_CODES[disposition]
-            if isinstance(result, RunResult):
-                write_disposition(dirs.run_dir, dirs.run_id, disposition, findings,
-                                  members=result.members, closing_heads=result.closing_heads)
-            else:
-                write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
+            with _hold_stop_signals():
+                if isinstance(result, RunResult):
+                    write_disposition(dirs.run_dir, dirs.run_id, disposition, findings,
+                                      members=result.members, closing_heads=result.closing_heads)
+                else:
+                    write_disposition(dirs.run_dir, dirs.run_id, disposition, findings)
+                progress.durable_exit = code
             if report is not None and not report.write_line(
                 _line({"run": dirs.run_id, "disposition": disposition, "exit": code})
             ):

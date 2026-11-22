@@ -17,7 +17,7 @@ from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import LoadedRoute
 from autonomy.membership import Finding
 from autonomy.process import ProcessIdentity
-from autonomy.run import EXIT_CODES, Opened, Places, RunDirs, RunRefused, RunRequest, allocate, ensure_run_parents
+from autonomy.run import EXIT_CODES, Opened, Places, Progress, RunDirs, RunRefused, RunRequest, allocate, ensure_run_parents
 from autonomy.science_reads import ChainHead, Heads, ReadUnavailable, ScienceReader
 from autonomy.science_run._config import Config, operator
 
@@ -97,10 +97,12 @@ def _no_possible_writer(run_dir: Path) -> bool:
         metadata = read_record(run_dir / "run.json")
     except FileNotFoundError:
         return all(row.get("event") == "report-unwritten" for row in events)
-    return (metadata.get("version") == 1 and metadata.get("run") == run_dir.name
-            and metadata.get("mode") == "science" and bool(events)
-            and events[0].get("event") == "allocated" and events[0].get("run") == run_dir.name
-            and events[0].get("mode") == "science")
+    return (
+        type(metadata.get("version")) is int and metadata["version"] == 1
+        and metadata.get("run") == run_dir.name and metadata.get("mode") == "science"
+        and (not events or (events[0].get("event") == "allocated" and events[0].get("run") == run_dir.name
+                            and events[0].get("mode") == "science"))
+    )
 
 
 def _roots(run_dir: Path) -> tuple[tuple[str, str, Path], ...]:
@@ -185,7 +187,7 @@ class Admission:
         self._fd: int | None = None
 
     @contextmanager
-    def open(self, where: Places, route: LoadedRoute | None) -> Iterator[RunDirs]:
+    def open(self, where: Places, _route: LoadedRoute | None, progress: Progress | None = None) -> Iterator[RunDirs]:
         self.config, self.reader, self.unavailable = operator(self.env)
         ensure_run_parents(where)
         with lock(where.state / ADMISSION_LOCK, create=True) as admission_fd:
@@ -194,7 +196,7 @@ class Admission:
                     _overlapping(where, self.config, self.reader, self.request, self.env)
                 except ReadUnavailable as error:
                     self.unavailable = str(error)
-            dirs = allocate(where)
+            dirs = allocate(where, progress=progress)
             for directory in (where.state, where.cache, dirs.run_dir.parent, dirs.scratch.parent, dirs.socket_dir.parent):
                 fsync_dir(directory)
             with lock(dirs.run_dir / SUPERVISOR_LOCK, create=True):

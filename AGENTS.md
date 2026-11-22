@@ -25,6 +25,13 @@ marked `pi` also need the pinned pi 1.1.0 install (`PI_DIR`, default
 `~/.local/share/pi/1.1.0`) and node (`NODE_DIR` when `/usr/bin/node` would shadow
 `rg` or `fd`), and `python/tests/test_analyst_check.py` is run locally when touching
 the analyst launch or toolchain because the hosted workflow has neither pi nor node.
+The `science_endpoint` integration tests take an absolute `SCIENCE_BIN` pointing
+at the qualified science installation and `SCIENCE_TEST_ROOT` on writable
+storage certified by atoms. Use science `dda439e2`, beliefs `c49e86f6`,
+atoms `a4d414b9` and nodes `d8c73b23` with matching installed sources. Run
+`just test-one tests/science_run/test_integration.py` with those settings.
+The tests create disposable worlds and use a local TLS upstream. They skip
+when `SCIENCE_BIN` is unset.
 On a fresh clone, `git config core.hooksPath .githooks`.
 
 Test execution policy is `.tt.toml` at this checkout's Git top level (each worktree
