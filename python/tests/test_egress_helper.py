@@ -108,3 +108,32 @@ def test_the_helper_gets_stdin_from_dev_null(monkeypatch):  # Helper stdin is /d
     with pytest.raises(EgressUnproven):
         make_listener(1, 0)
     assert seen["stdin"] is subprocess.DEVNULL
+
+
+def test_helper_returns_a_close_on_exec_listener():
+    source = """import socket, sys
+back = socket.socket(fileno=int(sys.argv[3]))
+listener = socket.socket()
+listener.bind(("127.0.0.1", 0))
+listener.listen()
+socket.send_fds(back, [b"L"], [listener.fileno()])
+"""
+    with os.fdopen(os.open(os.devnull, os.O_RDONLY)) as placeholder:
+        with make_listener(1, placeholder.fileno(), source=source) as listener:
+            assert not os.get_inheritable(listener.fileno())
+
+
+def test_proxy_receives_close_on_exec_descriptors():
+    from autonomy.egress.proxy import receive_message, send_message
+
+    with os.fdopen(os.open(os.devnull, os.O_RDONLY)) as payload:
+        sender, receiver = socket.socketpair()
+        with sender, receiver:
+            send_message(sender, {"op": "listener"}, [payload.fileno()])
+            message, fds = receive_message(receiver)
+            try:
+                assert message == {"op": "listener"} and len(fds) == 1
+                assert not os.get_inheritable(fds[0])
+            finally:
+                for fd in fds:
+                    os.close(fd)

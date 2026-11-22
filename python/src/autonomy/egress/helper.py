@@ -16,6 +16,7 @@ from __future__ import annotations
 import socket
 import subprocess
 
+from autonomy.egress.descriptor import receive_fds
 from autonomy.egress.errors import EgressUnproven
 
 MODEL_PORT = 4780
@@ -48,7 +49,7 @@ def make_listener(child_pid: int, pidfd: int, *, port: int = MODEL_PORT, source:
             result = subprocess.run(
                 ["/usr/bin/python3", "-I", "-c", source, str(child_pid), str(pidfd), str(back.fileno()), str(port)],
                 pass_fds=(pidfd, back.fileno()), stdin=subprocess.DEVNULL, capture_output=True,
-                timeout=HELPER_TIMEOUT,
+                timeout=HELPER_TIMEOUT, env={},
             )
         except subprocess.TimeoutExpired:
             raise EgressUnproven("listener-failed", f"the namespace helper did not finish in {HELPER_TIMEOUT:g} s") from None
@@ -58,7 +59,7 @@ def make_listener(child_pid: int, pidfd: int, *, port: int = MODEL_PORT, source:
             lines = result.stderr.decode("utf-8", "replace").strip().splitlines()
             raise EgressUnproven("listener-failed", lines[-1] if lines else f"the helper exited {result.returncode}")
         here.settimeout(1.0)
-        _, fds, _, _ = socket.recv_fds(here, 1, 1)
+        _, fds = receive_fds(here, 1)
         if len(fds) != 1:
             raise EgressUnproven("listener-failed", "the helper passed back no listener")
         return socket.socket(fileno=fds[0])

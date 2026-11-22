@@ -19,6 +19,7 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from autonomy.egress.descriptor import receive_fds
 from autonomy.egress.errors import EgressUnproven, RouteRefused
 from autonomy.egress.route import parse_route
 from autonomy.egress.server import ProxyServer, Recorder
@@ -63,7 +64,7 @@ def send_message(control: socket.socket, message: dict, fds: Iterable[int] = ())
 
 
 def receive_message(control: socket.socket) -> tuple[dict | None, list[int]]:
-    data, fds, _, _ = socket.recv_fds(control, MAX_MESSAGE, 1)
+    data, fds = receive_fds(control, MAX_MESSAGE)
     if not data:
         for fd in fds:
             os.close(fd)

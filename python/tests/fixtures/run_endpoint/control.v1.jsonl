@@ -1,0 +1,6 @@
+{"basis_open":"1111111111111111111111111111111111111111111111111111111111111111","ledger_path":"/example/operations/sessions/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ledger.v1","session_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","type":"open","version":"control.v1"}
+{"type":"bind-actor","version":"control.v1"}
+{"type":"bound","version":"control.v1"}
+{"type":"renew","version":"control.v1"}
+{"type":"renewed","version":"control.v1"}
+{"type":"seal","version":"control.v1"}

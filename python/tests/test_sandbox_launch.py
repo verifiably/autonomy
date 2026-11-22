@@ -674,3 +674,20 @@ def test_a_hook_that_swallows_its_failure_releases_the_actor(tmp_path, stdio):
     finally:
         sandbox.close()
     assert flag.exists()
+
+
+def test_science_binding_failure_cannot_release_the_actor(tmp_path, stdio):
+    from autonomy.endpoint import EndpointError
+
+    marker_path = tmp_path / "started"
+    ready = threading.Event()
+
+    def refuse_binding(_pid, _pidfd):
+        ready.set()
+        raise EndpointError("missing bound acknowledgement")
+
+    with pytest.raises(EndpointError, match="missing bound"):
+        launch(SandboxSpec(scratch=tmp_path),
+               ["/usr/bin/touch", str(marker_path)], before_release=refuse_binding, **stdio)
+    assert ready.is_set()
+    assert not marker_path.exists()

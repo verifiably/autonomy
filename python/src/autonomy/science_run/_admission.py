@@ -16,6 +16,7 @@ from autonomy.development import valid_run as valid_development_run
 from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import LoadedRoute
 from autonomy.membership import Finding
+from autonomy.process import ProcessIdentity
 from autonomy.run import EXIT_CODES, Opened, Places, RunDirs, RunRefused, RunRequest, allocate, ensure_run_parents
 from autonomy.science_reads import ChainHead, Heads, ReadUnavailable, ScienceReader
 from autonomy.science_run._config import Config, operator
@@ -52,13 +53,6 @@ def lock(path: Path, *, create: bool = False, nowait: bool = False) -> Iterator[
         yield fd
     finally:
         os.close(fd)
-
-
-def identity(pid: int) -> dict[str, object]:
-    boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    kernel_stat = Path(f"/proc/{pid}/stat").read_bytes()
-    ticks = int(kernel_stat.rsplit(b")", 1)[1].split()[19])
-    return {"pid": pid, "start_time": ticks, "boot_id": boot}
 
 
 def _retired(run_dir: Path, env: Mapping[str, str]) -> bool:
@@ -214,7 +208,7 @@ class Admission:
                     "deadline_seconds": self.request.deadline,
                     "lease_seconds": self.request.lease, "seal_timeout_seconds": SEAL_TIMEOUT,
                 })
-                append_event(dirs.run_dir, "allocated", mode="science", run=dirs.run_id, **identity(os.getpid()))
+                append_event(dirs.run_dir, "allocated", mode="science", run=dirs.run_id, **ProcessIdentity.capture(os.getpid()).fields())
                 self._fd = admission_fd
                 try:
                     yield dirs

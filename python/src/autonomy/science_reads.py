@@ -186,8 +186,6 @@ def _entry(row: dict) -> Entry:
                     _matches(location, _DIGEST)
                 elif store_id is not None and (act != "re-check" or not _DIGEST.fullmatch(location)):
                     _bare_path(location)
-                if store_id is None and act != "re-check":
-                    raise ReadUnavailable("mutating holdings act has no store")
                 return Intent(digest, _text(row["actor"]), "holdings", act, location, store_id)
             _fields(row, "type digest actor kind")
             if row["kind"] is None and row["actor"] is None:

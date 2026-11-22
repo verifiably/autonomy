@@ -37,6 +37,13 @@ digests, actor arguments, sandbox settings, route metadata and lease. The
 root, genesis and tip. Route metadata contains route name, file digest, upstream
 and actor URL. Credential values and paths are excluded from route metadata.
 
+The endpoint launch adapter writes a private `launch.json` naming the trusted
+config, declared written chains and permit, socket paths, token path and lease
+bounds. The 64-byte token is held in a separate mode-`0600` file. The launch
+process waits at an exec barrier until `endpoint-starting` durably records its
+PID, boot ID and start ticks. An accepted `session-open` event carries the
+endpoint's session ID, original ledger path and opening basis.
+
 ## Disposition record
 
 The terminal verdict is written to `<run_dir>/disposition.json` by `run.write_disposition` in `python/src/autonomy/run.py`. It is a Version 1 record with schema:
