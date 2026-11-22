@@ -137,6 +137,24 @@ Autonomy integrates with verifiable session ledgers via permissions and tier dec
 - `RunEvidence` (`python/src/autonomy/evidence.py`):
   Evaluated at closing by `closing.close` (which delegates ledger and chain membership validation to `membership.classify`): `run_actor`, `tier_permit`, `baseline_available`, `ledger`, `chains`, `sealed`, `seal_timeout`, `orchestrator_lost`, `world_baseline`, `world_closing`, `mounts_baseline`, `mounts_closing`, `basis_open`, `basis_seal`, `later_ledgers`.
 
+## Science command evidence
+
+The operator reader in `autonomy.science_reads` captures `science heads` and
+`science log` privately with one absolute executable and config path. Either
+science handle variable makes these operator reads unavailable. Heads supplies
+world and chain digests and pending transaction pairs. Each log page repeats
+the chain selector, baseline tip and closing through-tip. The reader joins
+the fragments before decoding and discards the interval if any page fails.
+A structured refusal proving the baseline tip is off-chain yields
+`chain-discontinuous`. A failed read or missing through-tip leaves the
+interval unavailable.
+
+The reader checks both ordered registration path/state surfaces before passing
+their exact paths to the closing check. With an unusable ledger, an unambiguous
+store transaction attributable to the act in progress yields `outcome-unknown`
+for its intent, registration and any settlement without certifying membership.
+Independent foreign-entry and chain-discontinuity evidence still applies.
+
 ## Development run records
 
 The development record helpers use the same run identifiers and durable

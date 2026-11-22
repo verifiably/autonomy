@@ -11,7 +11,7 @@ from typing import Literal
 
 from autonomy.evidence import Intent, Registration, RunEvidence
 from autonomy.ledger import LedgerUnusable
-from autonomy.membership import Finding, classify
+from autonomy.membership import Finding, classify, unproved_store_transaction
 
 Disposition = Literal["clean", "unwired", "quarantined"]
 
@@ -119,6 +119,9 @@ def close(evidence: RunEvidence) -> Verdict:
             # membership needs the ledger, but some quarantine evidence does not:
             # an unusable ledger must never hide it behind `unwired`
             findings.extend(_ledgerless(evidence))
+            findings.extend(unproved_store_transaction(
+                evidence.chains, evidence.run_actor, sealed=evidence.sealed, later_ledgers=evidence.later_ledgers,
+            ))
     else:
         if ledger.torn_tail:
             add("ledger-malformed", ledger.session_id, "a torn tail: the last line has no newline")

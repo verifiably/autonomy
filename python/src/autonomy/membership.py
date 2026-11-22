@@ -139,6 +139,38 @@ def classify(
     return Membership(tuple(members), tuple(findings))
 
 
+def unproved_store_transaction(
+    chains: Iterable[Chain], run_actor: str, *, sealed: bool, later_ledgers: tuple[Ledger, ...],
+) -> tuple[Finding, ...]:
+    """With no usable ledger, identify an unambiguous store cut without certifying membership."""
+    live = [chain for chain in chains if chain.on_chain]
+    later = tuple(other for other in later_ledgers if f"session:{other.session_id}" != run_actor)
+    after = set() if sealed else {digest for chain in live for digest in _after_run(chain, run_actor, later)}
+    in_progress = _act_in_progress(live, run_actor, after)
+    intents = {entry.digest: entry for chain in live for entry in chain.entries
+               if isinstance(entry, Intent) and entry.digest in in_progress}
+    candidates = [
+        (chain, entry, owner)
+        for chain in live
+        for entry in chain.entries
+        if isinstance(entry, Registration) and entry.digest not in after
+        and (owner := _owner(entry, chain, {}, intents, in_progress)) in in_progress
+    ]
+    if len(candidates) != 1:
+        return ()
+    chain, registration, owner = candidates[0]
+    if chain.role != "store" or registration.fulfills is not None or owner is None:
+        return ()
+    transaction = [owner, registration.digest]
+    transaction.extend(
+        entry.digest for entry in chain.entries
+        if isinstance(entry, Settlement) and entry.registration == registration.digest
+        and entry.txid == registration.txid and entry.digest not in after
+    )
+    return tuple(Finding("outcome-unknown", digest, "the store transaction cannot be verified without its ledger")
+                 for digest in transaction)
+
+
 def _act_in_progress(live: list[Chain], run_actor: str, after: set[str]) -> frozenset[str]:
     """The last run-actor intent on the corpus chain, with its move-source when it is
     a move-destination: the kernel's `move` appends the two back to back."""
