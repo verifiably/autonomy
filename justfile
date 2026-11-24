@@ -3,11 +3,9 @@
 # whether `just test` and `just test-fast` run or record a skip.
 # Commit and push hooks run local hygiene. Push hooks then request the applicable
 # broad target. Hosted CI runs `just ci-check-hygiene` and `just test-full`.
-# Adoption: copy templates/githooks/ to .githooks/ and run
-# `git config core.hooksPath .githooks`; append templates/gitignore to .gitignore so the
-# fallback log directory `.tt/` is never committed; vendor ops bin/tt as tools/tt and ops
-# bin/ops-check as tools/ops-check; vendor ops bin/ops-docs as tools/ops-docs and copy templates/identity.toml, templates/README.md, and templates/AGENTS.md. The check command runs ops-check first: the shared
-# hygiene checks (doc references exist, no Dropbox conflicted copies) in milliseconds.
+# See ops docs/tooling.md (Adopt the tooling) for hook installation, ignore rules,
+# vendoring and guide templates. The check command runs the shared ops-check hygiene first.
+# See ops docs/test-execution-policy.md for execution decisions and timing records.
 # The timing wrapper records its named checks and counts tests from their output.
 # Recipe lines are not echoed: the wrapper records every command it runs, `tasks check`
 # is silent when clean, and a clean commit should print nothing. `just --verbose` shows them.

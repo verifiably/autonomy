@@ -1,5 +1,6 @@
 # What this project is. `tools/ops-docs write` renders it into the identity region of
 # README.md and AGENTS.md; `tools/ops-docs check` refuses a commit while they differ.
+# See ops docs/project-guides.md (Identity records).
 name = "autonomy"
 aliases = []
 purpose = "The envelope and orchestrator of verifiably: what may run unattended"
