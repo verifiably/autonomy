@@ -8,11 +8,9 @@
 # (`test`, `test-fast`) untimed, so each suite records under its own target.
 # Broad execution: `.tt.toml` at this checkout's Git top level decides whether `test`
 # and `test-fast` run or record a skip; tt reads it, and nothing else does.
-# Adoption: copy templates/githooks/ to .githooks/ and run
-# `git config core.hooksPath .githooks`; append templates/gitignore to .gitignore so the
-# fallback log directory `.tt/` is never committed; vendor ops bin/tt as tools/tt and ops
-# bin/ops-check as tools/ops-check; vendor ops bin/ops-docs as tools/ops-docs and copy templates/identity.toml, templates/README.md, and templates/AGENTS.md. The check command runs ops-check first: the shared
-# hygiene checks (doc references exist, no Dropbox conflicted copies) in milliseconds.
+# See ops docs/tooling.md (Adopt the tooling) for hook installation, ignore rules,
+# vendoring and guide templates. The check command runs the shared ops-check hygiene first.
+# See ops docs/test-execution-policy.md for execution decisions and timing records.
 # Every recipe runs through the vendored timing wrapper so the run is recorded. The
 # wrapper counts tests from stdout; if the runner reports on stderr (python unittest
 # does), end that command with `2>&1`.
