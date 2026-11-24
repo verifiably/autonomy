@@ -240,10 +240,9 @@ def workflow():
 def test_the_workflow_covers_all_branches_forces_once_and_cancels_stale_heads(workflow):
     assert workflow["on"] == {"push": {"branches": ["**"]}, "workflow_dispatch": None}
     assert workflow["permissions"] == {"contents": "read"}
-    assert workflow["concurrency"] == {
-        "group": "${{ github.workflow }}-${{ github.ref }}",
-        "cancel-in-progress": True,
-    }
+    concurrency = workflow["concurrency"]
+    assert concurrency["group"] == "${{ github.workflow }}-${{ github.ref }}"
+    assert concurrency["cancel-in-progress"] is True
     job = workflow["jobs"]["test"]
     assert job["runs-on"] == "ubuntu-24.04"
     assert type(job["timeout-minutes"]) is int and job["timeout-minutes"] > 0
