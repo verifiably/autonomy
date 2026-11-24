@@ -1,21 +1,14 @@
-# Front door for tests. Copy to the project root and fill in the three commands below.
-# Inner loop: `just test-one <runner args>` on the test at hand, `just test-fast`
-# (affected-only) before committing. Full suite: `just test`; `just test-full` runs it
-# whatever the policy says.
-# Gates: `just check` at pre-commit, `just gate` at pre-push and in CI.
-# The git hooks call `hook-pre-commit` and `hook-pre-push` instead, which time the
-# mandatory hygiene once under their own target names and then call the broad recipes
-# (`test`, `test-fast`) untimed, so each suite records under its own target.
-# Broad execution: `.tt.toml` at this checkout's Git top level decides whether `test`
-# and `test-fast` run or record a skip; tt reads it, and nothing else does.
+# Test front door. Run `just test-one <runner args>` for focused checks.
+# `just test-full` forces the full suite. The Git-top-level .tt.toml controls
+# whether `just test` and `just test-fast` run or record a skip.
+# Commit and push hooks run local hygiene. Push hooks then request the applicable
+# broad target. Hosted CI runs `just ci-check-hygiene` and `just test-full`.
 # Adoption: copy templates/githooks/ to .githooks/ and run
 # `git config core.hooksPath .githooks`; append templates/gitignore to .gitignore so the
 # fallback log directory `.tt/` is never committed; vendor ops bin/tt as tools/tt and ops
 # bin/ops-check as tools/ops-check; vendor ops bin/ops-docs as tools/ops-docs and copy templates/identity.toml, templates/README.md, and templates/AGENTS.md. The check command runs ops-check first: the shared
 # hygiene checks (doc references exist, no Dropbox conflicted copies) in milliseconds.
-# Every recipe runs through the vendored timing wrapper so the run is recorded. The
-# wrapper counts tests from stdout; if the runner reports on stderr (python unittest
-# does), end that command with `2>&1`.
+# The timing wrapper records its named checks and counts tests from their output.
 # Recipe lines are not echoed: the wrapper records every command it runs, `tasks check`
 # is silent when clean, and a clean commit should print nothing. `just --verbose` shows them.
 set quiet
@@ -23,12 +16,8 @@ set positional-arguments
 
 tt := "python3 tools/tt"
 
-# The three commands, each written once. Recipes and hooks all run these, so a hook can
-# never drift from the gate it is supposed to be. Avoid single quotes inside them.
-# With no affected-only mechanism, set fast_cmd to the same command as test_cmd and say
-# so here; the target must always exist and the report shows the gap as equal durations.
-# The package lives under python/; `uv run` syncs the dev group (pytest, pytest-testmon),
-# and testmon gives the fast loop its affected-only selection.
+# Shared command definitions keep recipes and hooks aligned. Avoid single quotes inside them.
+# The Python fast target uses testmon for affected-only selection.
 fast_cmd := "cd python && uv run pytest --testmon"
 test_cmd := "cd python && uv run pytest"
 check_hygiene_cmd := "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"

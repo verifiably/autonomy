@@ -11,8 +11,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
+SUBPROCESS_TIMEOUT = 15
 
 COMMANDS = dict(check_hygiene_cmd="python3 marker.py hygiene",
                 ci_hygiene_cmd="python3 marker.py ci-hygiene",
@@ -73,7 +75,7 @@ class FrontDoor:
 
     def git(self, *args: str) -> str:
         return subprocess.run(["git", "-C", str(self.root), *args], env=self.env, text=True,
-                              capture_output=True, check=True).stdout.strip()
+                              capture_output=True, timeout=SUBPROCESS_TIMEOUT, check=True).stdout.strip()
 
     def policy(self, enabled: bool, targets: list[str]) -> None:
         (self.root / ".tt.toml").write_text(f"automatic_broad = {str(enabled).lower()}\n"
@@ -81,11 +83,11 @@ class FrontDoor:
 
     def recipe(self, name: str, *args: str, **env: str) -> subprocess.CompletedProcess:
         return subprocess.run(["just", name, *args], cwd=self.root, env={**self.env, **env},
-                              text=True, capture_output=True)
+                              text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True)
 
     def push(self, remote: str, refs: str, **env: str) -> subprocess.CompletedProcess:
         return subprocess.run(["sh", ".githooks/pre-push", remote, "/fixture/remote"], input=refs,
-                              cwd=self.root, env={**self.env, **env}, text=True, capture_output=True)
+                              cwd=self.root, env={**self.env, **env}, text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True)
 
     def markers(self) -> list[list[str]]:
         path = self.root / "markers"
@@ -111,7 +113,7 @@ def test_the_fixture_environment_holds_no_force_or_hosted_marker(front_door):
 
 def test_recipes_follow_the_shared_shape(front_door):
     result = subprocess.run(["just", "--summary"], cwd=front_door.root, env=front_door.env,
-                            text=True, capture_output=True, check=True)
+                            text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True, check=True)
     assert set(result.stdout.split()) == {
         "test-fast", "test-one", "test", "test-full", "live-egress", "check", "check-hygiene",
         "ci-check-hygiene", "gate", "docs", "work-link", "setup", "hook-pre-commit",
@@ -121,7 +123,7 @@ def test_recipes_follow_the_shared_shape(front_door):
 def test_ci_hygiene_omits_tasks_check_and_runs_under_policy_off(front_door):
     def evaluate(name):
         return subprocess.run(["just", "--justfile", str(REPO / "justfile"), "--evaluate", name],
-                              cwd=REPO, env=front_door.env, text=True, capture_output=True,
+                              cwd=REPO, env=front_door.env, text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True,
                               check=True).stdout
     assert evaluate("check_hygiene_cmd") == "python3 tools/ops-check && python3 tools/ops-docs check && tasks check"
     assert evaluate("ci_hygiene_cmd") == "python3 tools/ops-check && python3 tools/ops-docs check"
@@ -134,7 +136,7 @@ def test_ci_hygiene_omits_tasks_check_and_runs_under_policy_off(front_door):
 
 def test_setup_syncs_from_the_frozen_lock(front_door):
     result = subprocess.run(["just", "--justfile", str(REPO / "justfile"), "--evaluate", "setup_cmd"],
-                            cwd=REPO, env=front_door.env, text=True, capture_output=True, check=True)
+                            cwd=REPO, env=front_door.env, text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True, check=True)
     assert result.stdout == "just work-link python/.venv && cd python && uv sync --frozen"
 
 
@@ -230,40 +232,58 @@ def test_uncovered_push_warns_without_running_the_suite(front_door):
 WORKFLOW = REPO / ".github/workflows/test.yml"
 
 
-def workflow() -> str:
-    return WORKFLOW.read_text()
+@pytest.fixture
+def workflow():
+    # BaseLoader preserves the GitHub Actions key "on" as a string.
+    return yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
 
 
-def test_the_workflow_covers_all_branches_forces_once_and_cancels_stale_heads():
-    wf = workflow()
-    assert re.search(r"(?m)^    branches: \['\*\*'\]$", wf) and "  workflow_dispatch:" in wf
-    assert "pull_request" not in wf and "runs-on: ubuntu-24.04" in wf
-    assert "group: ${{ github.workflow }}-${{ github.ref }}" in wf and "cancel-in-progress: true" in wf
-    assert re.search(r"(?m)^permissions:\n  contents: read$", wf)
-    assert "TT_FORCE: '1'" in wf and wf.count("run: just test-full") == 1
-    assert re.search(r"timeout-minutes: \d+", wf) and "persist-credentials: false" in wf
-    actions = re.findall(r"uses: (\S+)", wf)
-    assert actions and all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", a) for a in actions)
-    assert "setup-python" not in wf
+def test_the_workflow_covers_all_branches_forces_once_and_cancels_stale_heads(workflow):
+    assert workflow["on"] == {"push": {"branches": ["**"]}, "workflow_dispatch": ""}
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["concurrency"] == {
+        "group": "${{ github.workflow }}-${{ github.ref }}",
+        "cancel-in-progress": "true",
+    }
+    job = workflow["jobs"]["test"]
+    assert job["runs-on"] == "ubuntu-24.04"
+    assert int(job["timeout-minutes"]) > 0
+    assert job["env"]["TT_FORCE"] == "1"
+
+    all_steps = [step for job in workflow["jobs"].values() for step in job["steps"]]
+    assert sum(step.get("run") == "just test-full" for step in all_steps) == 1
+    assert any(step.get("run") == "just test-full" for step in job["steps"])
+    actions = [step for step in all_steps if "uses" in step]
+    assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", step["uses"]) for step in actions)
+    [checkout] = [step for step in actions if step["uses"].startswith("actions/checkout@")]
+    assert checkout["with"]["persist-credentials"] == "false"
+    assert all(not step["uses"].startswith("actions/setup-python@") for step in actions)
 
 
-def test_the_workflow_uses_the_system_interpreter_frozen():
-    wf = workflow()
-    assert "UV_PYTHON: /usr/bin/python3" in wf and "UV_PYTHON_DOWNLOADS: never" in wf
-    assert "UV_FROZEN: '1'" in wf
-    assert "enable-cache: false" in wf
+def test_the_workflow_uses_the_system_interpreter_frozen(workflow):
+    job = workflow["jobs"]["test"]
+    assert job["env"]["UV_PYTHON"] == "/usr/bin/python3"
+    assert job["env"]["UV_PYTHON_DOWNLOADS"] == "never"
+    assert job["env"]["UV_FROZEN"] == "1"
+    [setup_uv] = [
+        step for step in job["steps"] if step.get("uses", "").startswith("astral-sh/setup-uv@")
+    ]
+    assert setup_uv["with"]["enable-cache"] == "false"
 
 
-def test_the_capability_proof_precedes_the_suite():
-    wf = workflow()
-    order = ["apt-get install", "os.setns", "run: just setup", "run: just test-one",
-             "run: just ci-check-hygiene", "run: just test-full"]
-    positions = [wf.index(marker) for marker in order]
-    assert positions == sorted(positions)
-    assert "just check-hygiene" not in wf
-    for removed in ("khughitt/tasks", "rustup", "cargo"):
-        assert removed not in wf
-    [install] = [line for line in wf.splitlines() if "apt-get install" in line]
+def test_the_capability_proof_precedes_the_suite(workflow):
+    commands = [step["run"] for step in workflow["jobs"]["test"]["steps"] if "run" in step]
+    order = ["apt-get install", "os.setns", "just setup", "just test-one",
+             "just ci-check-hygiene", "just test-full"]
+    positions = [next(i for i, command in enumerate(commands) if marker in command) for marker in order]
+    assert positions == sorted(set(positions))
+
+    actions = [step.get("uses", "") for step in workflow["jobs"]["test"]["steps"]]
+    for removed in ("just check-hygiene", "khughitt/tasks", "rustup", "cargo"):
+        assert all(removed not in value for value in [*commands, *actions])
+    [install] = [
+        line for line in commands[positions[0]].splitlines() if "apt-get install" in line
+    ]
     for package in ("bubblewrap", "openssl", "bash", "dash", "zsh"):
         assert package in install.split()
 
@@ -271,7 +291,7 @@ def test_the_capability_proof_precedes_the_suite():
 def test_the_hook_declares_every_branch_covered(front_door):
     def evaluate(name):
         return subprocess.run(["just", "--justfile", str(REPO / "justfile"), "--evaluate", name],
-                              cwd=REPO, env=front_door.env, text=True, capture_output=True,
+                              cwd=REPO, env=front_door.env, text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True,
                               check=True).stdout
     assert evaluate("ci_suite_refs") == "refs/heads/*" and evaluate("ci_remote") == "origin"
 
@@ -290,12 +310,15 @@ def test_a_tag_push_takes_the_full_gate(front_door):
     assert front_door.markers() == [["hygiene"], ["suite"]]
 
 
-def test_the_namespace_exception_is_runtime_only_and_precedes_the_proof():
-    wf = workflow()
+def test_the_namespace_exception_is_runtime_only_and_precedes_the_proof(workflow):
+    commands = [step["run"] for step in workflow["jobs"]["test"]["steps"] if "run" in step]
     lift = "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
-    assert wf.count(lift) == 1
-    assert wf.index("os.setns") < wf.index(lift) < wf.index("run: just test-one")
-    assert "/etc/sysctl" not in wf and "sysctl -p" not in wf
+    assert sum(command.count(lift) for command in commands) == 1
+    [check] = [i for i, command in enumerate(commands) if "os.setns" in command]
+    [exception] = [i for i, command in enumerate(commands) if lift in command]
+    [proof] = [i for i, command in enumerate(commands) if command.startswith("just test-one ")]
+    assert check < exception < proof
+    assert all("/etc/sysctl" not in cmd and "sysctl -p" not in cmd for cmd in commands)
 
 
 READ_POLICY = """\
@@ -312,5 +335,5 @@ print(json.dumps(None if policy is None else {k: v for k, v in policy.items() if
 def test_the_repository_policy_disables_only_the_broad_suites(front_door):
     # tt's own reader, run in this checkout with the fixture's key-by-key environment.
     result = subprocess.run(["python3", "-c", READ_POLICY, str(REPO / "tools/tt")], cwd=REPO,
-                            env=front_door.env, text=True, capture_output=True, check=True)
+                            env=front_door.env, text=True, timeout=SUBPROCESS_TIMEOUT, capture_output=True, check=True)
     assert json.loads(result.stdout) == {"automatic_broad": False, "broad_targets": ["test", "test-fast"]}

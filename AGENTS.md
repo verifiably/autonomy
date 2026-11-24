@@ -45,8 +45,8 @@ updates `test_the_repository_policy_disables_only_the_broad_suites` to match, an
 `policy: enabled at <RFC3339-UTC> revision <full-sha>` on the adoption task autonomy-23aeff
 (tt-policy:autonomy) at the landed rollback.
 `just test-full` (or `TT_FORCE=1 just test`) runs the full suite deliberately and returns
-its status. testmon reselects only on Python changes, so a justfile or hook edit runs
-`just test-one tests/test_front_door.py`. The hooks time mandatory hygiene alone and call
+its status. For justfile and hook edits, run
+`just test-one tests/test_front_door.py` to exercise the affected wiring. The hooks time mandatory hygiene alone and call
 the suites as separate requests: hook durations from this change on are incomparable
 with earlier whole-hook durations.
 
