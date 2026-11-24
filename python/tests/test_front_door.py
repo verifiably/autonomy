@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-import yaml
+from ruamel.yaml import YAML
 
 REPO = Path(__file__).resolve().parents[2]
 SUBPROCESS_TIMEOUT = 15
@@ -234,20 +234,19 @@ WORKFLOW = REPO / ".github/workflows/test.yml"
 
 @pytest.fixture
 def workflow():
-    # BaseLoader preserves the GitHub Actions key "on" as a string.
-    return yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    return YAML(typ="safe").load(WORKFLOW)
 
 
 def test_the_workflow_covers_all_branches_forces_once_and_cancels_stale_heads(workflow):
-    assert workflow["on"] == {"push": {"branches": ["**"]}, "workflow_dispatch": ""}
+    assert workflow["on"] == {"push": {"branches": ["**"]}, "workflow_dispatch": None}
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["concurrency"] == {
         "group": "${{ github.workflow }}-${{ github.ref }}",
-        "cancel-in-progress": "true",
+        "cancel-in-progress": True,
     }
     job = workflow["jobs"]["test"]
     assert job["runs-on"] == "ubuntu-24.04"
-    assert int(job["timeout-minutes"]) > 0
+    assert type(job["timeout-minutes"]) is int and job["timeout-minutes"] > 0
     assert job["env"]["TT_FORCE"] == "1"
 
     all_steps = [step for job in workflow["jobs"].values() for step in job["steps"]]
@@ -256,7 +255,7 @@ def test_the_workflow_covers_all_branches_forces_once_and_cancels_stale_heads(wo
     actions = [step for step in all_steps if "uses" in step]
     assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", step["uses"]) for step in actions)
     [checkout] = [step for step in actions if step["uses"].startswith("actions/checkout@")]
-    assert checkout["with"]["persist-credentials"] == "false"
+    assert checkout["with"]["persist-credentials"] is False
     assert all(not step["uses"].startswith("actions/setup-python@") for step in actions)
 
 
@@ -268,7 +267,7 @@ def test_the_workflow_uses_the_system_interpreter_frozen(workflow):
     [setup_uv] = [
         step for step in job["steps"] if step.get("uses", "").startswith("astral-sh/setup-uv@")
     ]
-    assert setup_uv["with"]["enable-cache"] == "false"
+    assert setup_uv["with"]["enable-cache"] is False
 
 
 def test_the_capability_proof_precedes_the_suite(workflow):

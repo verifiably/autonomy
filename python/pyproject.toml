@@ -17,7 +17,7 @@ autonomy = "autonomy.cli:main"
 dev = [
     "pytest>=8",
     "pytest-testmon>=2.2.0",
-    "pyyaml>=6.0.4",
+    "ruamel-yaml>=0.19.1",
 ]
 
 [tool.hatch.build.targets.wheel]
