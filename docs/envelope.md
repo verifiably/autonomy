@@ -153,26 +153,38 @@ total, and `/` and `/dev` are remounted read-only. The kernel refuses a write
 or a new entry past either limit with `ENOSPC`, and one elsewhere with
 `EROFS`. The inode limit is part of the bound: an empty file or directory
 costs kernel memory and none of the tmpfs `size`, and bubblewrap's `--size`
-sets no inode limit. The pool is RAM (or swap) until the run closes.
+sets no inode limit. The pool is RAM (or swap) until the run closes, with up to
+1.3 KiB of kernel memory per inode on top of its bytes.
+
+tmpfs charges a POSIX ACL to neither limit, and the kernel charges it to no
+cgroup. The trusted stage therefore installs a seccomp filter that every later
+process inherits. It refuses `setxattr`, `lsetxattr`, `fsetxattr` and
+`setxattrat` with `EOPNOTSUPP`, `io_uring_setup` with `EPERM`, and any call
+through another call table (32-bit or x32 programs) with `ENOSYS`. The stage
+supports x86_64 and aarch64 and refuses other machines.
 
 The host never sees the mount. While the gate is held and the sandbox has
 finished its setup, the supervisor opens scratch through the namespace init's
 root and checks on that descriptor that both limits are the granted ones. It
 also checks that every other mount the namespace reports writable is procfs,
-devpts or a character device. A mismatch refuses the launch with
-`development-sandbox-unproven`. It then moves the prepared workspace into the
-pool, which leaves the scratch directory on the host empty. A workspace that
-does not fit refuses with `development-workspace-unproven`.
+devpts or a character device, and that the namespace carries the filter. A
+mismatch refuses the launch with `development-sandbox-unproven`. It then moves
+the prepared workspace into the pool, which leaves the scratch directory on
+the host empty. A workspace that does not fit refuses with
+`development-workspace-unproven`.
 
 The same descriptor keeps the pool readable after the namespace ends. The
 candidate is collected through it. A run that ends unclean with containment
 proven publishes its verdict and then copies the regular single-link files
 under scratch to the recorded scratch path, at most `actor_storage_bytes` of
-content. Links, special files and files over the remaining bound are counted
-and left behind, and the contents of `/tmp` and `/dev/shm` are not copied. A
-clean run leaves the scratch directory empty. If the supervisor dies, the
-actor's scratch goes with it: recovery has the protected records and
-`base.bundle`, and no candidate.
+content and 128 directories deep. Links, special files, files over the
+remaining bound, deeper directories, and entries whose mode denies their owner
+are counted by reason and left behind, as is anything the host disk has no
+room for. The contents of `/tmp` and `/dev/shm` are not copied. A clean run
+leaves the scratch directory empty. If the supervisor dies, the actor's scratch
+goes with it: recovery has the protected records and `base.bundle`, and no
+candidate. A supervisor lost during the copy leaves a partial copy that nothing
+completes.
 
 An actor that fails, is stopped or passes its deadline with the pool full at
 its end adds `development-storage-exhausted`. The check reads the pool at the

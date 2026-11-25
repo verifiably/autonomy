@@ -240,9 +240,12 @@ carries `actor_exit`, `cause` (`exit`, `deadline` or `stop`),
 `containment_proven`, and the `storage_bytes` and `storage_inodes` in use when
 the actor ended. After an unclean verdict with containment proven,
 `scratch-retained` carries the `files` and `bytes` copied to the recorded
-scratch path and the `refused` count per reason. `scratch-unretained` carries
-the `detail` of a failed copy. The host scratch directory is empty from
-release until then, and stays empty after a clean run or a lost supervisor. The immutable, idempotent stop request in `stop.json`
+scratch path and the `refused` count per reason, with the system's error where
+there is one (`unopenable: No space left on device`). `scratch-unretained`
+carries the `detail` when the copy could not start. An unclean run with
+neither event has an incomplete copy or none. The host scratch directory is
+empty from release until then, and stays empty after a clean run or a
+supervisor lost before its verdict. The immutable, idempotent stop request in `stop.json`
 contains version, run ID and `requested_at`. A stop or recovery command
 returns the existing exit code for an already terminal run.
 

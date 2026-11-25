@@ -298,3 +298,53 @@ def test_retention_never_copies_past_its_byte_bound(scratch, monkeypatch):
     assert {entry.name for entry in destination.iterdir()} == {"a", "c"}
     assert tally.to_json() == {"files": 2, "bytes": 100, "refused": {"over-bound": 2}}
     assert len(reads) < 10
+
+
+def test_retention_stops_at_its_depth_bound(scratch):
+    """A path held per level is quadratic in depth, and the actor chooses the depth."""
+    from autonomy.analyst.release import RETAINED_DEPTH
+    tree, fd, destination = scratch
+    here = os.open(tree, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for _ in range(3 * RETAINED_DEPTH):
+            os.mkdir("d", 0o700, dir_fd=here)
+            child = os.open("d", os.O_RDONLY | os.O_DIRECTORY, dir_fd=here)
+            os.close(here)
+            here = child
+    finally:
+        os.close(here)
+    at_bound = tree.joinpath(*["d"] * RETAINED_DEPTH)
+    (at_bound / "kept").write_text("x")
+    tally = retain(fd, destination, max_bytes=100)
+    assert tally.to_json() == {"files": 1, "bytes": 1, "refused": {"too-deep": 1}}
+    assert destination.joinpath(*["d"] * RETAINED_DEPTH, "kept").read_text() == "x"
+
+
+@pytest.mark.bwrap
+def test_a_full_destination_is_named_in_the_tally(scratch):
+    import json
+    import subprocess
+    from pathlib import Path
+
+    import autonomy
+    from autonomy.sandbox.spec import Storage
+    from autonomy.sandbox.storage import pool_command
+
+    tree, _, destination = scratch
+    for name in ("a", "b"):
+        (tree / name).write_bytes(bytes(1 << 20))
+    program = """
+import json, os, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from autonomy.analyst.release import retain
+print(json.dumps(retain(os.open(sys.argv[2], os.O_RDONLY), Path(sys.argv[3]), max_bytes=1 << 30).to_json()))
+"""
+    result = subprocess.run(
+        [*pool_command(destination, Storage(1 << 20, 64)), "/usr/bin/python3", "-I", "-c", program,
+         str(Path(autonomy.__file__).parents[1]), str(tree), str(destination / "scratch")],
+        env={"PATH": "/usr/bin", "HOME": str(destination)}, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+    tally = json.loads(result.stdout)
+    assert tally["files"] < 2 and tally["refused"] == {"unopenable: No space left on device": 2 - tally["files"]}

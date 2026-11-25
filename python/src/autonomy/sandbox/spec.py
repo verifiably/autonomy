@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 
+__all__ = [
+    "IN_SANDBOX_OUTPUTS", "IN_SANDBOX_SOCKET", "IN_SANDBOX_TOKEN", "SYSTEM_LINKS", "SYSTEM_RO", "SandboxSpec", "Storage",
+]
+
 SYSTEM_RO: tuple[Path, ...] = (Path("/usr"), Path("/etc"))
 # The merged-/usr symlinks, recreated inside the sandbox rather than bound. Their
 # targets are the host's (static.system_symlinks): they differ by distribution.
@@ -19,8 +23,8 @@ IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")
 @dataclass(frozen=True)
 class Storage:
     """The total for everything an actor can write: file bytes, a multiple of the page
-    size, and inodes. Both are RAM: a full pool holds its bytes plus under 1 KiB of
-    kernel memory per inode."""
+    size, and inodes. Both are RAM. Each inode costs kernel memory on top of the bytes,
+    measured at up to 1.3 KiB with a 238-byte name."""
 
     bytes: int
     inodes: int

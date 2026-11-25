@@ -334,6 +334,25 @@ def test_lost_supervisor_leaves_no_actor_scratch(env, source):
     assert (directory / "base.bundle").is_file() and (directory / "grant.json").is_file()
 
 
+def test_unjournaled_retention_still_closes_the_report(env, source):
+    repo, base, _ = source
+    program = """
+from autonomy.cli import main
+from autonomy.development import _run
+real = _run.append_event
+def refuse(directory, event, **fields):
+    if event.startswith('scratch-'):
+        raise OSError('fixture journal failure')
+    return real(directory, event, **fields)
+_run.append_event = refuse
+raise SystemExit(main())
+"""
+    with attempt(env, options(repo, base), actor=("/usr/bin/false",), program=program) as (process, reports):
+        _, errors, (opened, closed) = finish(process, reports)
+        assert process.returncode == closed["exit"] == 3, errors
+    assert read_json(Path(opened["run_dir"]) / "disposition.json")["disposition"] == "quarantined"
+
+
 def test_retention_failure_keeps_the_published_verdict(env, source):
     repo, base, _ = source
     program = """

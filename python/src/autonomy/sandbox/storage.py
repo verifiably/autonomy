@@ -5,7 +5,11 @@ and no pages. bubblewrap sets no inode limit, so a trusted stage in front of it 
 one tmpfs with both limits, in a user and mount namespace of its own, over the scratch
 path. The sandbox binds its scratch, `/tmp` and `/dev/shm` from that one pool and
 remounts `/` and `/dev` read-only, so the pool's limits are the actor's total. The host
-never sees the mount, and it goes with the last process or descriptor holding it."""
+never sees the mount, and it goes with the last process or descriptor holding it.
+
+tmpfs charges a POSIX ACL (up to 64 KiB, two per directory, inherited by every new entry)
+to neither limit and to no cgroup, and has no option against them. The same stage
+installs a seccomp filter that refuses every way to set an extended attribute."""
 
 from __future__ import annotations
 
@@ -22,7 +26,7 @@ __all__ = ["hold_storage", "pool_binds", "pool_command"]
 _SCRATCH, _TMP, _SHM = "scratch", "tmp", "shm"
 
 _POOL = """
-import ctypes, os, sys
+import ctypes, errno, os, struct, sys
 scratch, size, inodes = sys.argv[1:4]
 end = sys.argv.index("--")
 directories, command = sys.argv[4:end], sys.argv[end + 1:]
@@ -32,12 +36,34 @@ for name, text in (("setgroups", "deny"), ("uid_map", f"{uid} {uid} 1"), ("gid_m
     with open(f"/proc/self/{name}", "w") as stream:
         stream.write(text)
 libc = ctypes.CDLL(None, use_errno=True)
+def check(result, what):
+    if result:
+        raise OSError(ctypes.get_errno(), f"cannot {what}: {os.strerror(ctypes.get_errno())}")
+class Program(ctypes.Structure):
+    _fields_ = [("length", ctypes.c_ushort), ("code", ctypes.c_void_p)]
+def install_filter():
+    # AUDIT_ARCH, then setxattr, lsetxattr and fsetxattr in that machine's table.
+    arch, xattr = {"x86_64": (0xC000003E, (188, 189, 190)), "aarch64": (0xC00000B7, (5, 6, 7))}[os.uname().machine]
+    SETXATTRAT, IO_URING_SETUP, X32 = 463, 425, 0x40000000
+    LOAD, EQUAL, AT_LEAST, RETURN, ERRNO, ALLOW = 0x20, 0x15, 0x35, 0x06, 0x00050000, 0x7FFF0000
+    # Another call table would have other numbers: refuse it whole.
+    rules = [(LOAD, 0, 0, 4), (EQUAL, 1, 0, arch), (RETURN, 0, 0, ERRNO | errno.ENOSYS),
+             (LOAD, 0, 0, 0), (AT_LEAST, 0, 1, X32), (RETURN, 0, 0, ERRNO | errno.ENOSYS)]
+    refused = [(number, errno.EOPNOTSUPP) for number in (*xattr, SETXATTRAT)]
+    for number, code in (*refused, (IO_URING_SETUP, errno.EPERM)):
+        rules += [(EQUAL, 0, 1, number), (RETURN, 0, 0, ERRNO | code)]
+    rules.append((RETURN, 0, 0, ALLOW))
+    code = ctypes.create_string_buffer(b"".join(struct.pack("HBBI", *rule) for rule in rules))
+    program = Program(len(rules), ctypes.addressof(code))
+    PR_SET_SECCOMP, PR_SET_NO_NEW_PRIVS, FILTER = 22, 38, 2
+    check(libc.prctl(PR_SET_NO_NEW_PRIVS, *map(ctypes.c_ulong, (1, 0, 0, 0))), "set no_new_privs")
+    check(libc.prctl(PR_SET_SECCOMP, ctypes.c_ulong(FILTER), ctypes.byref(program)), "install the attribute filter")
 MS_NOSUID, MS_NODEV = 2, 4
 options = f"size={size},nr_inodes={inodes},mode=0700".encode()
-if libc.mount(b"tmpfs", os.fsencode(scratch), b"tmpfs", MS_NOSUID | MS_NODEV, options):
-    raise OSError(ctypes.get_errno(), "cannot mount the bounded pool: " + os.strerror(ctypes.get_errno()))
+check(libc.mount(b"tmpfs", os.fsencode(scratch), b"tmpfs", MS_NOSUID | MS_NODEV, options), "mount the bounded pool")
 for directory in directories:
     os.makedirs(os.path.join(scratch, directory), 0o700, exist_ok=True)
+install_filter()
 os.execvp(command[0], command)
 """
 """Run under `/usr/bin/python3 -I`, exec'd in place so the process bubblewrap dies with
@@ -56,6 +82,11 @@ def pool_command(scratch: Path, storage: Storage, directories: Iterable[Path] = 
 def pool_binds(scratch: Path) -> tuple[tuple[str, str], ...]:
     """`(source, destination)` for each writable bind, the sources being in the pool."""
     return ((str(scratch / _TMP), "/tmp"), (str(scratch / _SHM), "/dev/shm"), (str(scratch / _SCRATCH), str(scratch)))
+
+
+def _filters(pid: int | str) -> int:
+    status = Path(f"/proc/{pid}/status").read_text()
+    return int(next(line.split()[1] for line in status.splitlines() if line.startswith("Seccomp_filters:")))
 
 
 def _check_mounts(init: int, root: str, pool: str) -> None:
@@ -87,9 +118,11 @@ def hold_storage(init: int, spec: SandboxSpec) -> int:
                 raise SandboxUnproven("storage-unproven", str(spec.scratch), f"scratch has {found}, not {spec.storage}")
             device = os.fstat(fd).st_dev
             _check_mounts(init, root, f"{os.major(device)}:{os.minor(device)}")
+            if _filters(init) <= _filters("self"):
+                raise SandboxUnproven("storage-unproven", str(spec.scratch), "the namespace lacks the attribute filter")
         except BaseException:
             os.close(fd)
             raise
-    except (OSError, ValueError) as caught:
+    except (OSError, ValueError, StopIteration) as caught:
         raise SandboxUnproven("storage-unproven", str(spec.scratch), f"cannot read the actor's mounts: {caught}") from caught
     return fd

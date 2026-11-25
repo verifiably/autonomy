@@ -122,6 +122,50 @@ except OSError as error:
     assert mounts == ["EPERM"] * 4 and namespace in ("EPERM", "ENOSPC")
 
 
+# POSIX ACLs on tmpfs are kernel memory charged to neither limit nor any cgroup.
+_ACL = """
+import ctypes, platform, struct
+entry = lambda tag, uid=0xffffffff: struct.pack('<HHI', tag, 7, uid)
+acl = struct.pack('<I', 2) + entry(1) + entry(2, os.getuid()) * 8187 + entry(4) + entry(16) + entry(32)
+libc = ctypes.CDLL(None, use_errno=True)
+def refused(call, *args):
+    ctypes.set_errno(0)
+    return 'done' if call(*args) >= 0 else errno.errorcode[ctypes.get_errno()]
+"""
+
+
+@pytest.mark.parametrize("where", ["scratch", "/tmp", "/dev/shm"])
+@pytest.mark.parametrize("name", ["system.posix_acl_default", "system.posix_acl_access", "user.note"])
+def test_extended_attributes_cannot_be_set(spec, where, name):
+    script = _ACL + """
+path, name = sys.argv[1].encode() + b'/d', sys.argv[2].encode()
+os.mkdir(path)
+fd = os.open(path, os.O_RDONLY)
+number = libc.syscall
+print(refused(libc.setxattr, path, name, acl, len(acl), 0), refused(libc.lsetxattr, path, name, acl, len(acl), 0),
+      refused(libc.fsetxattr, fd, name, acl, len(acl), 0), refused(number, 463, -100, path, 0, name, acl, 16),
+      refused(number, 425, 1, ctypes.create_string_buffer(256)), os.listxattr(path))
+"""
+    directory = spec.scratch if where == "scratch" else where
+    assert inside(spec, script, directory, name) == [*["ENOTSUP"] * 4, "EPERM", "[]"]
+
+
+@pytest.mark.skipif(os.uname().machine != "x86_64", reason="the other call tables are x86's")
+def test_other_call_tables_cannot_pass_the_filter(spec):
+    script = _ACL + """
+import mmap, signal
+code = mmap.mmap(-1, 4096, prot=mmap.PROT_READ | mmap.PROT_WRITE | mmap.PROT_EXEC)
+code.write(b'\\xb8\\x14\\x00\\x00\\x00\\xcd\\x80\\xc3')  # mov eax, getpid; int 0x80; ret
+child = os.fork()
+if child == 0:
+    call = ctypes.CFUNCTYPE(ctypes.c_int)(ctypes.addressof(ctypes.c_char.from_buffer(code)))
+    os._exit(-call())
+status = os.waitpid(child, 0)[1]
+print(os.WIFSIGNALED(status) or os.WEXITSTATUS(status) == errno.ENOSYS, refused(libc.syscall, 0x40000000 + 39))
+"""
+    assert inside(spec, script) == ["True", "ENOSYS"]
+
+
 def test_held_scratch_outlives_the_namespace(spec, stdio):
     held = []
     script = "from pathlib import Path; import os; print(Path('seed').read_text()); Path('kept').write_text('work')"
@@ -146,10 +190,14 @@ def test_held_scratch_outlives_the_namespace(spec, stdio):
     assert list(spec.scratch.iterdir()) == []
 
 
-@pytest.mark.parametrize("flaw", ["size", "inodes", "writable-root", "unbounded-mount"])
+@pytest.mark.parametrize("flaw", ["size", "inodes", "writable-root", "unbounded-mount", "unfiltered"])
 def test_an_unproven_bound_is_refused_before_release(spec, stdio, monkeypatch, flaw):
-    from autonomy.sandbox import bwrap
+    from autonomy.sandbox import bwrap, storage
     real = bwrap.build_argv
+    if flaw == "unfiltered":
+        pool = storage._POOL
+        monkeypatch.setattr(storage, "_POOL", pool.replace("\ninstall_filter()\n", "\n"))
+        assert storage._POOL != pool
 
     def weaken(*args, **kwargs):
         argv = real(*args, **kwargs)

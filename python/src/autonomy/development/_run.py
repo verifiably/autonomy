@@ -140,10 +140,12 @@ def execute(
                 possible_release |= caught.finding.code == "development-close-unproven"
             status = _finish(run, progress, findings, result, grant_sha256=grant_digest, base=source.oid,
                              possible_release=possible_release)
-            if status and outcome is not None and outcome.containment_proven:
-                _retain_scratch(run, outcome.scratch_fd, limits)
             disposition = disposition_of(findings)
-            _report(run, report, "closing", {"disposition": disposition, "exit": status})
+            try:
+                if status and outcome is not None and outcome.containment_proven:
+                    _retain_scratch(run, outcome.scratch_fd, limits)
+            finally:
+                _report(run, report, "closing", {"disposition": disposition, "exit": status})
             diag(f"development run {run.run_id} closed {disposition}")
             return status
     finally:

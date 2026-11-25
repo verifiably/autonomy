@@ -28,6 +28,15 @@ from typing import Protocol
 from autonomy.analyst.toolchain import AnalystRefused
 from autonomy.baseline import fsync_dir, write_all
 
+__all__ = [
+    "RETAINED_DEPTH", "ReleaseFileMissing", "ReleaseFileRefused", "ReleaseReport", "ReleasedFile", "RetainedTally",
+    "check_release_dir", "release", "release_file", "retain",
+]
+
+RETAINED_DEPTH = 128
+"""Directories below the retained root. The walk holds a path and two descriptors per
+level, and the actor chooses the depth."""
+
 _CHUNK = 1 << 20
 _OPEN = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
 _CREATE = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
@@ -63,9 +72,10 @@ def check_release_dir(path: Path, *, forbidden: Iterable[Path]) -> Path:
 
 
 class _Record(Protocol):
-    """What the walk tells about each entry, and the bytes it may still copy."""
+    """What the walk tells about each entry, and the bytes and depth it may still copy."""
 
     remaining: int | None
+    max_depth: int | None
 
     def release(self, path: str, size: int, sha256: str) -> None: ...
 
@@ -77,6 +87,7 @@ class ReleaseReport:
     released: list[dict] = field(default_factory=list)
     refused: list[dict] = field(default_factory=list)
     remaining: None = None
+    max_depth: None = None
 
     def release(self, path: str, size: int, sha256: str) -> None:
         self.released.append({"path": path, "size": size, "sha256": sha256})
@@ -94,9 +105,11 @@ class ReleaseReport:
 @dataclass
 class RetainedTally:
     """Counts only. The tree is the actor's, and deep paths times many entries would make
-    a per-entry report far larger than the tree."""
+    a per-entry report far larger than the tree. A refusal counts under its reason, with
+    the system's error where there is one."""
 
     remaining: int
+    max_depth: int = RETAINED_DEPTH
     files: int = 0
     bytes: int = 0
     refused: Counter[str] = field(default_factory=Counter)
@@ -107,7 +120,7 @@ class RetainedTally:
         self.remaining -= size
 
     def refuse(self, path: str, reason: str, detail: str | None = None) -> None:
-        self.refused[reason] += 1
+        self.refused[f"{reason}: {detail}" if detail else reason] += 1
 
     def to_json(self) -> dict:
         return {"files": self.files, "bytes": self.bytes, "refused": dict(sorted(self.refused.items()))}
@@ -170,7 +183,7 @@ def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: _Record) -> Non
                     os.close(src)
                     os.close(dest)
                 continue
-            child = _release_entry(src, dest, where, names.pop(), report)
+            child = _release_entry(src, dest, where, names.pop(), report, len(frames))
             if child is not None:
                 child_src, child_dest, child_where = child
                 frames.append([child_src, child_dest, child_where, _names(child_src, child_where, report), True])
@@ -181,7 +194,9 @@ def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: _Record) -> Non
                 os.close(dest)
 
 
-def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: _Record) -> tuple[int, int, str] | None:
+def _release_entry(
+    src_fd: int, dest_fd: int, prefix: str, name: str, report: _Record, depth: int,
+) -> tuple[int, int, str] | None:
     """One entry: refused, copied, or (for a directory) created at the destination and
     returned as an open pair to descend into."""
     relative = f"{prefix}{name}"
@@ -201,6 +216,9 @@ def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: _R
     directory = stat.S_ISDIR(info.st_mode)
     if not directory and report.remaining is not None and info.st_size > report.remaining:
         refuse("over-bound")
+        return None
+    if directory and report.max_depth is not None and depth > report.max_depth:
+        refuse("too-deep")
         return None
     try:
         fd = os.open(name, _OPEN | (os.O_DIRECTORY if directory else 0), dir_fd=src_fd)
@@ -273,7 +291,8 @@ def release(outputs: Path, destination: Path) -> ReleaseReport:
 
 def retain(source_fd: int, destination: Path, *, max_bytes: int) -> RetainedTally:
     """Copy an ended actor's tree into `destination` for inspection: the release walk, with
-    at most `max_bytes` of content, so a sparse file cannot grow on its way to disk."""
+    at most `max_bytes` of content, so a sparse file cannot grow on its way to disk, and
+    at most `RETAINED_DEPTH` directories down."""
     tally = RetainedTally(max_bytes)
     dest = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
     try:
