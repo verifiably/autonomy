@@ -827,3 +827,31 @@ def test_cleanup_failure_keeps_the_launch_callback_error(tmp_path, stdio, monkey
     assert caught.value is error
     assert isinstance(error.__cause__, SandboxUnproven)
     assert "cleanup" in str(error.__cause__)
+
+
+def test_pinned_worker_receives_term_below_namespace_init(tmp_path, stdio):
+    import time
+    from autonomy.science_run._supervisor import _stop_actor
+
+    actor_code = """import pathlib,signal,time
+p=pathlib.Path.cwd()
+def stopped(*args):
+    (p/'flushed').write_text('closed')
+    raise SystemExit(0)
+signal.signal(signal.SIGTERM,stopped)
+(p/'ready').touch()
+while True: time.sleep(1)
+"""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(mode=0o700)
+    actor = launch(SandboxSpec(scratch=tmp_path), ["/usr/bin/python3", "-I", "-c", actor_code],
+                   track_worker=True, **stdio)
+    try:
+        deadline = time.monotonic() + 4
+        while not (tmp_path / "ready").exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert (tmp_path / "ready").exists()
+        _stop_actor(actor, run_dir)
+        assert (tmp_path / "flushed").read_text() == "closed"
+    finally:
+        actor.close()

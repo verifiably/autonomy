@@ -241,3 +241,17 @@ def test_failed_postclaim_read_does_not_assert_a_baseline_race(tmp_path):
         _checked_heads(opening, tmp_path)
     assert caught.value.code == "read-unavailable"
     assert not (tmp_path / "events.jsonl").exists()
+
+
+def test_revoke_latches_the_first_stop_before_release_or_idle_poll():
+    from autonomy.allowance import AllowanceRefused
+    from autonomy.science_run._supervisor import Stop
+
+    def revoked():
+        raise AllowanceRefused("allowance-closed", "revoked")
+
+    stop = Stop(60)
+    stop.check_authority = revoked
+    assert stop.cause() == "allowance-closed"
+    stop.check_authority = None
+    assert stop.requested()

@@ -110,10 +110,12 @@ def publish_json(path: Path, value: Mapping[str, object]) -> None:
     publish_bytes(path, (json.dumps(dict(value), indent=2, sort_keys=True, allow_nan=False) + "\n").encode())
 
 
-def read_private_bytes(path: Path) -> bytes:
+def read_private_bytes(path: Path, *, strict_private: bool = False) -> bytes:
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
     with os.fdopen(fd, "rb") as stream:
         info = os.fstat(stream.fileno())
+        if strict_private and (info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600):
+            raise ValueError(f"{path.name} must be singly linked with mode 0600")
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
                 or info.st_mode & 0o077 or not _private_links(path, fd, info)):
             raise ValueError(f"{path.name} must be an owned private regular file")
@@ -159,5 +161,5 @@ def decode_object(data: bytes) -> dict[str, object]:
     return row
 
 
-def read_record(path: Path) -> dict[str, object]:
-    return decode_object(read_private_bytes(path))
+def read_record(path: Path, *, strict_private: bool = False) -> dict[str, object]:
+    return decode_object(read_private_bytes(path, strict_private=strict_private))

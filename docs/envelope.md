@@ -79,7 +79,7 @@ listener acknowledgement from the proxy.
 The supervisor renews the endpoint and route leases until stop or deadline. Actor, endpoint or proxy
 exit, an elapsed deadline, or a stop signal starts closing. The supervisor
 sends the route close and endpoint seal independently, waits for the seal,
-then terminates and reaps the actor namespace. The final check accounts for the
+then terminates and reaps the actor namespace. For a governed research actor it signals the worker beneath namespace init using the pidfd pinned before release. If the worker outlives its grace period, the supervisor kills the namespace and records the escalation. The supervisor checks the issued grant before actor release and during the running wait. On close it refuses new reservations while still servicing settlements from both draining peers. The final check accounts for the
 written intervals and publishes `disposition.json`. The exit is 0 for clean,
 3 for quarantined or 4 for unwired. The report fd carries the opening and
 closing lines when available. A half-closed report socket can lose either

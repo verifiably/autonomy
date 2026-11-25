@@ -441,13 +441,17 @@ def test_nested_handle_calls_never_open_an_endpoint_or_proxy(world):
 
     app = str(Path(autonomy.__file__).parent.parent.resolve())
     # The actor writes each config in scratch and can see the real producer executable.
-    producer = world.science.parents[4]
     python = world.science.with_name("python").resolve()
     interpreter = python.parents[1]
     site_packages = subprocess.run(
         [str(world.science.with_name("python")), "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"],
         env=world.env, stdin=subprocess.DEVNULL, capture_output=True, check=True, timeout=10,
     ).stdout.decode().strip()
+    site_packages = str(Path(site_packages).resolve())
+    imports = subprocess.check_output([str(world.science.with_name("python")), "-c",
+        "import atoms,beliefs,nodes,science;from pathlib import Path;"
+        "print('\\n'.join(str(Path(next(iter(m.__path__))).resolve().parents[2]) for m in (atoms,beliefs,nodes,science)))"],
+        env=world.env, text=True, timeout=10).splitlines()
     world.env["XDG_CACHE_HOME"] = str(world.root / "certified-cache")
     routing = to_toml(pi_route(credential=Path("/CREDENTIAL"), upstream="https://127.0.0.1:9"))
     boot = r"""
@@ -486,12 +490,14 @@ cases = [
     ({}, ["--model-route", "fixture"], "runtime-dir-unset", 2),
     ({"XDG_RUNTIME_DIR": configured["XDG_RUNTIME_DIR"]}, ["--model-route", "missing"], "route-unknown", 2),
     (configured, [], "baseline-unavailable", 4),
-    (configured, ["--model-route", "fixture"], "baseline-unavailable", 4),
+    (configured, ["--model-route", "fixture"], "allowance-missing", 2),
 ]
 for name in (None, *handles):
     selection = handles if name is None else {name: handles[name]}
     cases.append(({**configured, **selection, "SCIENCE_CONFIG": str(config)},
-                  ["--model-route", "fixture"], "baseline-unavailable", 4))
+                  [], "baseline-unavailable", 4))
+    cases.append(({**configured, **selection, "SCIENCE_CONFIG": str(config)},
+                  ["--model-route", "fixture"], "allowance-missing", 2))
 for extra, flags, reason, wanted in cases:
     selected = {**env, **(handles if "SCIENCE_CONFIG" not in extra else {}), **extra}
     marker = scratch / "unexpected-actor"
@@ -502,12 +508,13 @@ for extra, flags, reason, wanted in cases:
     assert reason.encode() in result.stderr, result.stderr
     assert not marker.exists()
 nested = pathlib.Path(configured["XDG_STATE_HOME"]) / "verifiably-autonomy/runs"
-assert len(list(nested.iterdir())) == 5
+assert len(list(nested.iterdir())) == 4
 assert not list(nested.glob("*/launch.json")) and not list(nested.glob("*/proxy.log"))
 print(json.dumps({"cases": len(cases)}))
 """
     actor = ["/usr/bin/python3", "-I", "-c", boot, app, str(python), routing, site_packages]
-    options = ("--toolchain", app, "--toolchain", str(producer), "--toolchain", str(interpreter), "--deadline", "45")
+    options = [arg for path in dict.fromkeys([app, str(interpreter), site_packages, *imports])
+               for arg in ("--toolchain", path)] + ["--deadline", "45"]
     with _run(world, actor, options=options) as (child, report):
         opened = _line(report)
         directory = Path(opened["run_dir"])
@@ -522,7 +529,7 @@ print(json.dumps({"cases": len(cases)}))
         assert child.returncode == 0, (err, _disposition(directory), _events(directory))
         if not out:
             pytest.fail(err.decode())
-        assert json.loads(out) == {"cases": 8}, err
+        assert json.loads(out) == {"cases": 11}, err
         assert _line(report)["disposition"] == "clean"
     assert list(world.runs.iterdir()) == [directory]
     assert not list((fixture_world / "ops").glob("sessions/*"))

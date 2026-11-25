@@ -45,6 +45,7 @@ class Stop:
         self.deadline = now() + seconds
         self._cause: str | None = None
         self._previous = {}
+        self.check_authority: Callable[[], None] | None = None
 
     def _signal(self, number: int, _frame) -> None:
         if self._cause is None:
@@ -62,6 +63,11 @@ class Stop:
     def cause(self) -> str | None:
         if self._cause is None and self.now() >= self.deadline:
             self._cause = "deadline"
+        if self._cause is None and self.check_authority is not None:
+            try:
+                self.check_authority()
+            except AllowanceRefused as exc:
+                self._cause = exc.code
         return self._cause
 
     def requested(self) -> bool:
@@ -198,10 +204,12 @@ def _wait(actor: bwrap.Sandboxed, endpoint: Endpoint, proxy: EgressSession | Non
 
 
 def _stop_actor(actor: bwrap.Sandboxed, run_dir: Path) -> None:
+    forced = False
     try:
         if not exited(actor.pidfd):
-            send_signal(actor.pidfd, signal.SIGTERM)
+            send_signal(actor.worker_fd if actor.worker_fd >= 0 else actor.pidfd, signal.SIGTERM)
             if not exited(actor.pidfd, _TERM_GRACE):
+                forced = True
                 send_signal(actor.pidfd, signal.SIGKILL)
                 if not exited(actor.pidfd, _CLOSE_MARGIN):
                     raise RuntimeError("actor namespace survived its shutdown")
@@ -210,10 +218,9 @@ def _stop_actor(actor: bwrap.Sandboxed, run_dir: Path) -> None:
         except subprocess.TimeoutExpired:
             actor.process.kill()
             status = actor.wait(timeout=_CLOSE_MARGIN)
-        append_event(run_dir, "actor-exit", status=status)
+        append_event(run_dir, "actor-exit", status=status, **({"namespace_kill": forced} if actor.worker_fd >= 0 else {}))
     finally:
-        os.close(actor.pidfd)
-        actor.pidfd = -1
+        actor.close_handles()
 
 
 def _seal(endpoint: Endpoint, run_dir: Path, written: tuple[ChainHead, ...]) -> tuple[Finding, ...]:
@@ -284,6 +291,7 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
         member = opened.route.member if opened.route is not None else None
         research = None
         if member is not None:
+            stop.check_authority = member.check
             stop.deadline = min(stop.deadline, stop.now() + max(0, member.expires - time.time()))
         if member is not None and member.caller == "band":
             try:
@@ -335,7 +343,7 @@ def _session(opened, opening, stop, env, actor_launched, research):
                     append_event(run_dir, "actor-releasing", **ProcessIdentity.capture(pid).fields())
                     _check_gate(stop, endpoint, heartbeat, proxy)
 
-                actor = bwrap.launch(spec, opened.request.actor_argv, stdin=0, stdout=1, stderr=2,
+                actor = bwrap.launch(spec, opened.request.actor_argv, stdin=0, stdout=1, stderr=2, track_worker=research is not None,
                                      before_release=bind)
                 actor_launched(run_dir)
                 append_event(run_dir, "actor-launched", pid=actor.child_pid)

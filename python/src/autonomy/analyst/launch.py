@@ -259,7 +259,7 @@ def _take_stdio(log: _Log) -> None:
     os.dup2(log.fd, 2)
 
 
-def _supervise(actor: Sandboxed, session: EgressSession, request: AnalystRequest, log: _Log) -> int | None:
+def _supervise(actor: Sandboxed, session: EgressSession, request: AnalystRequest, log: _Log, member=None) -> int | None:
     """Step 5: renew the lease every lease/3 until the namespace's init exits, the
     deadline passes, a handled signal arrives, or the proxy exits on its own. Returns
     pi's exit status (bwrap's, which mirrors its child's), or None when it could not be
@@ -274,6 +274,12 @@ def _supervise(actor: Sandboxed, session: EgressSession, request: AnalystRequest
             if stop:
                 log.write(f"signal {stop[0]}: terminating the analyst")
                 return actor.terminate(grace=TERMINATE_GRACE)
+            if member is not None:
+                try:
+                    member.check()
+                except AllowanceRefused as exc:
+                    log.write(f"{exc.code}: terminating the analyst")
+                    return actor.terminate(grace=TERMINATE_GRACE)
             if now - started >= request.deadline:
                 log.write(f"deadline of {request.deadline:g} s reached: terminating the analyst")
                 return actor.terminate(grace=TERMINATE_GRACE)
@@ -392,7 +398,7 @@ def execute(
             log.write(f"launched pi as namespace init {actor.child_pid}")
             if tuple(actor_fds) == ACTOR_FDS:
                 _take_stdio(log)
-            pi_exit = _supervise(actor, session, request, log)
+            pi_exit = _supervise(actor, session, request, log, member)
             member.pool.seal(member.name, run_dir.name)
             closed = _close_route(session, run_dir, log)
             route_closed = True

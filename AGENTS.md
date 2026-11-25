@@ -27,7 +27,7 @@ marked `pi` also need the pinned pi 1.1.0 install (`PI_DIR`, default
 the analyst launch or toolchain because the hosted workflow has neither pi nor node.
 The `science_endpoint` integration tests take an absolute `SCIENCE_BIN` pointing
 at the qualified science installation and `SCIENCE_TEST_ROOT` on writable
-storage certified by atoms. Use science `dda439e2`, beliefs `c49e86f6`,
+storage certified by atoms. Use science `b5c8a7f`, beliefs `76dfbb61`,
 atoms `a4d414b9` and nodes `d8c73b23` with matching installed sources. Run
 `just test-one tests/science_run/test_integration.py` with those settings.
 The tests create disposable worlds and use a local TLS upstream. They skip

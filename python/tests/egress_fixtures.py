@@ -344,6 +344,8 @@ class FakeUpstream:
             index = self._served
             self._served += 1
             turn = self.script[index] if index < len(self.script) else TextTurn("done")
+            if callable(turn):
+                turn = turn(json.loads(seen.body))
             if isinstance(turn, ToolTurn):
                 self.tool_uses.append((f"toolu_{index}", turn))
         try:
@@ -531,6 +533,8 @@ def governed_route(config, name, doc, *, caller="run", target=None):
     pin.chmod(0o600)
     model = doc["operations"][0]["models"][0]
     limits = dict(attempts=64, input_tokens=20_000_000, output_tokens=131072, micro_usd=100000000, job_starts=0)
+    if caller == "band":
+        limits["job_starts"] = 2
     if caller == "e21":
         limits["attempts"] = 1
     if target is None and caller == "run":

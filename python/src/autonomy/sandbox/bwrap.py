@@ -188,6 +188,7 @@ class Sandboxed:
     process: subprocess.Popen
     child_pid: int
     pidfd: int
+    worker_fd: int = -1
 
     def _signal(self, sig: int) -> None:
         if self.pidfd < 0:  # closed: its number may now belong to another object
@@ -211,6 +212,12 @@ class Sandboxed:
     def wait(self, timeout: float | None = None) -> int:
         return self.process.wait(timeout=timeout)
 
+    def close_handles(self) -> None:
+        for fd in (self.worker_fd, self.pidfd):
+            if fd >= 0:
+                os.close(fd)
+        self.worker_fd = self.pidfd = -1
+
     def close(self) -> None:
         """Kill if still running, reap, and release the pidfd; safe to call twice."""
         if self.pidfd < 0:
@@ -218,8 +225,7 @@ class Sandboxed:
         if self.process.poll() is None:
             self._signal(signal.SIGKILL)
             self.process.wait()
-        os.close(self.pidfd)
-        self.pidfd = -1
+        self.close_handles()
 
 
 LAUNCH_TIMEOUT = 30.0
@@ -364,6 +370,34 @@ os.execvp("bwrap", sys.argv[2:])
 """
 
 
+def _pin_worker(init: int, init_fd: int) -> int:
+    """Find namespace PID 2 while the exec gate still owns the process."""
+    directory = Path("/proc") / str(init)
+    poll = select.poll()
+    poll.register(init_fd, select.POLLIN)
+    until = time.monotonic() + LAUNCH_TIMEOUT
+    while time.monotonic() < until and not poll.poll(0):
+        children = (directory / "task" / str(init) / "children").read_text().split()
+        if children:
+            if len(children) != 1:
+                break
+            pid = int(children[0])
+            fd = os.pidfd_open(pid)
+            try:
+                target = Path("/proc") / str(pid)
+                status = dict(line.split(":", 1) for line in (target / "status").read_text().splitlines())
+                if (int(status["PPid"]) == init and status["NSpid"].split()[-1] == "2"
+                        and (target / "ns/pid").samefile(directory / "ns/pid") and not poll.poll(0)):
+                    return fd
+            except BaseException:
+                os.close(fd)
+                raise
+            os.close(fd)
+            break
+        time.sleep(0.005)
+    raise SandboxUnproven("launch-failed", "bwrap", "cannot bind the gated worker in the actor namespace")
+
+
 def launch(
     spec: SandboxSpec,
     argv: Iterable[str],
@@ -374,6 +408,7 @@ def launch(
     before_release: Callable[[int, int], None] | None = None,
     release_guard: Callable[[int, int], AbstractContextManager[None]] | None = None,
     actor_fsize_bytes: int | None = None,
+    track_worker: bool = False,
 ) -> Sandboxed:
     """Start the actor so that its handle exists before it can run.
 
@@ -435,6 +470,7 @@ def launch(
         os.close(info_write)
         os.close(gate_read)
     pidfd = -1
+    worker_fd = -1
     hook_error: BaseException | None = None
     try:
         try:
@@ -453,6 +489,8 @@ def launch(
             pidfd = -1
             raise SandboxUnproven("launch-failed", "bwrap", "bwrap exited while acquiring the child handle")
         _check_network_namespace(child, pidfd)
+        if track_worker:
+            worker_fd = _pin_worker(child, pidfd)
         if before_release is not None:
             try:
                 before_release(child, pidfd)
@@ -470,6 +508,8 @@ def launch(
                 hook_error = caught
             raise
     except BaseException as caught:
+        if worker_fd >= 0:
+            os.close(worker_fd)
         os.close(gate_write)
         try:
             _abort(process, pidfd)
@@ -482,4 +522,4 @@ def launch(
         raise SandboxUnproven("launch-failed", "bwrap", f"{type(caught).__name__}: {caught}") from caught
     else:
         os.close(gate_write)
-    return Sandboxed(process, child, pidfd)
+    return Sandboxed(process, child, pidfd, worker_fd)

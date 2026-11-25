@@ -16,6 +16,7 @@ def add_parser(commands):
     ops = group.add_subparsers(dest="operation", required=True, parser_class=commands._parser_class)
     ops.add_parser("issue", help="issue a new campaign from named operator configuration").add_argument("name")
     ops.add_parser("revoke", help="permanently close a campaign").add_argument("campaign")
+    ops.add_parser("report", help="read protected member evidence").add_argument("reference")
     reconcile = ops.add_parser("reconcile", help="export the sealed member history")
     reconcile.add_argument("reference")
     reconcile.add_argument("--conversation-id", required=True)
@@ -36,6 +37,11 @@ def execute(args: argparse.Namespace):
             receipt = campaign.receipt()
         elif args.operation == "revoke":
             receipt = Campaign(storage(config), args.campaign).revoke()
+        elif args.operation == "report":
+            from autonomy.science_run.report import report
+
+            pool, member = resolve(config, args.reference)
+            receipt = report(pool, member, state_root(os.environ))
         elif args.operation == "reconcile":
             from autonomy.science_run.history import history
 

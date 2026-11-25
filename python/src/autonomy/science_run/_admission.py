@@ -250,6 +250,12 @@ class Admission:
         egress = None if route is None else {
             "route": route.name, "digest": route.digest, "upstream": route.route.upstream, "url": MODEL_URL,
         }
+        if route is not None and route.member is not None:
+            binding = read_record(opened.dirs.run_dir / "allowance.json")
+            issuance = route.member.pool.receipt()
+            egress["allowance"] = {**binding, "caller": route.member.caller, "issuer_uid": issuance["issuer_uid"],
+                                   "issued": issuance["issued"], "source": issuance["grant"]["source"],
+                                   "tariff_digest": issuance["tariff_digest"]}
         publish_json(opened.dirs.run_dir / "baseline.json", {
             "version": 1, "run": opened.dirs.run_id, "opened_at": utc_now(),
             "tier": opened.request.tier.to_json(), "permit": opened.request.tier.permit.to_json(),

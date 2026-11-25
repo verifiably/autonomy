@@ -6,6 +6,7 @@ import pytest
 from autonomy.allowance.protocol import HostPeer, PeerClient
 from autonomy.allowance import AllowanceRefused
 from test_store import issued, R
+from egress_fixtures import serve, tls  # noqa: F401 (pytest fixtures)
 
 
 def test_grant_peer_lifetime_and_late_settle(tmp_path):
@@ -162,3 +163,51 @@ def test_exact_packet_limit_and_refusal_fixtures():
         with _reply_peer((fixtures / (name + ".json")).read_bytes()) as client:
             with pytest.raises(AllowanceRefused, match="allowance-" + name):
                 client.call("reserve-job", {})
+
+
+def test_shared_last_model_slot_before_tls_connect(tmp_path, serve, tls):
+    from concurrent.futures import ThreadPoolExecutor
+    from contextlib import ExitStack, closing
+    from threading import Barrier
+    from autonomy.allowance import Campaign
+    from autonomy.egress.meter import ModelMeter
+    from egress_fixtures import MODEL, exchange, message, raw_request, status_and_body
+    from test_store import C, P, R2, ROUTE, definition
+
+    config = definition()
+    config["tariff"]["model"] = MODEL
+    root = tmp_path / "authority"
+    root.mkdir(mode=0o700)
+    pool = Campaign.issue(root, config)
+    opening = dict(caller="band", target=config["members"]["action"]["target"], route_digest=ROUTE, conversation_id=C)
+    request = raw_request(body=message())
+    with ExitStack() as stack:
+        def proxy(name, envelope):
+            host = stack.enter_context(HostPeer(pool, name, envelope, "model"))
+            client = stack.enter_context(closing(PeerClient(host.take_socket())))
+            return serve(mode="sse", allowance=ModelMeter(client, config["tariff"]))
+
+        pool.open("smoke", R2, caller="e21", target={}, route_digest=ROUTE)
+        smoke = proxy("smoke", R2)
+        assert status_and_body(exchange(smoke.port, request))[0] == 200
+        pool.seal("smoke", R2)
+        assert b"allowance-closed" in exchange(smoke.port, request)
+        assert len(smoke.upstream.seen) == 1
+
+        pool.open("action", R, **opening)
+        research = proxy("action", R)
+        ready = Barrier(2)
+        def attempt():
+            ready.wait(timeout=5)
+            return status_and_body(exchange(research.port, request))[0]
+        with ThreadPoolExecutor(max_workers=2) as callers:
+            race = [callers.submit(attempt) for _ in range(2)]
+            assert sorted(f.result() for f in race) == [200, 403]
+        assert b"allowance-exhausted" in exchange(research.port, request)
+        pool.seal("action", R)
+        pool.record_turn("action", R, C, dict(version="band-turn.v1", provider_session_id=P, submission_id=None,
+                         settlement=None, question_id=None, answer_id=None, responses=[]))
+        with pytest.raises(AllowanceRefused, match="allowance-exhausted"):
+            pool.check_open("action", **opening, provider_session_id=P)
+        assert len(research.upstream.seen) == 1
+        assert pool.snapshot("action")["remaining"]["attempts"] == 0

@@ -1,6 +1,6 @@
 # Run Directory Records, Permits, and Ledger Schemas
 
-Type: data model; document types 1. Version 1 for disposition.json and ledger.v1; other run-directory records are currently unversioned.
+Type: data model; document types 1. Explicit versions include disposition.json and ledger.v1 (version 1), launch.json (launch.v1), and job-stop.json (job-stop.v1).
 
 The autonomy runtime records structured, append-only JSON and JSONL artifacts within dedicated state and cache directories for every run, capturing command lifecycles and closing checks defined in the [envelope protocol](envelope.md) alongside route configurations and proxy accounting defined in the [egress contract](egress.md). These records capture pre-launch environment provenance, real-time lifecycle transitions, egress accounting, released files, and closing research dispositions.
 
@@ -298,3 +298,15 @@ host can read the balances it also returns remaining attempts, input tokens,
 output tokens, micro-USD and job starts in both the HTTP refusal and request
 receipt. A settled job's ledger reference must name the authenticated writer
 session of its reservation. A foreign reference leaves the debit outstanding.
+
+## Observed independent child failure
+
+During a research close, Science can publish a private `job-stop.json` before its durable seal. The record contains `version` (job-stop.v1), `session_id`, `invocation_id`, `phase`, `intent`, `seal_cause`, `observation` (independent-failure) and a nonzero integer `returncode`. The kernel observed the outer child exit and verified the immutable closure before the writer gate closed. The intent remains unfulfilled. The member report joins a private singly linked record to the authenticated writer, reserved job, unfulfilled intent and the cause in the durable authenticated seal. A missing seal or conflicting evidence leaves the result unknown.
+
+## Member evidence report
+
+`autonomy allowance report CAMPAIGN/MEMBER` reads private grant state, per-envelope Band projections and protected run evidence. Each envelope lists its disposition, first stop and seal causes, jobs and minted addresses, model receipts, and evidence file hashes. The top level gives original limits and expiry, remaining allowance, measured wall time, attempts, job starts, known cost and unknown reserved cost in integer micro-USD. Per-response Band claims must agree with the proxy and the stored settlement. A duplicated message ID, conflicting cache totals or partial stream prevents complete accounting. Original reservations continue to count against the grant.
+
+After a verified replay, the host retains `readback.json` from the qualified Science fixture's detached operator read. The host selects its checked-out `tests/fixtures/analysis/demo.py` with `SCIENCE_READBACK_FIXTURE` and its SHA-256 with `SCIENCE_READBACK_SHA256`. The host uses the Science interpreter and executes the verified bytes. Both settings stay outside the actor environment. It binds the original run, assessment, verification, proposition and selected belief key to the prepared world and corpus. `scientific_outcome` carries this result independently of accounting completeness and envelope disposition. A verified inconclusive assessment can reproduce an analysis without establishing a directional effect. Missing readback keeps the scientific result open.
+
+The report lists token usage by billing category, the campaign and member limits, and durable member reservations in their original units. It checks job-ledger and model billing evidence separately. Science records the bound proposition and queue class in a private `selection.json` at seal. A clean sealed selection with no eligible work or job reports `nothing needed`. Incomplete evidence retains a recovery decision. A paid-attempt refusal and a scientific refusal keep their own causes.

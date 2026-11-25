@@ -307,7 +307,7 @@ def test_a_start_time_that_cannot_be_read_is_recorded_as_null(served_world, monk
 def test_a_failure_during_supervision_still_kills_the_proxy_and_the_actor(served_world, monkeypatch):
     import autonomy.analyst.launch as launch_module
 
-    def boom(actor, session, request, log):
+    def boom(actor, session, request, log, member):
         raise RuntimeError("supervision failed")
 
     monkeypatch.setattr(launch_module, "_supervise", boom)

@@ -7,6 +7,7 @@ from autonomy.membership import Finding
 from autonomy.run import Diag, Opened, Progress, RunRequest, RunResult, execute as run_reported
 from autonomy.science_run._admission import Admission
 from autonomy.science_run._recovery import collect, control
+from autonomy.science_run.readback import capture
 from autonomy.science_run._supervisor import Stop, supervise
 
 __all__ = ["control", "execute"]
@@ -24,6 +25,8 @@ def execute(
             if isinstance(opening, Finding):
                 return RunResult((opening,), {}, None)
             findings = supervise(opened, opening, stop, env, actor_launched=actor_launched)
-            return collect(opened.dirs.run_dir, env, findings)
+            result = collect(opened.dirs.run_dir, env, findings)
+            capture(opened, opening, result, env)
+            return result
 
         return run_reported(request, env, steps, diag=diag, progress=progress, open_run=admission.open)
