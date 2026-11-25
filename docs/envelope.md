@@ -106,21 +106,39 @@ durable exit even if the output consumer closes.
 
 #### Development mode
 
-`autonomy run --development --repository REPO --base OID --deadline SECONDS
-[--report-fd N] -- <actor argv>` authorizes one supervised offline candidate
-attempt. The base must be a full local commit ID and the deadline must be
-positive and finite. Omit the science tier, route and lease and any model
-route. Development state contains only protected records and scratch, so the
-run needs no XDG runtime directory. The actor receives the caller's byte
-channels. The CLI releases its copies immediately after the gate opens so the
-caller's streams can reach EOF before validation ends.
+`autonomy run --development [--delegation ID --attempt A] --repository REPO
+--base OID --deadline SECONDS [--report-fd N] -- <actor argv>` authorizes one
+offline candidate attempt. `--delegation` and `--attempt` must be supplied
+together (`development-mode-conflict`). Without them the run is supervised mode,
+which refuses callers whose cgroup lies inside any systemd user service
+(`delegation-required`). With them, admission resolves `<config>` from the
+account's password database (ignoring `HOME` and `XDG_CONFIG_HOME`), loads the
+issued `development-delegation.v1` grant, verifies the caller's cgroup and
+manager state (`delegation-caller`), matches the canonical repository, granted
+command and deadline (`delegation-repository`, `delegation-actor`,
+`delegation-deadline`), confirms the base equals the current tip of the granted
+branch ref without invoking Git (`delegation-base`), checks delegated `memory`
+and `pids` controllers, `OOMPolicy=continue` and ancestor cgroup limits
+(`delegation-bounds`), acquires `<id>.lock`, settles prior starts, records the
+start row before allocation (`delegation-busy`, `delegation-run-unfinished`,
+`delegation-expired`, `delegation-closed`, `delegation-attempt-used`,
+`delegation-exhausted`), marks the start allocated before workspace preparation
+(`development-delegation-ended` on failure), narrows `actor_storage_bytes` to
+`writable_bytes`, adds the account `<config>` and store to the denied set, and
+confines the actor in `<unit>/actor-<run-id>`.
+
+The base must be a full local commit ID and the deadline must be positive and
+finite. Omit the science tier, route and lease and any model route. Development
+state contains only protected records and scratch, so the run needs no XDG
+runtime directory. The actor receives the caller's byte channels. The CLI
+releases its copies immediately after the gate opens so the caller's streams can
+reach EOF before validation ends.
 
 The supervisor gives the actor the base OID, full development ref, and
 `/run/va/outputs/candidate.bundle` through `VERIFIABLY_DEVELOPMENT_BASE`,
 `VERIFIABLY_DEVELOPMENT_REF` and `VERIFIABLY_DEVELOPMENT_BUNDLE`.
-An immutable grant records the proved exposure and bounds. The supervised
-invocation grants this attempt. Unattended caller admission requires a
-separate activation gate.
+An immutable grant records the proved exposure, approval (`supervised-invocation`
+or `delegation`) and bounds.
 
 ##### Workspace preparation
 
@@ -311,7 +329,7 @@ Post-run evaluation determines the final research disposition:
 | --- | --- |
 | `StdioRefused` | `stdio-refused` |
 | `TierRefused` | `unknown-tier`, `publishes-unattended`, `routes-unexpected`, `mints-empty`, `unknown-kind`, `route-not-admitted`, `family-unreachable` |
-| `RunRefused` | `route-repeated`, `lease-below-floor`, `runtime-dir-unset`, `home-unknown`, `allocation-failed`, re-raised `StdioRefused`, `TierRefused`, `RouteRefused` |
+| `RunRefused` | `route-repeated`, `lease-below-floor`, `runtime-dir-unset`, `home-unknown`, `allocation-failed`, `delegation-missing`, `delegation-unavailable`, `delegation-invalid`, `delegation-required`, `delegation-caller`, `delegation-repository`, `delegation-base`, `delegation-actor`, `delegation-deadline`, `delegation-bounds`, `delegation-busy`, `delegation-run-unfinished`, `delegation-attempt-used`, `delegation-exhausted`, `delegation-expired`, `delegation-closed`, `delegation-unit-held`, `delegation-unconfirmed`, `delegation-stop-unacknowledged`, re-raised `StdioRefused`, `TierRefused`, `RouteRefused` |
 | `AnalystRefused` | `lease-below-floor`, `deadline-invalid`, `model-unrouted`, `pi-mismatch`, `model-unknown`, `thinking-unsupported`, `node-missing`, `toolchain-shadowed`, `input-missing`, `input-unsupported`, `input-nested`, `denied-unreadable`, `release-unusable`, `workdir-invalid`, `workdir-unbound`, `command-missing`, `command-invalid`, `command-not-executable`, `command-unbound`, `allocation-failed` |
 
 ### Sandbox Unproven Codes

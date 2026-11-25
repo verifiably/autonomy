@@ -699,3 +699,30 @@ def test_a_half_closed_report_socket_admits_the_run_and_drops_both_lines(tmp_pat
     doc = json.loads((directory / "disposition.json").read_bytes())
     assert doc["disposition"] == "unwired"
     assert [row["line"] for row in events(directory) if row["event"] == "report-unwritten"] == ["run", "closing"]
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--delegation", "del-1"],
+        ["--attempt", "att-1"],
+        ["--delegation"],
+        ["--attempt"],
+    ],
+)
+def test_development_delegation_and_attempt_require_each_other(tmp_path, pipes, extra):
+    status, _ = autonomy(
+        tmp_path,
+        [
+            "run", "--development",
+            "--repository", str(tmp_path),
+            "--base", "a" * 40,
+            "--deadline", "10",
+            *extra,
+            *ACTOR,
+        ],
+        pipes["io"],
+    )
+    assert status == 2
+    assert runs(tmp_path) == []
+    assert b"development-mode-conflict" in drain(pipes["err"])

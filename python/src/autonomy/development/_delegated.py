@@ -2,13 +2,31 @@
 
 from __future__ import annotations
 
+import secrets
 import time
-from dataclasses import dataclass
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Literal
 
 from autonomy.allowance import AllowanceRefused, storage
 from autonomy.baseline import fsync_dir, utc_now
-from autonomy.delegation import ActorCgroup, Ceiling, Delegation, Host, Start, identifier
+from autonomy.delegation import (
+    TERMINATION_SECONDS,
+    ActorCgroup,
+    Caller,
+    Ceiling,
+    Delegation,
+    Grant,
+    Host,
+    Start,
+    check_unit,
+    identify,
+    identifier,
+    peak_memory,
+    within,
+)
 from autonomy.development._records import (
     DevelopmentPlaces,
     RunPaths,
@@ -18,9 +36,23 @@ from autonomy.development._records import (
     publish_json,
     read_terminal,
 )
-from autonomy.development._supervisor import stop_requested
-from autonomy.development._workspace import Limits
-from autonomy.run import RunRefused
+from autonomy.development._refs import branch_tip
+from autonomy.development._supervisor import ActorBounds, stop_requested
+from autonomy.development._workspace import Limits, SourceBase
+from autonomy.run import Diag, RunRefused
+
+
+@dataclass(frozen=True)
+class Admission:
+    grant: Delegation
+    config: Grant
+    caller: Caller
+    repository: str
+    actor: str
+    ref: str
+    limits: Limits
+    bounds: ActorBounds
+    attempt: str = ""
 
 
 @dataclass(frozen=True)
@@ -234,3 +266,139 @@ def revoke(
         actor="empty" if empty else "occupied",
         acknowledged=recorded and empty,
     )
+
+
+def admit(
+    host: Host,
+    *,
+    delegation: str,
+    attempt: str,
+    repository: Path,
+    argv: tuple[str, ...],
+    deadline: float,
+    run_id: str | None = None,
+) -> Admission:
+    delegation_id = identifier(delegation)
+    attempt_id = identifier(attempt)
+    grant = open_grant(host, delegation_id)
+    info = grant.grant()
+    if info.closed == "expired":
+        raise RunRefused("delegation-expired", "delegation has expired")
+    if info.closed is not None:
+        raise RunRefused("delegation-closed", f"delegation is closed ({info.closed})")
+
+    caller = identify(host, info.config["orchestrator"]["unit"])
+    try:
+        canonical_repo = str(repository.resolve(strict=True))
+    except OSError as exc:
+        raise RunRefused("delegation-repository", f"repository path is unavailable: {exc}") from exc
+    matched_repo = next(
+        ((name, entry["ref"]) for name, entry in info.config["repositories"].items() if entry["path"] == canonical_repo),
+        None,
+    )
+    if matched_repo is None:
+        raise RunRefused("delegation-repository", "repository path is not granted")
+    repo_name, ref = matched_repo
+
+    argv_list = list(argv)
+    actor_name = next(
+        (name for name, cmd in info.config["actors"].items() if cmd == argv_list),
+        None,
+    )
+    if actor_name is None:
+        raise RunRefused("delegation-actor", "actor argv is not granted")
+
+    grant_limits = info.config["limits"]
+    if deadline > grant_limits["deadline_seconds"]:
+        raise RunRefused("delegation-deadline", "deadline exceeds the granted limit")
+
+    chosen_run_id = secrets.token_hex(16) if run_id is None else run_id
+    run_limits = replace(Limits(), actor_storage_bytes=int(grant_limits["writable_bytes"]))
+    bounds = ActorBounds(
+        cgroup=host.actor_cgroup(caller.cgroup, chosen_run_id),
+        memory_bytes=int(grant_limits["memory_bytes"]),
+        tasks=int(grant_limits["tasks"]),
+        expires=int(info.config["expires"]),
+    )
+    return Admission(
+        grant=grant,
+        config=info,
+        caller=caller,
+        repository=repo_name,
+        actor=actor_name,
+        ref=ref,
+        limits=run_limits,
+        bounds=bounds,
+        attempt=attempt_id,
+    )
+
+
+def check_base(admission: Admission, source: SourceBase) -> None:
+    tip = branch_tip(source.repository, admission.ref)
+    if tip != source.oid:
+        raise RunRefused("delegation-base", f"base {source.oid} differs from {admission.ref} tip {tip}")
+
+
+def check_bounds(admission: Admission, host: Host) -> None:
+    ceil = ceiling(Limits())
+    grant_limits = admission.config.config["limits"]
+    within(grant_limits, ceil)
+    check_unit(
+        host,
+        admission.caller,
+        peak=peak_memory(grant_limits, ceil),
+        tasks=int(grant_limits["tasks"]),
+    )
+
+
+@contextmanager
+def begin(
+    admission: Admission,
+    host: Host,
+    places: DevelopmentPlaces,
+    source: SourceBase,
+    run_id: str,
+    *,
+    deadline: float,
+    diag: Diag | None = None,
+) -> Iterator[int]:
+    with admission.grant.lock(wait=1.0):
+        settle(admission.grant, host)
+        margin = admission.limits.prepare_seconds + deadline + TERMINATION_SECONDS
+        start = Start(
+            ordinal=0,
+            attempt=admission.attempt,
+            run=run_id,
+            at=int(time.time()),
+            state=places.state,
+            cache=places.cache,
+            repository=admission.repository,
+            actor=admission.actor,
+            base=source.oid,
+            deadline=deadline,
+            unit=admission.caller.unit,
+            cgroup=admission.caller.cgroup,
+            invocation=admission.caller.invocation,
+            allocated=False,
+            outcome=None,
+            disposition_sha256=None,
+        )
+        ordinal = admission.grant.begin(start, margin=margin)
+        try:
+            try:
+                yield ordinal
+            finally:
+                try:
+                    settle(admission.grant, host)
+                except (OSError, RunRefused) as caught:
+                    if diag is not None:
+                        diag(f"delegation settlement warning: {caught}")
+        finally:
+            try:
+                cleared = admission.bounds.cgroup.remove(wait=5.0)
+            except OSError as caught:
+                cleared = False
+                if diag is not None:
+                    diag(f"actor cgroup cleanup failed: {caught}")
+            if not cleared and diag is not None:
+                diag(f"actor cgroup {admission.bounds.cgroup.path} is still occupied")

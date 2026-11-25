@@ -213,7 +213,9 @@ def _run(args: argparse.Namespace, diag: _Diagnostics, progress: Progress) -> in
         return EXIT_REFUSED
 
 
-_DEVELOPMENT_VALUES = ("tier", "route", "lease", "model-route", "repository", "base", "deadline", "report-fd")
+_DEVELOPMENT_VALUES = (
+    "tier", "route", "lease", "model-route", "repository", "base", "deadline", "report-fd", "delegation", "attempt",
+)
 
 
 def _development_options(options: Sequence[str]) -> list[str]:
@@ -266,6 +268,8 @@ def _development_run(
         raise RunRefused("development-mode-conflict", "omit --tier, --route and --lease for development runs")
     if args.model_route is not None:
         raise RunRefused("development-model-route-refused", "omit the model route for supervised offline development")
+    if (args.delegation is None) != (args.attempt is None):
+        raise RunRefused("development-mode-conflict", "pass --delegation and --attempt together")
     if not args.repository:
         raise RunRefused("development-repository-invalid", "select an approved local repository with --repository")
     if not args.base:
@@ -280,7 +284,9 @@ def _development_run(
         report_fd = None if args.report_fd is None else _fd(args.report_fd)
     except argparse.ArgumentTypeError as caught:
         raise RunRefused("stdio-refused", str(caught)) from caught
-    request = development.DevelopmentRequest(Path(args.repository), args.base, deadline, tuple(actor), report_fd)
+    request = development.DevelopmentRequest(
+        Path(args.repository), args.base, deadline, tuple(actor), report_fd, args.delegation, args.attempt,
+    )
     return development.execute(request, os.environ, diag=diag, progress=progress,
                                actor_launched=lambda: _release_supervisor_stdio(diag))
 
