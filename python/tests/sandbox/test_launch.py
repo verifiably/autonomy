@@ -19,6 +19,7 @@ from autonomy.sandbox import bwrap
 from autonomy.sandbox.bwrap import launch
 from autonomy.sandbox.spec import SandboxSpec
 from autonomy.sandbox.static import SandboxUnproven
+from user_manager import in_delegated_unit, stop_unit, unit_env, user_manager  # noqa: F401
 
 pytestmark = pytest.mark.bwrap
 
@@ -939,4 +940,74 @@ def test_supervisor_environment_never_reaches_proc_in_launch(tmp_path, bounded):
     assert report["init_env"] == {"PATH": "/usr/bin", "LC_ALL": "C"}
     assert report["self_env"] == {"PATH": "/usr/bin", "ACTOR_DECLARED": "allowed-value"}
     assert report["declared_in_init_cmdline"] is True
+
+
+@pytest.mark.user_manager
+@pytest.mark.parametrize("with_fsize", [False, True])
+def test_launcher_joins_before_the_sandbox(tmp_path, user_manager, with_fsize):
+    unit = f"autonomy-launch-cg-{secrets.token_hex(6)}.service"
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    script = textwrap.dedent(
+        r"""
+        import os, sys
+        from contextlib import closing
+        from pathlib import Path
+        from autonomy.delegation import actor_cgroup
+        from autonomy.sandbox.bwrap import launch
+        from autonomy.sandbox.spec import SandboxSpec, Storage
+
+        scratch = Path(sys.argv[1])
+        with_fsize = sys.argv[2] == "1"
+        v2 = [line[3:] for line in Path("/proc/self/cgroup").read_text().splitlines() if line.startswith("0::")][0]
+        unit_cg = v2.rsplit("/", 1)[0]
+        run_id = "2" * 32
+        cg = actor_cgroup(Path("/sys/fs/cgroup"), unit_cg, run_id)
+        cg.create(memory_bytes=256 << 20, tasks=64)
+        checked = []
+
+        def verify_while_held(child_pid: int, _pidfd: int) -> None:
+            cg.check(child_pid, memory_bytes=256 << 20, tasks=64)
+            checked.append(child_pid)
+
+        null = os.open(os.devnull, os.O_RDWR)
+        try:
+            spec = SandboxSpec(
+                scratch=scratch,
+                disable_nested_userns=True,
+                storage=Storage(16 << 20, 64),
+            )
+            with closing(launch(
+                spec,
+                ["/usr/bin/true"],
+                stdin=null,
+                stdout=null,
+                stderr=null,
+                before_release=verify_while_held,
+                actor_fsize_bytes=65536 if with_fsize else None,
+                actor_cgroup=cg.path,
+            )) as sandbox:
+                assert sandbox.wait(timeout=15) == 0
+            assert checked == [sandbox.child_pid]
+            assert cg.remove(wait=5.0) is True
+        finally:
+            os.close(null)
+        """
+    )
+    cmd = in_delegated_unit(
+        [sys.executable, "-c", script, str(scratch), "1" if with_fsize else "0"],
+        unit=unit,
+    )
+    try:
+        result = subprocess.run(
+            cmd,
+            env=unit_env(tmp_path),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    finally:
+        stop_unit(unit, tmp_path)
+    assert result.returncode == 0, result.stderr
 

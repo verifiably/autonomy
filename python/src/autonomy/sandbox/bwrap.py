@@ -408,11 +408,19 @@ def _check_network_namespace(child_pid: int, pidfd: int) -> None:
         raise SandboxUnproven("probe-network", child_path, "sandbox shares the orchestrator's network namespace")
 
 
-_FILE_LIMIT = """
+_PRE_EXEC = r"""
 import os, resource, sys
-limit = int(sys.argv[1])
-resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
-os.execvp(sys.argv[2], sys.argv[2:])
+fsize, cgroup = sys.argv[1], sys.argv[2]
+if cgroup:
+    fd = os.open(os.path.join(cgroup, "cgroup.procs"), os.O_WRONLY | os.O_CLOEXEC)
+    try:
+        os.write(fd, b"0\n")
+    finally:
+        os.close(fd)
+if fsize:
+    limit = int(fsize)
+    resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
+os.execvp(sys.argv[3], sys.argv[3:])
 """
 
 
@@ -454,6 +462,7 @@ def launch(
     before_release: Callable[[int, int], None] | None = None,
     release_guard: Callable[[int, int], AbstractContextManager[None]] | None = None,
     actor_fsize_bytes: int | None = None,
+    actor_cgroup: Path | None = None,
     track_worker: bool = False,
 ) -> Sandboxed:
     """Start the actor so that its handle exists before it can run.
@@ -486,6 +495,8 @@ def launch(
             "held by a handle that survives pid reuse",
         )
     _require_open(stdin=stdin, stdout=stdout, stderr=stderr)
+    if actor_cgroup is not None and not actor_cgroup.is_absolute():
+        raise ValueError("actor_cgroup must be an absolute path")
     actor_argv = tuple(argv)
     if not actor_argv or not actor_argv[0]:
         raise SandboxUnproven("launch-failed", "actor", "the actor must have a nonempty executable argument")
@@ -498,8 +509,16 @@ def launch(
         raise
     try:
         command = build_argv(spec, actor_argv, info_fd=info_write, gate_fd=gate_read)
-        if actor_fsize_bytes is not None:
-            command = ["/usr/bin/python3", "-I", "-c", _FILE_LIMIT, str(actor_fsize_bytes), *command]
+        if actor_fsize_bytes is not None or actor_cgroup is not None:
+            command = [
+                "/usr/bin/python3",
+                "-I",
+                "-c",
+                _PRE_EXEC,
+                "" if actor_fsize_bytes is None else str(actor_fsize_bytes),
+                "" if actor_cgroup is None else str(actor_cgroup),
+                *command,
+            ]
         process = subprocess.Popen(
             command,
             pass_fds=(info_write, gate_read),

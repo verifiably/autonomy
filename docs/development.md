@@ -135,16 +135,18 @@ the affected parameter or boundary in the owning test.
 | --- | --- |
 | `development-mode-conflict`, `development-model-route-refused` | `test_development_start_refusals_precede_allocation` |
 | `development-repository-invalid`, `development-base-invalid` | `test_omitted_development_inputs_have_normative_codes`, `test_rejects_incomplete_source_and_external_object_storage` |
+| `delegation-base` | `test_branch_tip_refuses_unsupported_or_damaged_refs` |
 | `deadline-invalid` | `test_development_start_refusals_precede_allocation`, `test_omitted_development_inputs_have_normative_codes` |
 | `stdio-refused` | `test_development_stdio_refusal_has_no_retained_run` |
 | `development-launch-unavailable` | `test_development_refuses_unavailable_host_and_allocation_failure`, `test_nested_development_cli_is_refused_by_preflight` |
 | `allocation-failed` | `test_development_refuses_unavailable_host_and_allocation_failure` |
-| `development-run-invalid` | `test_stop_and_close_refuse_unknown_run` |
+| `development-run-invalid` | `test_stop_and_close_refuse_unknown_run`, `test_version_1_records_are_refused` |
 | `development-supervisor-live` | `test_live_supervisor_refuses_recovery_during_preparation` |
 | `development-workspace-unproven` | `test_prepare_fails_closed_on_export_or_resource_refusal`, `test_seed_that_exceeds_the_bound_keeps_the_gate_closed` |
-| `development-sandbox-unproven` | `test_walk_checks_the_prepared_scratch_for_aliases`, `test_file_limit_proof_failure_keeps_actor_held`, `test_storage_proof_failure_keeps_actor_held` |
+| `development-sandbox-unproven` | `test_walk_checks_the_prepared_scratch_for_aliases`, `test_file_limit_proof_failure_keeps_actor_held`, `test_storage_proof_failure_keeps_actor_held`, `test_cgroup_failure_keeps_the_gate_closed` |
 | `development-gate-unproven` | `test_fsync_failure_keeps_the_gate_closed` |
 | `development-stop-before-release` | `test_stop_before_arming_prevents_actor_execution` |
+| `development-delegation-ended` | `test_too_little_time_left_keeps_the_gate_closed` |
 | `orchestrator-lost`, `development-close-unproven` | `test_recovery_distinguishes_unarmed_armed_and_torn_journals`, `test_terminal_write_interruption_keeps_candidate_ineligible` |
 | `development-deadline` | `test_expired_run_with_complete_bundle_never_promotes` |
 | `development-stopped` | `test_stopped_run_with_complete_bundle_never_promotes`, `test_stop_during_validation_wins_before_terminal_commit` |

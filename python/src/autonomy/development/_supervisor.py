@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Literal
 
 from autonomy.baseline import append_event, fsync_dir, utc_now
+from autonomy.delegation import TERMINATION_SECONDS, ActorCgroup
 from autonomy.development._records import (
     MODE,
     DevelopmentAborted,
@@ -39,11 +40,27 @@ from autonomy.sandbox.spec import Storage
 from autonomy.sandbox.static import SandboxUnproven
 from autonomy.sandbox.storage import hold_storage
 
-__all__ = ["ActorOutcome", "prove_development_host", "recover_run", "request_stop", "stop_requested", "supervise_actor"]
+__all__ = [
+    "ActorBounds",
+    "ActorOutcome",
+    "prove_development_host",
+    "recover_run",
+    "request_stop",
+    "stop_requested",
+    "supervise_actor",
+]
 
 _TERM_GRACE = 10.0
 _KILL_WAIT = 5.0
 Cause = Literal["exit", "deadline", "stop"]
+
+
+@dataclass(frozen=True)
+class ActorBounds:
+    cgroup: ActorCgroup
+    memory_bytes: int
+    tasks: int
+    expires: int
 
 
 @dataclass(frozen=True)
@@ -148,13 +165,14 @@ def _await_actor(actor: Sandboxed, run: RunPaths, until: float) -> tuple[int | N
 def supervise_actor(
     run: RunPaths, workspace: PreparedWorkspace, argv: tuple[str, ...], *, actor_fds: tuple[int, int, int],
     limits: Limits, deadline_seconds: float, grant_sha256: str, actor_launched: Callable[[], None] | None = None,
+    bounds: ActorBounds | None = None,
 ) -> ActorOutcome:
     """Run the actor to its end. The outcome's scratch descriptor is the caller's to close:
     the bounded pool holding the actor's work ends with it."""
     with ExitStack() as held:
         outcome = _supervise(
             run, workspace, argv, held, actor_fds=actor_fds, limits=limits, deadline_seconds=deadline_seconds,
-            grant_sha256=grant_sha256, actor_launched=actor_launched,
+            grant_sha256=grant_sha256, actor_launched=actor_launched, bounds=bounds,
         )
         held.pop_all()
         return outcome
@@ -163,7 +181,7 @@ def supervise_actor(
 def _supervise(
     run: RunPaths, workspace: PreparedWorkspace, argv: tuple[str, ...], held: ExitStack, *,
     actor_fds: tuple[int, int, int], limits: Limits, deadline_seconds: float, grant_sha256: str,
-    actor_launched: Callable[[], None] | None,
+    actor_launched: Callable[[], None] | None, bounds: ActorBounds | None,
 ) -> ActorOutcome:
     until = 0.0
     armed = False
@@ -178,6 +196,8 @@ def _supervise(
             required = (limits.actor_fsize_bytes, limits.actor_fsize_bytes)
             if resource.prlimit(child_pid, resource.RLIMIT_FSIZE) != required or _exited(pidfd):
                 raise ValueError("the held child lacks the required file size limit")
+            if bounds is not None:
+                bounds.cgroup.check(child_pid, memory_bytes=bounds.memory_bytes, tasks=bounds.tasks)
             scratch_fd = hold_storage(child_pid, spec)
             held.callback(os.close, scratch_fd)
             start_time = _start_time(child_pid)
@@ -193,6 +213,11 @@ def _supervise(
             with publication_lock(run):
                 if stop_requested(run):
                     raise DevelopmentAborted(_finding("development-stop-before-release", "stop preceded release; start a new run if needed"))
+                if bounds is not None and time.time() + deadline_seconds + TERMINATION_SECONDS > bounds.expires:
+                    raise DevelopmentAborted(_finding(
+                        "development-delegation-ended",
+                        "too little delegation lifetime remains for the actor deadline and termination grace",
+                    ))
                 if _exited(pidfd):
                     raise OSError("the held namespace exited")
                 append_event(run.run_dir, "releasing", child_pid=child_pid, start_time=start_time,
@@ -206,10 +231,16 @@ def _supervise(
 
     stdin, stdout, stderr = actor_fds
     try:
+        if bounds is not None:
+            bounds.cgroup.create(memory_bytes=bounds.memory_bytes, tasks=bounds.tasks)
         # The pinned worker shows that the sandbox has finished its mounts.
-        actor = launch(spec, argv, stdin=stdin, stdout=stdout, stderr=stderr, release_guard=guard,
-                       actor_fsize_bytes=limits.actor_fsize_bytes, track_worker=True)
-    except (SandboxUnproven, OSError) as caught:
+        actor = launch(
+            spec, argv, stdin=stdin, stdout=stdout, stderr=stderr, release_guard=guard,
+            actor_fsize_bytes=limits.actor_fsize_bytes,
+            actor_cgroup=None if bounds is None else bounds.cgroup.path,
+            track_worker=True,
+        )
+    except (SandboxUnproven, OSError, ValueError) as caught:
         raise DevelopmentAborted(_finding("development-sandbox-unproven", f"{caught}; correct the launch guard and rerun")) from caught
 
     try:

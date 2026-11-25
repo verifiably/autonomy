@@ -23,6 +23,7 @@ SPEC_ROWS = {
     "development-sandbox-unproven": "unwired",
     "development-gate-unproven": "unwired",
     "development-stop-before-release": "unwired",
+    "development-delegation-ended": "unwired",
     "development-close-unproven": "quarantined",
     "development-deadline": "quarantined",
     "development-stopped": "quarantined",

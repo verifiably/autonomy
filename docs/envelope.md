@@ -36,7 +36,7 @@ The sandbox environment is specified by `SandboxSpec` in `python/src/autonomy/sa
 - System mounts: `SYSTEM_RO = (Path("/usr"), Path("/etc"))` mounted read-only, with merged-`/usr` symlinks `SYSTEM_LINKS = ("/bin", "/lib", "/lib64", "/sbin")`.
 - Sandbox paths: `IN_SANDBOX_SOCKET = PurePosixPath("/run/va/endpoint.sock")`, `IN_SANDBOX_TOKEN = PurePosixPath("/run/va/token")`, `IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")`.
 - `Storage(bytes, inodes)` bounds everything the actor can write; see [storage bound](#storage-bound). Only development mode declares it.
-- Execution settings include the scratch bind, read-only binds, recreated symlinks and a working directory. The supervisor starts bubblewrap and any pre-exec file-limit or storage-pool stage with a fixed environment (`PATH=/usr/bin`, `LC_ALL=C`), never the supervisor's inherited environment, so the namespace init at `/proc/1/environ` carries only `PATH=/usr/bin` and `LC_ALL=C`. Bubblewrap's `--clearenv` clears that environment for its child; the probe passes the declared environment with `--setenv`, and the launch gate receives the declared environment as arguments (visible on `/proc/1/cmdline`) and applies it at exec. Both default to `PATH=/usr/bin`.
+- Execution settings include the scratch bind, read-only binds, recreated symlinks and a working directory. The supervisor starts bubblewrap and any pre-exec cgroup-join, file-limit or storage-pool stage with a fixed environment (`PATH=/usr/bin`, `LC_ALL=C`), never the supervisor's inherited environment, so the namespace init at `/proc/1/environ` carries only `PATH=/usr/bin` and `LC_ALL=C`. When `actor_cgroup` is supplied, that pre-exec stage writes `0` to `<actor_cgroup>/cgroup.procs` in place before execing the pool stage or bubblewrap. Bubblewrap's `--clearenv` clears that environment for its child; the probe passes the declared environment with `--setenv`, and the launch gate receives the declared environment as arguments (visible on `/proc/1/cmdline`) and applies it at exec. Both default to `PATH=/usr/bin`.
 
 Pre-launch verification proceeds through four mandatory phases:
 1. **Static Bind Checks (`autonomy.sandbox.static`):** `system_symlinks` verifies the merged-`/usr` links (`layout-unsupported`). The static bind check compares real paths and inode ancestry (`bind-overlaps-denied`). Missing denied paths still contribute their nearest existing ancestor's inode and its ancestry. Unresolvable denied paths fail with `denied-unreadable`. The input walk checks aliases of entries beneath denied roots. Bind sources passed to bubblewrap must exist and use their absolute real paths (`bind-missing`, `bind-unreadable`). The host must keep that path layout stable through launch.
@@ -140,7 +140,9 @@ outside the working tree.
 The supervisor checks the completed scratch alongside the admitted system
 trees. It rejects hardlinks in scratch, submounts and denied inode aliases
 before proving denied paths and network isolation from inside the sandbox.
-The source worktree and Git metadata never enter the actor's mounts.
+`/sys/fs/cgroup` joins the denied set for bind and probe checks without being
+traversed by the host inode walk. The source worktree and Git metadata never
+enter the actor's mounts.
 
 ##### Storage bound
 
@@ -200,16 +202,20 @@ host.
 ##### Supervision
 
 A development sandbox requires a fresh user namespace and disables nested
-user namespaces. The trusted launcher sets both file-size limits before it
-execs bubblewrap in place. The supervisor verifies both limits on the held
-namespace before release. That cap is per file, within the storage bound.
+user namespaces. The trusted launcher joins any per-run actor cgroup and sets
+both file-size limits before it execs the pool stage and bubblewrap in place.
+The supervisor verifies the actor cgroup limits (when bounded), file-size
+limits and bounded storage pool on the held namespace before release. That file
+cap is per file, within the storage bound.
 
-Under the publication lock, the supervisor checks for stop and records the
-namespace's identity durably before opening the gate. The monotonic actor
-deadline starts immediately before the gate write. While scheduled, the
-supervisor checks for stop or exit at least every second and sends TERM on
-stop or deadline. At most ten seconds of grace precede KILL. Output
-validation requires a timely zero exit and confirmed namespace shutdown.
+Under the publication lock, the supervisor checks for stop, verifies that a
+delegated start has at least `deadline + 15 s` left before grant expiry
+(`development-delegation-ended` when not), and records the namespace's identity
+durably before opening the gate. The monotonic actor deadline starts
+immediately before the gate write. While scheduled, the supervisor checks for
+stop or exit at least every second and sends TERM on stop or deadline. At most
+ten seconds of grace precede KILL. Output validation requires a timely zero
+exit and confirmed namespace shutdown.
 
 `autonomy run stop <id>` records a protected stop request. The request wins
 if recorded before terminal publication. `autonomy run close <id>` refuses a
@@ -309,8 +315,8 @@ Post-run evaluation determines the final research disposition:
 ### Closing Finding Severities
 
 Finding codes mapped in `closing.SEVERITY`:
-- **quarantined**: `chain-discontinuous`, `entry-foreign`, `world-moved`, `basis-moved`.
-- **unwired**: `baseline-unavailable`, `ledger-unavailable`, `read-unavailable`, `ledger-malformed`, `seal-missing`, `outcome-unknown`, `intent-unfulfilled`, `seal-timeout`, `act-unverified`, `session-unclosed`, `permit-mismatch`, `orchestrator-lost`, `egress-unproven`.
+- **quarantined**: `chain-discontinuous`, `entry-foreign`, `world-moved`, `basis-moved`, `development-close-unproven`, `development-deadline`, `development-stopped`, `development-actor-failed`, `development-storage-exhausted`, `development-bundle-missing`, `development-bundle-refused`, `development-bundle-header-invalid`, `development-bundle-validation-failed`, `development-candidate-unrecorded`.
+- **unwired**: `actor-mismatch`, `baseline-raced`, `endpoint-unavailable`, `run-stopped-before-release`, `sandbox-unproven`, `seal-failed`, `baseline-pending`, `baseline-unavailable`, `ledger-unavailable`, `read-unavailable`, `ledger-malformed`, `seal-missing`, `outcome-unknown`, `intent-unfulfilled`, `seal-timeout`, `act-unverified`, `session-unclosed`, `permit-mismatch`, `orchestrator-lost`, `egress-unproven`, `development-workspace-unproven`, `development-sandbox-unproven`, `development-gate-unproven`, `development-stop-before-release`, `development-delegation-ended`.
 - **informational (None)**: `egress-lost`, `egress-close-timeout`, `mount-moved`, `after-run`.
 
 Development admission and findings use the same exit and severity catalog.

@@ -225,3 +225,66 @@ def test_source_enumeration_cannot_outlive_preparation_deadline(workspace, fixtu
     monkeypatch.setattr(workspace, "run_worker", must_not_start)
     with pytest.raises(RunRefused, match="development-repository-invalid.*source inspection.*deadline"):
         workspace.admit_source(repo, base, limits=replace(workspace.Limits(), prepare_seconds=1))
+
+
+@pytest.mark.parametrize("shared_device", [False, True])
+def test_cgroups_are_denied_but_not_walked(workspace, places, fixture_source, monkeypatch, shared_device):
+    from types import SimpleNamespace
+
+    repo, base, _ = fixture_source
+    limits = workspace.Limits()
+    source = workspace.admit_source(repo, base, limits=limits)
+    walked_denied: list[tuple[Path, ...]] = []
+    probed_denied: list[tuple[Path, ...]] = []
+    checked_denied: list[tuple[Path, ...]] = []
+    real_walk = workspace.walk
+    real_probe = workspace.probe
+    real_check = workspace.check_binds
+
+    def spy_walk(user_trees, system_trees, denied, *, until):
+        walked_denied.append(tuple(denied))
+        return real_walk(user_trees, system_trees, denied, until=until)
+
+    def spy_probe(spec, denied, *, timeout):
+        probed_denied.append(tuple(denied))
+        return real_probe(spec, denied, timeout=timeout)
+
+    def spy_check(spec, denied):
+        checked_denied.append(tuple(denied))
+        return real_check(spec, denied)
+
+    monkeypatch.setattr(workspace, "walk", spy_walk)
+    monkeypatch.setattr(workspace, "probe", spy_probe)
+    monkeypatch.setattr(workspace, "check_binds", spy_check)
+
+    runtime = Path("/run/user") / str(os.getuid())
+    cgroups = Path("/sys/fs/cgroup")
+    with allocate_run(places, repository=repo, base=base, deadline_seconds=30) as run:
+        scratch_dev = run.scratch.stat().st_dev
+        target_dev = scratch_dev if shared_device else scratch_dev + 999_999
+        real_stat = Path.stat
+
+        def fake_stat(self, *args, **kwargs):
+            if self == runtime:
+                return SimpleNamespace(st_dev=target_dev)
+            return real_stat(self, *args, **kwargs)
+
+        monkeypatch.setattr(workspace, "mount_points", lambda: ())
+        monkeypatch.setattr(Path, "stat", fake_stat)
+        if shared_device:
+            # Avoid walking unreadable host /run/user/<uid> sentinel dirs during unit test:
+            # restore real stat inside spy_walk while checking the exact tuple passed in.
+            def spy_walk_safe(user_trees, system_trees, denied, *, until):
+                walked_denied.append(tuple(denied))
+                filtered = tuple(p for p in denied if p != runtime)
+                return real_walk(user_trees, system_trees, filtered, until=until)
+
+            monkeypatch.setattr(workspace, "walk", spy_walk_safe)
+
+        prepared = workspace.prepare_workspace(run, source, config=places.config, limits=limits)
+
+    assert cgroups in prepared.denied
+    assert cgroups in checked_denied[0]
+    assert cgroups in probed_denied[0]
+    assert cgroups not in walked_denied[0]
+    assert (runtime in walked_denied[0]) is shared_device

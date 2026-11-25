@@ -175,8 +175,9 @@ def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits
         )) from caught
 
     runtime = Path("/run/user") / str(os.getuid())
+    cgroups = Path("/sys/fs/cgroup")
     inode_denied = tuple(dict.fromkeys((source.repository, run.run_dir.parent.parent, *all_egress_denied(config))))
-    denied = (*inode_denied, runtime)
+    denied = (*inode_denied, runtime, cgroups)
     spec = SandboxSpec(
         scratch=run.scratch, chdir=run.scratch / "repo", outputs_link=True, disable_nested_userns=True,
         storage=Storage(limits.actor_storage_bytes, limits.actor_storage_inodes),
@@ -199,7 +200,7 @@ def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits
         runtime_devices.update(p.stat().st_dev for p in mount_points() if p != runtime and p.is_relative_to(runtime))
         admitted_devices = {path.stat().st_dev for path in (run.scratch, *SYSTEM_RO)}
         if runtime_devices & admitted_devices:
-            inode_denied = denied
+            inode_denied = (*inode_denied, runtime)
         report = walk((run.scratch,), SYSTEM_RO, inode_denied, until=source.prepare_until)
         remaining = source.prepare_until - time.monotonic()
         if remaining <= 0:

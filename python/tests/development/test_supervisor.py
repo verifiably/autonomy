@@ -404,6 +404,116 @@ def _records_run(env, run_id):
     return lookup_run(development_places(env), run_id)
 
 
+class _FakeActorCgroup:
+    def __init__(self, path: Path, *, fail_create: bool = False, fail_check: bool = False) -> None:
+        self.path = path
+        self.fail_create = fail_create
+        self.fail_check = fail_check
+        self.created: tuple[int, int] | None = None
+        self.checked: tuple[int, int, int] | None = None
+
+    def create(self, *, memory_bytes: int, tasks: int) -> None:
+        if self.fail_create:
+            raise OSError("cannot create actor cgroup")
+        self.path.mkdir(parents=True, exist_ok=True)
+        (self.path / "cgroup.procs").write_bytes(b"")
+        self.created = (memory_bytes, tasks)
+
+    def check(self, pid: int, *, memory_bytes: int, tasks: int) -> None:
+        if self.fail_check:
+            raise ValueError("child did not join actor cgroup")
+        assert (self.path / "cgroup.procs").read_bytes() == b"0\n"
+        self.checked = (pid, memory_bytes, tasks)
+
+    def empty(self) -> bool:
+        return True
+
+    def kill(self) -> None:
+        pass
+
+    def remove(self, *, wait: float) -> bool:
+        return True
+
+
+@pytest.mark.parametrize("stage", ["create", "check"])
+def test_cgroup_failure_keeps_the_gate_closed(supervisor, paths, stdio, tmp_path, stage):
+    fake = _FakeActorCgroup(
+        tmp_path / "actor-cg",
+        fail_create=(stage == "create"),
+        fail_check=(stage == "check"),
+    )
+    bounds = supervisor.ActorBounds(cgroup=fake, memory_bytes=256 << 20, tasks=64, expires=int(1e12))
+    workspace = PreparedWorkspace(SandboxSpec(paths.scratch, chdir=paths.scratch), "1" * 64, (), "2" * 64)
+    flag = paths.scratch / "ran"
+    with pytest.raises(DevelopmentAborted, match="development-sandbox-unproven"):
+        supervisor.supervise_actor(
+            paths, workspace, ("/usr/bin/touch", str(flag)), actor_fds=stdio, limits=Limits(),
+            deadline_seconds=3, grant_sha256=grant(paths), bounds=bounds,
+        )
+    events = [row["event"] for row in read_journal(paths)]
+    assert events == ["allocated"]
+    assert not flag.exists()
+
+
+def test_too_little_time_left_keeps_the_gate_closed(supervisor, paths, stdio, tmp_path):
+    import time
+    from autonomy.delegation import TERMINATION_SECONDS
+    from autonomy.development._records import publication_lock, publish_terminal
+
+    fake = _FakeActorCgroup(tmp_path / "actor-cg")
+    deadline = 5.0
+    expires = int(time.time() + deadline + TERMINATION_SECONDS) - 1
+    bounds = supervisor.ActorBounds(cgroup=fake, memory_bytes=256 << 20, tasks=64, expires=expires)
+    workspace = PreparedWorkspace(SandboxSpec(paths.scratch, chdir=paths.scratch), "1" * 64, (), "2" * 64)
+    grant_digest = grant(paths)
+    with pytest.raises(DevelopmentAborted) as caught:
+        supervisor.supervise_actor(
+            paths, workspace, ("/usr/bin/true",), actor_fds=stdio, limits=Limits(),
+            deadline_seconds=deadline, grant_sha256=grant_digest, bounds=bounds,
+        )
+    assert caught.value.finding.code == "development-delegation-ended"
+    assert [row["event"] for row in read_journal(paths)] == ["allocated"]
+    with publication_lock(paths):
+        status = publish_terminal(
+            paths, (caught.value.finding,), grant_sha256=grant_digest, candidate_sha256=None, containment_proven=True,
+        )
+    assert status == 4
+    verdict = read_json(paths.run_dir / "disposition.json")
+    assert verdict["disposition"] == "unwired" and verdict["containment_proven"] is True
+
+
+def test_an_actor_that_ignores_term_ends_before_expiry(supervisor, paths, stdio, tmp_path):
+    import math
+    import time
+    from autonomy.delegation import TERMINATION_SECONDS
+    from autonomy.development._records import publication_lock, publish_terminal
+
+    fake = _FakeActorCgroup(tmp_path / "actor-cg")
+    deadline = 1.0
+    expires = math.ceil(time.time() + deadline + TERMINATION_SECONDS)
+    bounds = supervisor.ActorBounds(cgroup=fake, memory_bytes=256 << 20, tasks=64, expires=expires)
+    workspace = PreparedWorkspace(SandboxSpec(paths.scratch, chdir=paths.scratch), "1" * 64, (), "2" * 64)
+    grant_digest = grant(paths)
+    script = "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)"
+    outcome = supervisor.supervise_actor(
+        paths, workspace, ("/usr/bin/python3", "-I", "-c", script), actor_fds=stdio, limits=Limits(),
+        deadline_seconds=deadline, grant_sha256=grant_digest, bounds=bounds,
+    )
+    try:
+        with publication_lock(paths):
+            status = publish_terminal(
+                paths, outcome.findings, grant_sha256=grant_digest, candidate_sha256=None,
+                containment_proven=outcome.containment_proven,
+            )
+    finally:
+        os.close(outcome.scratch_fd)
+    assert time.time() <= expires
+    assert status == 3
+    assert outcome.cause == "deadline" and outcome.containment_proven is True
+    assert [f.code for f in outcome.findings] == ["development-deadline"]
+    assert fake.checked is not None and not Path(f"/proc/{fake.checked[0]}").exists()
+
+
 def test_actor_exit_waits_for_its_namespace_pidfd(tmp_path):
     from subprocess import DEVNULL, Popen
     import sys
