@@ -5,9 +5,11 @@ from __future__ import annotations
 import math
 import os
 from collections.abc import Callable, Mapping
+from contextlib import ExitStack
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from autonomy.analyst.release import retain
 from autonomy.baseline import append_event
 from autonomy.channel import LineChannel
 from autonomy.closing import disposition_of
@@ -69,6 +71,18 @@ def _finish(
     return status
 
 
+def _retain_scratch(run: RunPaths, scratch_fd: int, limits: Limits) -> None:
+    """Keep an unpromoted actor's work for inspection. The verdict is already durable, so
+    a full disk costs the copy and never the verdict. The caller's stderr is already
+    released, so the journal is where a failure shows."""
+    try:
+        tally = retain(scratch_fd, run.scratch, max_bytes=limits.actor_storage_bytes)
+    except OSError as caught:
+        append_event(run.run_dir, "scratch-unretained", detail=str(caught))
+    else:
+        append_event(run.run_dir, "scratch-retained", **tally.to_json())
+
+
 def execute(
     request: DevelopmentRequest, env: Mapping[str, str], *, diag: Diag, progress: DevelopmentProgress,
     actor_fds: tuple[int, int, int] = ACTOR_FDS, actor_launched: Callable[[], None] | None = None,
@@ -92,7 +106,8 @@ def execute(
     try:
         if request.report_fd is not None:
             report = LineChannel(request.report_fd)
-        with allocate_run(places, repository=source.repository, base=source.oid, deadline_seconds=request.deadline_seconds) as run:
+        with (allocate_run(places, repository=source.repository, base=source.oid, deadline_seconds=request.deadline_seconds) as run,
+              ExitStack() as held):
             progress.run_dir = run.run_dir
             diag(f"development run {run.run_id} in {run.run_dir}")
             _report(run, report, "run", {
@@ -101,6 +116,7 @@ def execute(
             })
             findings: list[Finding] = []
             result = None
+            outcome = None
             grant_digest = None
             possible_release = False
             try:
@@ -114,15 +130,18 @@ def execute(
                     run, workspace, request.actor_argv, actor_fds=actor_fds, limits=limits,
                     deadline_seconds=request.deadline_seconds, grant_sha256=grant_digest, actor_launched=actor_launched,
                 )
+                held.callback(os.close, outcome.scratch_fd)
                 possible_release = True
                 findings.extend(outcome.findings)
                 if not findings and outcome.actor_exit == 0 and outcome.cause == "exit" and outcome.containment_proven:
-                    result = validate_candidate(run, source, workspace, limits=limits)
+                    result = validate_candidate(run, source, workspace, outcome.scratch_fd, limits=limits)
             except DevelopmentAborted as caught:
                 findings.append(caught.finding)
                 possible_release |= caught.finding.code == "development-close-unproven"
             status = _finish(run, progress, findings, result, grant_sha256=grant_digest, base=source.oid,
                              possible_release=possible_release)
+            if status and outcome is not None and outcome.containment_proven:
+                _retain_scratch(run, outcome.scratch_fd, limits)
             disposition = disposition_of(findings)
             _report(run, report, "closing", {"disposition": disposition, "exit": status})
             diag(f"development run {run.run_id} closed {disposition}")

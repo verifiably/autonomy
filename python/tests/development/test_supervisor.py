@@ -1,12 +1,13 @@
 import os
 import resource
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from autonomy.baseline import append_event
-from autonomy.development._records import DevelopmentAborted, allocate_run, development_places, publish_grant, read_json
+from autonomy.development._records import DevelopmentAborted, allocate_run, development_places, publish_grant, read_journal, read_json
 from autonomy.development._workspace import Limits, PreparedWorkspace
 from autonomy.run import RunRefused
 from autonomy.sandbox.bwrap import launch
@@ -46,12 +47,17 @@ def grant(run):
                          stdio=("null", "null", "null"), limits={})
 
 
+@contextmanager
 def invoke(sup, run, fds, script, *, limits=Limits(), deadline=3, launched=None):
     workspace = PreparedWorkspace(SandboxSpec(run.scratch, chdir=run.scratch), "1" * 64, (), "2" * 64)
-    return sup.supervise_actor(
+    outcome = sup.supervise_actor(
         run, workspace, ("/usr/bin/python3", "-I", "-c", script), actor_fds=fds, limits=limits,
         deadline_seconds=deadline, grant_sha256=grant(run), actor_launched=launched,
     )
+    try:
+        yield outcome, Path(f"/proc/self/fd/{outcome.scratch_fd}")
+    finally:
+        os.close(outcome.scratch_fd)
 
 
 def test_cap_applied_before_release_and_inherited(supervisor, paths, stdio, monkeypatch):
@@ -59,7 +65,6 @@ def test_cap_applied_before_release_and_inherited(supervisor, paths, stdio, monk
     prlimit = resource.prlimit
 
     def read_limit(pid, limit):
-        assert not (paths.scratch / "ran").exists()
         observed.append(prlimit(pid, limit))
         return observed[-1]
 
@@ -67,14 +72,14 @@ def test_cap_applied_before_release_and_inherited(supervisor, paths, stdio, monk
     def after_release():
         assert '"event":"releasing"' in (paths.run_dir / "events.jsonl").read_text()
 
-    outcome = invoke(
+    with invoke(
         supervisor, paths, stdio,
         "import resource; from pathlib import Path; Path('ran').write_text(str(resource.getrlimit(resource.RLIMIT_FSIZE)))",
         limits=replace(Limits(), actor_fsize_bytes=8192), launched=after_release,
-    )
-    assert observed == [(8192, 8192)]
-    assert (paths.scratch / "ran").read_text() == "(8192, 8192)"
-    assert outcome.actor_exit == 0 and outcome.containment_proven and not outcome.findings
+    ) as (outcome, scratch):
+        assert observed == [(8192, 8192)]
+        assert (scratch / "ran").read_text() == "(8192, 8192)"
+        assert outcome.actor_exit == 0 and outcome.containment_proven and not outcome.findings
 
 
 @pytest.mark.parametrize("handles_limit", [True, False])
@@ -91,10 +96,85 @@ with open('bounded', 'wb', buffering=0) as stream:
     else:
         raise AssertionError('file limit did not apply')
 """
-    outcome = invoke(supervisor, paths, stdio, script, limits=replace(Limits(), actor_fsize_bytes=4096))
-    assert (paths.scratch / "bounded").stat().st_size == 4096
-    assert outcome.containment_proven
-    assert [f.code for f in outcome.findings] == ([] if handles_limit else ["development-actor-failed"])
+    with invoke(supervisor, paths, stdio, script, limits=replace(Limits(), actor_fsize_bytes=4096)) as (outcome, scratch):
+        assert (scratch / "bounded").stat().st_size == 4096
+        assert outcome.containment_proven
+        assert [f.code for f in outcome.findings] == ([] if handles_limit else ["development-actor-failed"])
+
+
+SMALL = replace(Limits(), actor_storage_bytes=1 << 20, actor_storage_inodes=64)
+_EXHAUST = """
+def fill(path):
+    with open(path, 'wb', buffering=0) as stream:
+        while True:
+            stream.write(bytes(4096))
+def spawn(directory):
+    for n in range(1000):
+        open(f'{directory}/n{n}', 'x').close()
+"""
+
+
+@pytest.mark.parametrize("attack", ["fill('x')", "fill('/tmp/x')", "fill('/dev/shm/x')", "spawn('.')", "spawn('/tmp')"])
+def test_exhausting_the_storage_bound_is_a_stated_verdict(supervisor, paths, stdio, attack):
+    with invoke(supervisor, paths, stdio, _EXHAUST + attack, limits=SMALL) as (outcome, scratch):
+        usage = os.statvfs(scratch)
+        assert (usage.f_blocks * usage.f_frsize, usage.f_files) == (1 << 20, 64)
+    assert outcome.containment_proven and outcome.actor_exit == 1
+    assert [f.code for f in outcome.findings] == ["development-actor-failed", "development-storage-exhausted"]
+    ended = read_journal(paths)[-1]
+    assert ended["event"] == "actor-ended"
+    assert ended["storage_bytes"] == 1 << 20 if "fill" in attack else ended["storage_inodes"] == 64
+    assert list(paths.scratch.iterdir()) == []
+
+
+def test_an_actor_that_recovers_from_exhaustion_is_not_faulted(supervisor, paths, stdio):
+    script = _EXHAUST + """
+import os
+try:
+    fill('x')
+except OSError:
+    pass
+"""
+    with invoke(supervisor, paths, stdio, script, limits=SMALL) as (outcome, _):
+        assert outcome.actor_exit == 0 and not outcome.findings
+
+
+def test_seed_moves_into_the_bound_before_release(supervisor, paths, stdio):
+    (paths.scratch / "repo").mkdir()
+    (paths.scratch / "repo/file").write_text("seed")
+    (paths.scratch / "repo/link").symlink_to("file")
+    (paths.scratch / "repo/file").chmod(0o755)
+    script = """
+import os
+assert open('repo/link').read() == 'seed' and os.stat('repo/file').st_mode & 0o777 == 0o755
+os.unlink('repo/link')
+open('repo/file', 'w').write('work')
+"""
+    with invoke(supervisor, paths, stdio, script) as (outcome, scratch):
+        assert outcome.actor_exit == 0
+        assert list(paths.scratch.iterdir()) == []
+        assert [(p.name, p.read_text()) for p in (scratch / "repo").iterdir()] == [("file", "work")]
+
+
+def test_seed_that_exceeds_the_bound_keeps_the_gate_closed(supervisor, paths, stdio):
+    (paths.scratch / "repo").mkdir()
+    (paths.scratch / "repo/big").write_bytes(bytes(2 << 20))
+    with pytest.raises(DevelopmentAborted, match="development-workspace-unproven.*No space left"):
+        with invoke(supervisor, paths, stdio, "raise SystemExit", limits=SMALL):
+            pass
+    assert [record["event"] for record in read_journal(paths)] == ["allocated"]
+    assert (paths.scratch / "repo/big").exists()
+
+
+def test_storage_proof_failure_keeps_actor_held(supervisor, paths, stdio, monkeypatch):
+    def unproven(*args):
+        raise SandboxUnproven("storage-unproven", "/run", "fixture")
+
+    monkeypatch.setattr(supervisor, "hold_storage", unproven)
+    with pytest.raises(DevelopmentAborted, match="development-sandbox-unproven.*storage-unproven"):
+        with invoke(supervisor, paths, stdio, "raise SystemExit"):
+            pass
+    assert [record["event"] for record in read_journal(paths)] == ["allocated"]
 
 
 def test_preflight_refuses_nested_development_launch(supervisor, paths, stdio):
@@ -108,14 +188,16 @@ except OSError as error:
 else:
     raise AssertionError('nested namespace unexpectedly created')
 """
-    assert invoke(supervisor, paths, stdio, script).actor_exit == 0
+    with invoke(supervisor, paths, stdio, script) as (outcome, _):
+        assert outcome.actor_exit == 0
 
 
 def test_file_limit_proof_failure_keeps_actor_held(supervisor, paths, stdio, monkeypatch):
     monkeypatch.setattr(supervisor.resource, "prlimit", lambda pid, limit: (1, 1))
     with pytest.raises(DevelopmentAborted, match="development-sandbox-unproven"):
-        invoke(supervisor, paths, stdio, "from pathlib import Path; Path('ran').touch()")
-    assert not (paths.scratch / "ran").exists()
+        with invoke(supervisor, paths, stdio, "raise SystemExit"):
+            pass
+    assert "launched" not in [record["event"] for record in read_journal(paths)]
 
 
 def test_fsync_failure_keeps_the_gate_closed(supervisor, paths, stdio, monkeypatch):
@@ -131,8 +213,9 @@ def test_fsync_failure_keeps_the_gate_closed(supervisor, paths, stdio, monkeypat
 
     monkeypatch.setattr(supervisor, "append_event", fail_releasing)
     with pytest.raises(DevelopmentAborted, match="development-gate-unproven"):
-        invoke(supervisor, paths, stdio, "from pathlib import Path; Path('ran').touch()")
-    assert not (paths.scratch / "ran").exists()
+        with invoke(supervisor, paths, stdio, "raise SystemExit"):
+            pass
+    assert "launched" not in [record["event"] for record in read_journal(paths)]
 
 
 def test_stop_before_arming_prevents_actor_execution(supervisor, paths, stdio, monkeypatch):
@@ -144,8 +227,9 @@ def test_stop_before_arming_prevents_actor_execution(supervisor, paths, stdio, m
 
     monkeypatch.setattr(supervisor, "launch", stop_after_namespace_proof)
     with pytest.raises(DevelopmentAborted, match="development-stop-before-release"):
-        invoke(supervisor, paths, stdio, "from pathlib import Path; Path('ran').touch()")
-    assert not (paths.scratch / "ran").exists()
+        with invoke(supervisor, paths, stdio, "raise SystemExit"):
+            pass
+    assert "launched" not in [record["event"] for record in read_journal(paths)]
     assert '"event":"releasing"' not in (paths.run_dir / "events.jsonl").read_text()
     stop = (paths.run_dir / "stop.json").read_bytes()
     assert supervisor.request_stop(paths) == 0
@@ -153,9 +237,9 @@ def test_stop_before_arming_prevents_actor_execution(supervisor, paths, stdio, m
 
 
 def test_valid_output_at_deadline_is_ineligible(supervisor, paths, stdio):
-    outcome = invoke(supervisor, paths, stdio, "import time; from pathlib import Path; Path('present').touch(); time.sleep(8)",
-                     deadline=0.4)
-    assert (paths.scratch / "present").is_file()
+    with invoke(supervisor, paths, stdio, "import time; from pathlib import Path; Path('present').touch(); time.sleep(8)",
+                deadline=0.4) as (outcome, scratch):
+        assert (scratch / "present").is_file()
     assert outcome.cause == "deadline" and outcome.containment_proven
     assert [f.code for f in outcome.findings] == ["development-deadline"]
 

@@ -50,13 +50,17 @@ def attempt(tmp_path, bundles):
         out = run.scratch / "outputs"
         out.mkdir()
         workspace = PreparedWorkspace(SandboxSpec(run.scratch), file_digest(path), (), "0" * 64)
-        yield run, source, workspace, out / "candidate.bundle", bundle, tip
+        scratch_fd = os.open(run.scratch, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            yield run, source, workspace, scratch_fd, out / "candidate.bundle", bundle, tip
+        finally:
+            os.close(scratch_fd)
 
 
 def refused(candidate, attempt, code, *, limits=Limits()):
-    run, source, workspace, *_ = attempt
+    run, source, workspace, scratch_fd, *_ = attempt
     with pytest.raises(DevelopmentAborted) as caught:
-        candidate.validate_candidate(run, source, workspace, limits=limits)
+        candidate.validate_candidate(run, source, workspace, scratch_fd, limits=limits)
     assert caught.value.finding.code == code
     assert not (run.run_dir / "candidate.json").exists()
     assert not (run.run_dir / "candidate.bundle").exists()
@@ -64,7 +68,7 @@ def refused(candidate, attempt, code, *, limits=Limits()):
 
 @pytest.mark.parametrize("kind", ["missing", "directory", "symlink", "hardlink", "fifo", "oversized"])
 def test_only_declared_regular_single_link_file_can_transfer(candidate, attempt, kind):
-    _, _, _, path, bundle, _ = attempt
+    *_, path, bundle, _ = attempt
     other = path.with_name("undeclared")
     other.write_bytes(bundle)
     if kind == "directory":
@@ -84,7 +88,7 @@ def test_only_declared_regular_single_link_file_can_transfer(candidate, attempt,
 
 @pytest.mark.parametrize("mutation", ["double-ref", "double-base", "extra-ref", "wrong-base", "wrong-ref", "filter"])
 def test_header_requires_literal_multiplicity_and_matching_base(candidate, attempt, mutation):
-    _, source, _, path, bundle, _ = attempt
+    _, source, _, _, path, bundle, _ = attempt
     header, pack = bundle.split(b"\n\n", 1)
     lines = header.split(b"\n")
     before_ref, ref = lines[:-1], lines[-1]
@@ -105,9 +109,9 @@ def test_header_requires_literal_multiplicity_and_matching_base(candidate, attem
 
 
 def test_confined_receiver_checks_git_and_ancestry(candidate, attempt):
-    run, source, workspace, path, bundle, tip = attempt
+    run, source, workspace, scratch_fd, path, bundle, tip = attempt
     path.write_bytes(bundle)
-    result = candidate.validate_candidate(run, source, workspace, limits=Limits())
+    result = candidate.validate_candidate(run, source, workspace, scratch_fd, limits=Limits())
     assert result.tip == tip
     receipt_digest = candidate.publish_candidate(run, result, grant_sha256="2" * 64, base=source.oid)
     receipt = read_json(run.run_dir / "candidate.json")
@@ -120,7 +124,7 @@ def test_confined_receiver_checks_git_and_ancestry(candidate, attempt):
 
 @pytest.mark.parametrize("damage", ["truncated", "base-as-tip", "fsck"])
 def test_confined_receiver_refuses_unproven_git_history(candidate, attempt, damage, monkeypatch):
-    _, source, _, path, bundle, tip = attempt
+    _, source, _, _, path, bundle, tip = attempt
     if damage == "truncated":
         bundle = bundle[:-10]
     elif damage == "base-as-tip":
@@ -134,7 +138,7 @@ def test_confined_receiver_refuses_unproven_git_history(candidate, attempt, dama
 
 
 def test_receiver_refuses_resource_overflow(candidate, attempt):
-    _, _, _, path, bundle, _ = attempt
+    *_, path, bundle, _ = attempt
     path.write_bytes(bundle)
     refused(candidate, attempt, "development-bundle-validation-failed",
             limits=replace(Limits(), receiver_storage_bytes=4096))
@@ -142,9 +146,9 @@ def test_receiver_refuses_resource_overflow(candidate, attempt):
 
 @pytest.mark.parametrize("fails", ["artifact", "receipt"])
 def test_receipt_cannot_publish_before_artifact_durability(candidate, attempt, monkeypatch, fails):
-    run, source, workspace, path, bundle, _ = attempt
+    run, source, workspace, scratch_fd, path, bundle, _ = attempt
     path.write_bytes(bundle)
-    result = candidate.validate_candidate(run, source, workspace, limits=Limits())
+    result = candidate.validate_candidate(run, source, workspace, scratch_fd, limits=Limits())
 
     def fail(*args, **kwargs):
         raise OSError("fixture storage failure")

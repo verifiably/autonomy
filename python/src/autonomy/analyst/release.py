@@ -18,10 +18,12 @@ import hashlib
 import os
 import secrets
 import stat
+from collections import Counter
 from collections.abc import Iterable
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol
 
 from autonomy.analyst.toolchain import AnalystRefused
 from autonomy.baseline import fsync_dir, write_all
@@ -60,13 +62,55 @@ def check_release_dir(path: Path, *, forbidden: Iterable[Path]) -> Path:
     return real
 
 
+class _Record(Protocol):
+    """What the walk tells about each entry, and the bytes it may still copy."""
+
+    remaining: int | None
+
+    def release(self, path: str, size: int, sha256: str) -> None: ...
+
+    def refuse(self, path: str, reason: str, detail: str | None = None) -> None: ...
+
+
 @dataclass
 class ReleaseReport:
     released: list[dict] = field(default_factory=list)
     refused: list[dict] = field(default_factory=list)
+    remaining: None = None
+
+    def release(self, path: str, size: int, sha256: str) -> None:
+        self.released.append({"path": path, "size": size, "sha256": sha256})
+
+    def refuse(self, path: str, reason: str, detail: str | None = None) -> None:
+        entry = {"path": path, "reason": reason}
+        if detail:
+            entry["detail"] = detail
+        self.refused.append(entry)
 
     def to_json(self) -> dict:
         return {"released": list(self.released), "refused": list(self.refused)}
+
+
+@dataclass
+class RetainedTally:
+    """Counts only. The tree is the actor's, and deep paths times many entries would make
+    a per-entry report far larger than the tree."""
+
+    remaining: int
+    files: int = 0
+    bytes: int = 0
+    refused: Counter[str] = field(default_factory=Counter)
+
+    def release(self, path: str, size: int, sha256: str) -> None:
+        self.files += 1
+        self.bytes += size
+        self.remaining -= size
+
+    def refuse(self, path: str, reason: str, detail: str | None = None) -> None:
+        self.refused[reason] += 1
+
+    def to_json(self) -> dict:
+        return {"files": self.files, "bytes": self.bytes, "refused": dict(sorted(self.refused.items()))}
 
 
 def _classify(info: os.stat_result) -> str | None:
@@ -99,18 +143,18 @@ def _copy(src_fd: int, dest_fd: int, *, max_bytes: int | None = None) -> tuple[i
     return size, digest.hexdigest()
 
 
-def _names(src_fd: int, where: str, report: ReleaseReport) -> list[str]:
+def _names(src_fd: int, where: str, report: _Record) -> list[str]:
     """A directory's entries, sorted descending so `pop()` yields them in order; a
     directory that cannot be listed (descriptor exhaustion included) is one refusal."""
     try:
         with os.scandir(src_fd) as entries:
             return sorted((entry.name for entry in entries), reverse=True)
     except OSError as caught:
-        report.refused.append({"path": where.rstrip("/"), "reason": "unopenable", "detail": caught.strerror})
+        report.refuse(where.rstrip("/"), "unopenable", caught.strerror)
         return []
 
 
-def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) -> None:
+def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: _Record) -> None:
     """Walk `src_fd` into `dest_fd` depth-first with one frame per open directory pair and
     that directory's pending names, so open descriptors grow with the tree's depth and
     never with its width (an analyst can make either). A frame's two descriptors are
@@ -137,16 +181,13 @@ def _release_dir(src_fd: int, dest_fd: int, prefix: str, report: ReleaseReport) 
                 os.close(dest)
 
 
-def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: ReleaseReport) -> tuple[int, int, str] | None:
+def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: _Record) -> tuple[int, int, str] | None:
     """One entry: refused, copied, or (for a directory) created at the destination and
     returned as an open pair to descend into."""
     relative = f"{prefix}{name}"
 
     def refuse(reason: str, detail: str | None = None) -> None:
-        entry = {"path": relative, "reason": reason}
-        if detail:
-            entry["detail"] = detail
-        report.refused.append(entry)
+        report.refuse(relative, reason, detail)
 
     try:
         info = os.stat(name, dir_fd=src_fd, follow_symlinks=False)
@@ -158,6 +199,9 @@ def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: Re
         refuse(reason)
         return None
     directory = stat.S_ISDIR(info.st_mode)
+    if not directory and report.remaining is not None and info.st_size > report.remaining:
+        refuse("over-bound")
+        return None
     try:
         fd = os.open(name, _OPEN | (os.O_DIRECTORY if directory else 0), dir_fd=src_fd)
     except OSError as caught:
@@ -190,9 +234,9 @@ def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: Re
             refuse("unopenable", caught.strerror)
             return None
         try:
-            size, sha256 = _copy(fd, out)
-        except OSError as caught:
-            refuse("unopenable", caught.strerror)
+            size, sha256 = _copy(fd, out, max_bytes=report.remaining)
+        except (OSError, ReleaseFileRefused) as caught:
+            refuse("unopenable", caught.strerror if isinstance(caught, OSError) else str(caught))
             try:
                 os.unlink(name, dir_fd=dest_fd)  # a partial copy is not a release
             except OSError:
@@ -200,7 +244,7 @@ def _release_entry(src_fd: int, dest_fd: int, prefix: str, name: str, report: Re
             return None
         finally:
             os.close(out)
-        report.released.append({"path": relative, "size": size, "sha256": sha256})
+        report.release(relative, size, sha256)
         return None
     finally:
         if fd >= 0:
@@ -214,7 +258,7 @@ def release(outputs: Path, destination: Path) -> ReleaseReport:
     try:
         src = os.open(outputs, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
     except OSError as caught:  # the analyst replaced, removed or locked outputs/ itself
-        report.refused.append({"path": "", "reason": "outputs-unusable", "detail": f"{outputs}: {caught.strerror}"})
+        report.refuse("", "outputs-unusable", f"{outputs}: {caught.strerror}")
         return report
     try:
         dest = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
@@ -225,6 +269,18 @@ def release(outputs: Path, destination: Path) -> ReleaseReport:
     finally:
         os.close(src)
     return report
+
+
+def retain(source_fd: int, destination: Path, *, max_bytes: int) -> RetainedTally:
+    """Copy an ended actor's tree into `destination` for inspection: the release walk, with
+    at most `max_bytes` of content, so a sparse file cannot grow on its way to disk."""
+    tally = RetainedTally(max_bytes)
+    dest = os.open(destination, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        _release_dir(source_fd, dest, "", tally)
+    finally:
+        os.close(dest)
+    return tally
 
 
 class ReleaseFileMissing(Exception):
@@ -246,20 +302,19 @@ def _file_identity(info: os.stat_result) -> tuple[int, ...]:
     return info.st_dev, info.st_ino, info.st_mode, info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns
 
 
-def release_file(outputs: Path, name: str, destination: Path, *, max_bytes: int) -> ReleasedFile:
-    """Transfer one bounded regular file to a new protected staging name."""
+def release_file(scratch_fd: int, outputs: str, name: str, destination: Path, *, max_bytes: int) -> ReleasedFile:
+    """Transfer one bounded regular file from the scratch directory's `outputs` to a new
+    protected staging name."""
     if Path(name).name != name or name in ("", ".", "..") or max_bytes <= 0:
         raise ValueError("release requires a single entry name and a positive byte limit")
     try:
         with ExitStack() as close:
-            scratch_fd = os.open(outputs.parent, _OPEN | os.O_DIRECTORY)
-            close.callback(os.close, scratch_fd)
             try:
-                outputs_fd = os.open(outputs.name, _OPEN | os.O_DIRECTORY, dir_fd=scratch_fd)
+                outputs_fd = os.open(outputs, _OPEN | os.O_DIRECTORY, dir_fd=scratch_fd)
                 close.callback(os.close, outputs_fd)
                 before = os.stat(name, dir_fd=outputs_fd, follow_symlinks=False)
             except FileNotFoundError as caught:
-                raise ReleaseFileMissing(f"{outputs / name} is absent") from caught
+                raise ReleaseFileMissing(f"{outputs}/{name} is absent") from caught
             if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
                 raise ReleaseFileRefused("the output must be a single-link regular file")
             if before.st_size > max_bytes:
@@ -275,7 +330,7 @@ def release_file(outputs: Path, name: str, destination: Path, *, max_bytes: int)
                 try:
                     size, digest = _copy(source_fd, dest_fd, max_bytes=max_bytes)
                     named = os.stat(name, dir_fd=outputs_fd, follow_symlinks=False)
-                    current_dir = os.stat(outputs.name, dir_fd=scratch_fd, follow_symlinks=False)
+                    current_dir = os.stat(outputs, dir_fd=scratch_fd, follow_symlinks=False)
                     opened_dir = os.fstat(outputs_fd)
                     if (size != before.st_size or _file_identity(named) != identity
                             or _file_identity(os.fstat(source_fd)) != identity
@@ -290,4 +345,4 @@ def release_file(outputs: Path, name: str, destination: Path, *, max_bytes: int)
             fsync_dir(destination.parent)
             return ReleasedFile(destination, size, digest)
     except OSError as caught:
-        raise ReleaseFileRefused(f"cannot transfer {outputs / name}: {caught}") from caught
+        raise ReleaseFileRefused(f"cannot transfer {outputs}/{name}: {caught}") from caught

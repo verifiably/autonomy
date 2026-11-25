@@ -17,6 +17,16 @@ IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")
 
 
 @dataclass(frozen=True)
+class Storage:
+    """The total for everything an actor can write: file bytes, a multiple of the page
+    size, and inodes. Both are RAM: a full pool holds its bytes plus under 1 KiB of
+    kernel memory per inode."""
+
+    bytes: int
+    inodes: int
+
+
+@dataclass(frozen=True)
 class SandboxSpec:
     """No spec shares the host's network namespace: the actor's network is its own
     loopback, and its only way out is the model route's listener."""
@@ -30,6 +40,7 @@ class SandboxSpec:
     chdir: Path | None = None
     outputs_link: bool = False
     disable_nested_userns: bool = False
+    storage: Storage | None = None
 
     def bind_sources(self) -> tuple[Path, ...]:
         """Every host path the sandbox binds, in argv order: each one is checked."""

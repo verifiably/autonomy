@@ -43,6 +43,7 @@ The codebase is organized into the `verifiably-autonomy` package under `python/s
 | `autonomy.evidence` | Run evidence structures and artifact summaries | `python/tests/test_closing.py` |
 | `autonomy.sandbox.spec` | Bubblewrap sandbox mount configurations and arguments | `python/tests/sandbox/test_static.py` |
 | `autonomy.sandbox.static` | Static bind source resolution and denied path overlap checks | `python/tests/sandbox/test_static.py` |
+| `autonomy.sandbox.storage` | Bounded pool behind every actor-writable mount, and its proof on a held namespace | `python/tests/sandbox/test_storage.py` |
 | `autonomy.sandbox.bwrap` | Sandbox preflight checks, denial probing, and gated launch | `python/tests/sandbox/test_probe.py`, `python/tests/sandbox/test_launch.py` |
 | `autonomy.egress.route` | Route TOML loading, validation, and credential protection | `python/tests/test_egress_route.py` |
 | `autonomy.egress.dialect` | Strict parser and schema validator for Anthropic messages | `python/tests/test_egress_dialect.py` |
@@ -105,7 +106,7 @@ Git hooks configured via `core.hooksPath .githooks` enforce hygiene and test pol
 
 Certain tests require specific host privileges or external binaries and are marked in pytest:
 
-- `bwrap`: Tests requiring `bubblewrap` and unprivileged user namespaces (`sandbox/test_probe.py`, `sandbox/test_launch.py`, `test_egress_helper.py`, `test_egress_session.py`, `test_analyst_walk.py`, `test_analyst_check.py`, `test_analyst_launch.py`, `test_command_check.py`, `analyst/test_command_launch.py`).
+- `bwrap`: Tests requiring `bubblewrap` and unprivileged user namespaces (`sandbox/test_probe.py`, `sandbox/test_launch.py`, `sandbox/test_storage.py`, `test_egress_helper.py`, `test_egress_session.py`, `test_analyst_walk.py`, `test_analyst_check.py`, `test_analyst_launch.py`, `test_command_check.py`, `analyst/test_command_launch.py`).
 - `pi`: Tests requiring the pinned `pi` 1.1.0 toolchain and Node.js prefix (`test_analyst_check.py`, `test_analyst_launch.py`). These tests resolve `PI_DIR` and `NODE_DIR` through `autonomy.analyst.toolchain` and skip gracefully if the binaries are absent or shadow host utilities.
 
 ### Offline development workspace verification
@@ -115,6 +116,15 @@ exercises the independent Git seed and its confinement with disposable local
 repositories, including a non-tip base, unrelated history and SHA-1 and SHA-256
 object stores. Preparation helpers use the receiver limits for temporary storage
 and virtual address space per process. Tests use no provider route.
+
+### Storage bound verification
+
+`just test-one tests/sandbox/test_storage.py` fills each mount a bounded actor
+can write under real bubblewrap, by bytes and by empty files, and checks that
+a launch whose bound is missing or different is refused before release. A
+host that restricts unprivileged user namespaces per program must allow
+`/usr/bin/python3` as well as `bwrap`, since the pool is mounted before
+bubblewrap starts.
 
 ### Development decision matrix
 
@@ -131,14 +141,15 @@ the affected parameter or boundary in the owning test.
 | `allocation-failed` | `test_development_refuses_unavailable_host_and_allocation_failure` |
 | `development-run-invalid` | `test_stop_and_close_refuse_unknown_run` |
 | `development-supervisor-live` | `test_live_supervisor_refuses_recovery_during_preparation` |
-| `development-workspace-unproven` | `test_prepare_fails_closed_on_export_or_resource_refusal` |
-| `development-sandbox-unproven` | `test_walk_checks_the_prepared_scratch_for_aliases`, `test_file_limit_proof_failure_keeps_actor_held` |
+| `development-workspace-unproven` | `test_prepare_fails_closed_on_export_or_resource_refusal`, `test_seed_that_exceeds_the_bound_keeps_the_gate_closed` |
+| `development-sandbox-unproven` | `test_walk_checks_the_prepared_scratch_for_aliases`, `test_file_limit_proof_failure_keeps_actor_held`, `test_storage_proof_failure_keeps_actor_held` |
 | `development-gate-unproven` | `test_fsync_failure_keeps_the_gate_closed` |
 | `development-stop-before-release` | `test_stop_before_arming_prevents_actor_execution` |
 | `orchestrator-lost`, `development-close-unproven` | `test_recovery_distinguishes_unarmed_armed_and_torn_journals`, `test_terminal_write_interruption_keeps_candidate_ineligible` |
 | `development-deadline` | `test_expired_run_with_complete_bundle_never_promotes` |
 | `development-stopped` | `test_stopped_run_with_complete_bundle_never_promotes`, `test_stop_during_validation_wins_before_terminal_commit` |
 | `development-actor-failed` | `test_limit_refusal_is_handled_or_signalled_by_the_actor` |
+| `development-storage-exhausted` | `test_exhausting_the_storage_bound_is_a_stated_verdict`, `test_exhausted_run_is_quarantined_with_its_work_retained` |
 | `development-bundle-missing`, `development-bundle-refused` | `test_only_declared_regular_single_link_file_can_transfer` |
 | `development-bundle-header-invalid` | `test_header_requires_literal_multiplicity_and_matching_base` |
 | `development-bundle-validation-failed` | `test_confined_receiver_refuses_unproven_git_history`, `test_receiver_refuses_resource_overflow` |

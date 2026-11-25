@@ -17,8 +17,9 @@ from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 
-from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec
+from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec, Storage
 from autonomy.sandbox.static import SandboxUnproven, check_binds, system_symlinks
+from autonomy.sandbox.storage import pool_binds, pool_command
 
 _PROBE = """\
 import errno, os, socket, sys
@@ -74,10 +75,12 @@ else:
 
 
 def prove_development_host() -> None:
-    """Require rootless user namespaces and prove they cannot be nested."""
+    """Require rootless user namespaces and a bounded mount, and prove the sandbox cannot
+    nest namespaces."""
     if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
         raise SandboxUnproven("pidfd-unavailable", "python", "development supervision requires pidfds")
-    argv = ["bwrap", "--unshare-all", *_LOCK_USERNS, "--die-with-parent", "--clearenv", "--ro-bind", "/usr", "/usr"]
+    argv = [*pool_command(Path("/tmp"), Storage(1 << 20, 16)), "bwrap", "--unshare-all", *_LOCK_USERNS,
+            "--die-with-parent", "--clearenv", "--ro-bind", "/usr", "/usr"]
     for target, link in system_symlinks():
         argv.extend(("--symlink", target, link))
     argv.extend(("--", "/usr/bin/python3", "-I", "-c", _USERNS_PROOF))
@@ -101,10 +104,21 @@ def build_argv(
             raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must resolve: {caught}") from caught
         if source != real:
             raise SandboxUnproven("bind-unreadable", str(source), f"a bind source must be its absolute real path: {real}")
-    args = ["bwrap", "--unshare-all"]
+    chdir = spec.chdir if spec.chdir is not None else spec.scratch
+    args = []
+    if spec.storage is not None:
+        args += pool_command(spec.scratch, spec.storage, (chdir,) if chdir.is_relative_to(spec.scratch) else ())
+    args += ["bwrap", "--unshare-all"]
     if spec.disable_nested_userns:
         args.extend(_LOCK_USERNS)
-    args += ["--die-with-parent", "--new-session", "--clearenv", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]
+    args += ["--die-with-parent", "--new-session", "--clearenv", "--proc", "/proc", "--dev", "/dev"]
+    # /tmp comes before anything that may lie beneath it, and scratch after the read-only binds.
+    if spec.storage is None:
+        args += ["--tmpfs", "/tmp"]
+        writable = [(str(spec.scratch), str(spec.scratch))]
+    else:
+        tmp, *writable = pool_binds(spec.scratch)
+        args += ["--bind", *tmp]
     for path in SYSTEM_RO:
         args += ["--ro-bind", str(path), str(path)]
     for target, link in system_symlinks():
@@ -113,7 +127,8 @@ def build_argv(
         args += ["--ro-bind", str(path), str(path)]
     for target, link in spec.symlinks:
         args += ["--symlink", str(target), str(link)]
-    args += ["--bind", str(spec.scratch), str(spec.scratch)]
+    for source, destination in writable:
+        args += ["--bind", source, destination]
     if spec.socket is not None or spec.token is not None or spec.outputs_link:
         args += ["--dir", "/run/va"]
     if spec.socket is not None:
@@ -131,7 +146,9 @@ def build_argv(
         # the actor's environment as separate arguments for an exact exec.
         environment_args = [part for pair in sorted(env.items()) for part in pair]
         argv = ["/usr/bin/python3", "-I", "-c", _GATE, str(gate_fd), str(len(env)), *environment_args, *argv]
-    args += ["--chdir", str(spec.chdir if spec.chdir is not None else spec.scratch)]
+    if spec.storage is not None:
+        args += ["--remount-ro", "/dev", "--remount-ro", "/"]
+    args += ["--chdir", str(chdir)]
     if info_fd is not None:
         args += ["--info-fd", str(info_fd)]
     return [*args, "--", *argv]
@@ -366,7 +383,7 @@ _FILE_LIMIT = """
 import os, resource, sys
 limit = int(sys.argv[1])
 resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
-os.execvp("bwrap", sys.argv[2:])
+os.execvp(sys.argv[2], sys.argv[2:])
 """
 
 

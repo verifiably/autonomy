@@ -226,7 +226,9 @@ before publishing the run identity.
 repository and scratch paths, pinned base, task ref and deadline. Its exact
 SHA-256 binds the identity to `grant.json`, which records the effective
 read-only and denied paths, stdio classes, resource limits, and digests of the
-base bundle and the scratch walk. Route and allowance fields are null for the
+base bundle and the scratch walk. `limits.actor_storage_bytes` and
+`limits.actor_storage_inodes` are the total for everything the actor can
+write, scratch, `/tmp` and `/dev/shm` together. Route and allowance fields are null for the
 model-free slice. The receiver memory limit counts virtual address space per
 process. Preparation helpers use the same memory and temporary storage limits.
 
@@ -234,8 +236,13 @@ The journal starts with an `allocated` event carrying run ID and mode.
 The supervisor syncs `releasing` before opening the gate. It includes
 `child_pid`, `start_time` in kernel ticks, `boot_id` and `grant_sha256`.
 `launched` records the later observation of a gate write. `actor-ended`
-carries `actor_exit`, `cause` (`exit`, `deadline` or `stop`), and
-`containment_proven`. The immutable, idempotent stop request in `stop.json`
+carries `actor_exit`, `cause` (`exit`, `deadline` or `stop`),
+`containment_proven`, and the `storage_bytes` and `storage_inodes` in use when
+the actor ended. After an unclean verdict with containment proven,
+`scratch-retained` carries the `files` and `bytes` copied to the recorded
+scratch path and the `refused` count per reason. `scratch-unretained` carries
+the `detail` of a failed copy. The host scratch directory is empty from
+release until then, and stays empty after a clean run or a lost supervisor. The immutable, idempotent stop request in `stop.json`
 contains version, run ID and `requested_at`. A stop or recovery command
 returns the existing exit code for an already terminal run.
 

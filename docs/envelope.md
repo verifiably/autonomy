@@ -35,7 +35,8 @@ The optional status channel is verified by `stdio.check_report_fd(fd, actor_fds=
 The sandbox environment is specified by `SandboxSpec` in `python/src/autonomy/sandbox/spec.py`:
 - System mounts: `SYSTEM_RO = (Path("/usr"), Path("/etc"))` mounted read-only, with merged-`/usr` symlinks `SYSTEM_LINKS = ("/bin", "/lib", "/lib64", "/sbin")`.
 - Sandbox paths: `IN_SANDBOX_SOCKET = PurePosixPath("/run/va/endpoint.sock")`, `IN_SANDBOX_TOKEN = PurePosixPath("/run/va/token")`, `IN_SANDBOX_OUTPUTS = PurePosixPath("/run/va/outputs")`.
-- Execution settings include scratch tmpfs, read-only binds, recreated symlinks and a working directory. Bubblewrap clears the inherited environment. The probe uses `--setenv` and the launch gate applies the declared environment at exec. Both default to `PATH=/usr/bin`.
+- `Storage(bytes, inodes)` bounds everything the actor can write; see [storage bound](#storage-bound). Only development mode declares it.
+- Execution settings include the scratch bind, read-only binds, recreated symlinks and a working directory. Bubblewrap clears the inherited environment. The probe uses `--setenv` and the launch gate applies the declared environment at exec. Both default to `PATH=/usr/bin`.
 
 Pre-launch verification proceeds through four mandatory phases:
 1. **Static Bind Checks (`autonomy.sandbox.static`):** `system_symlinks` verifies the merged-`/usr` links (`layout-unsupported`). The static bind check compares real paths and inode ancestry (`bind-overlaps-denied`). Missing denied paths still contribute their nearest existing ancestor's inode and its ancestry. Unresolvable denied paths fail with `denied-unreadable`. The input walk checks aliases of entries beneath denied roots. Bind sources passed to bubblewrap must exist and use their absolute real paths (`bind-missing`, `bind-unreadable`). The host must keep that path layout stable through launch.
@@ -118,8 +119,8 @@ The supervisor gives the actor the base OID, full development ref, and
 `/run/va/outputs/candidate.bundle` through `VERIFIABLY_DEVELOPMENT_BASE`,
 `VERIFIABLY_DEVELOPMENT_REF` and `VERIFIABLY_DEVELOPMENT_BUNDLE`.
 An immutable grant records the proved exposure and bounds. The supervised
-invocation grants this attempt. Unattended caller admission and aggregate
-scratch quotas require a separate activation gate.
+invocation grants this attempt. Unattended caller admission requires a
+separate activation gate.
 
 ##### Workspace preparation
 
@@ -141,12 +142,55 @@ trees. It rejects hardlinks in scratch, submounts and denied inode aliases
 before proving denied paths and network isolation from inside the sandbox.
 The source worktree and Git metadata never enter the actor's mounts.
 
+##### Storage bound
+
+One tmpfs, limited to `actor_storage_bytes` (1 GiB) and
+`actor_storage_inodes` (131072), holds everything the actor can write. A
+trusted stage runs before bubblewrap, in a user and mount namespace of its
+own, mounts the pool over the scratch path and execs bubblewrap in place.
+Scratch, `/tmp` and `/dev/shm` are binds from that pool, so they share one
+total, and `/` and `/dev` are remounted read-only. The kernel refuses a write
+or a new entry past either limit with `ENOSPC`, and one elsewhere with
+`EROFS`. The inode limit is part of the bound: an empty file or directory
+costs kernel memory and none of the tmpfs `size`, and bubblewrap's `--size`
+sets no inode limit. The pool is RAM (or swap) until the run closes.
+
+The host never sees the mount. While the gate is held and the sandbox has
+finished its setup, the supervisor opens scratch through the namespace init's
+root and checks on that descriptor that both limits are the granted ones. It
+also checks that every other mount the namespace reports writable is procfs,
+devpts or a character device. A mismatch refuses the launch with
+`development-sandbox-unproven`. It then moves the prepared workspace into the
+pool, which leaves the scratch directory on the host empty. A workspace that
+does not fit refuses with `development-workspace-unproven`.
+
+The same descriptor keeps the pool readable after the namespace ends. The
+candidate is collected through it. A run that ends unclean with containment
+proven publishes its verdict and then copies the regular single-link files
+under scratch to the recorded scratch path, at most `actor_storage_bytes` of
+content. Links, special files and files over the remaining bound are counted
+and left behind, and the contents of `/tmp` and `/dev/shm` are not copied. A
+clean run leaves the scratch directory empty. If the supervisor dies, the
+actor's scratch goes with it: recovery has the protected records and
+`base.bundle`, and no candidate.
+
+An actor that fails, is stopped or passes its deadline with the pool full at
+its end adds `development-storage-exhausted`. The check reads the pool at the
+end, so an actor that frees space after a refused write fails without that
+code. The `actor-ended` event records the use in both cases.
+
+The bound covers storage. Anonymous memory, memfds, System V segments and the
+process count are not mounts and stay unlimited, which needs a cgroup limit
+before unattended activation. Science, analyst and command launches keep
+host scratch and an unbounded `/tmp`: their closing steps read scratch on the
+host.
+
 ##### Supervision
 
 A development sandbox requires a fresh user namespace and disables nested
 user namespaces. The trusted launcher sets both file-size limits before it
 execs bubblewrap in place. The supervisor verifies both limits on the held
-namespace before release. The cap is per file.
+namespace before release. That cap is per file, within the storage bound.
 
 Under the publication lock, the supervisor checks for stop and records the
 namespace's identity durably before opening the gate. The monotonic actor
@@ -165,7 +209,7 @@ run to close unwired. All other unfinished runs close quarantined.
 ##### Candidate validation
 
 Only a timely zero exit with confirmed containment permits transfer of
-`outputs/candidate.bundle`. The supervisor opens the output by descriptor,
+`outputs/candidate.bundle`. The supervisor opens the output through its scratch descriptor,
 requires one regular single-link file, and checks its byte count and identity
 before publishing protected staging. The independent candidate limit applies
 both before and during copying.

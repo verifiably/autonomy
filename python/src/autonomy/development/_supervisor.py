@@ -11,7 +11,7 @@ import subprocess
 import time
 import uuid
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
@@ -30,11 +30,13 @@ from autonomy.development._records import (
     supervisor_lock,
     terminal_exit,
 )
-from autonomy.development._workspace import Limits, PreparedWorkspace
+from autonomy.development._workspace import Limits, PreparedWorkspace, seed_scratch
 from autonomy.membership import Finding
 from autonomy.run import RunRefused
 from autonomy.sandbox.bwrap import Sandboxed, launch, prove_development_host
+from autonomy.sandbox.spec import Storage
 from autonomy.sandbox.static import SandboxUnproven
+from autonomy.sandbox.storage import hold_storage
 
 __all__ = ["ActorOutcome", "prove_development_host", "recover_run", "request_stop", "stop_requested", "supervise_actor"]
 
@@ -49,6 +51,7 @@ class ActorOutcome:
     cause: Cause | None
     containment_proven: bool
     findings: tuple[Finding, ...]
+    scratch_fd: int
 
 
 @dataclass(frozen=True)
@@ -152,20 +155,46 @@ def supervise_actor(
     run: RunPaths, workspace: PreparedWorkspace, argv: tuple[str, ...], *, actor_fds: tuple[int, int, int],
     limits: Limits, deadline_seconds: float, grant_sha256: str, actor_launched: Callable[[], None] | None = None,
 ) -> ActorOutcome:
+    """Run the actor to its end. The outcome's scratch descriptor is the caller's to close:
+    the bounded pool holding the actor's work ends with it."""
+    with ExitStack() as held:
+        outcome = _supervise(
+            run, workspace, argv, held, actor_fds=actor_fds, limits=limits, deadline_seconds=deadline_seconds,
+            grant_sha256=grant_sha256, actor_launched=actor_launched,
+        )
+        held.pop_all()
+        return outcome
+
+
+def _supervise(
+    run: RunPaths, workspace: PreparedWorkspace, argv: tuple[str, ...], held: ExitStack, *,
+    actor_fds: tuple[int, int, int], limits: Limits, deadline_seconds: float, grant_sha256: str,
+    actor_launched: Callable[[], None] | None,
+) -> ActorOutcome:
     until = 0.0
     armed = False
+    scratch_fd = -1
+    spec = replace(workspace.spec, disable_nested_userns=True,
+                   storage=Storage(limits.actor_storage_bytes, limits.actor_storage_inodes))
 
     @contextmanager
     def guard(child_pid: int, pidfd: int) -> Iterator[None]:
-        nonlocal armed, until
+        nonlocal armed, scratch_fd, until
         try:
             required = (limits.actor_fsize_bytes, limits.actor_fsize_bytes)
             if resource.prlimit(child_pid, resource.RLIMIT_FSIZE) != required or _exited(pidfd):
                 raise ValueError("the held child lacks the required file size limit")
+            scratch_fd = hold_storage(child_pid, spec)
+            held.callback(os.close, scratch_fd)
             start_time = _start_time(child_pid)
             boot_id = _boot_id()
-        except (OSError, ValueError, IndexError) as caught:
+        except (SandboxUnproven, OSError, ValueError, IndexError) as caught:
             raise DevelopmentAborted(_finding("development-sandbox-unproven", f"{caught}; correct the launch guard and rerun")) from caught
+        try:
+            seed_scratch(run.scratch, scratch_fd)
+        except OSError as caught:
+            detail = str(caught)[:3000]
+            raise DevelopmentAborted(_finding("development-workspace-unproven", f"{detail}; select a base that fits the storage bound")) from caught
         try:
             with publication_lock(run):
                 if stop_requested(run):
@@ -183,9 +212,9 @@ def supervise_actor(
 
     stdin, stdout, stderr = actor_fds
     try:
-        actor = launch(replace(workspace.spec, disable_nested_userns=True), argv,
-                       stdin=stdin, stdout=stdout, stderr=stderr, release_guard=guard,
-                       actor_fsize_bytes=limits.actor_fsize_bytes)
+        # The pinned worker shows that the sandbox has finished its mounts.
+        actor = launch(spec, argv, stdin=stdin, stdout=stdout, stderr=stderr, release_guard=guard,
+                       actor_fsize_bytes=limits.actor_fsize_bytes, track_worker=True)
     except (SandboxUnproven, OSError) as caught:
         raise DevelopmentAborted(_finding("development-sandbox-unproven", f"{caught}; correct the launch guard and rerun")) from caught
 
@@ -194,18 +223,25 @@ def supervise_actor(
             actor_launched()
         append_event(run.run_dir, "launched", child_pid=actor.child_pid)
         exit_status, cause, ended = _await_actor(actor, run, until)
+        usage = os.fstatvfs(scratch_fd)
         findings = []
         if not ended:
-            findings.append(_finding("development-close-unproven", "namespace shutdown could not be confirmed; inspect retained scratch"))
+            findings.append(_finding("development-close-unproven", "namespace shutdown could not be confirmed; the actor's scratch is not retained"))
         if cause == "deadline":
             findings.append(_finding("development-deadline", "actor deadline expired; inspect retained work"))
         elif cause == "stop":
             findings.append(_finding("development-stopped", "operator stopped the run; inspect retained work"))
         elif exit_status != 0:
             findings.append(_finding("development-actor-failed", f"actor exited {exit_status}; inspect actor diagnostics"))
+        if findings and (usage.f_bfree == 0 or usage.f_ffree == 0):
+            findings.append(_finding("development-storage-exhausted", (
+                f"the storage bound of {limits.actor_storage_bytes} bytes and {limits.actor_storage_inodes} inodes "
+                "was full at the end; inspect retained work")))
         if exit_status is not None:
-            append_event(run.run_dir, "actor-ended", actor_exit=exit_status, cause=cause, containment_proven=ended)
-        return ActorOutcome(exit_status, cause, ended, tuple(findings))
+            append_event(run.run_dir, "actor-ended", actor_exit=exit_status, cause=cause, containment_proven=ended,
+                         storage_bytes=(usage.f_blocks - usage.f_bfree) * usage.f_frsize,
+                         storage_inodes=usage.f_files - usage.f_ffree)
+        return ActorOutcome(exit_status, cause, ended, tuple(findings), scratch_fd)
     finally:
         try:
             if not _exited(actor.pidfd):
@@ -213,11 +249,11 @@ def supervise_actor(
             if actor.process.poll() is None:
                 actor.wait(timeout=_KILL_WAIT)
         except (OSError, subprocess.TimeoutExpired):
-            # Keep the journal and scratch for recovery. The supervisor never
-            # turns this into eligibility for a candidate.
+            # Keep the journal for recovery. The supervisor never turns this
+            # into eligibility for a candidate.
             pass
         finally:
-            os.close(actor.pidfd)
+            actor.close_handles()
 
 
 def _grant_digest(run: RunPaths) -> str | None:
@@ -294,13 +330,13 @@ def recover_run(run: RunPaths) -> int:
             digest = _grant_digest(run)
             identity = _release_identity(run, digest)
         except (OSError, ValueError) as caught:
-            finding = _finding("development-close-unproven", f"release evidence is uncertain ({caught}); inspect retained scratch")
+            finding = _finding("development-close-unproven", f"release evidence is uncertain ({caught}); inspect the journal")
         else:
             if identity is None:
                 finding = _finding("orchestrator-lost", "the journal proves no release; inspect events and rerun if appropriate")
             elif _recover_namespace(identity):
-                finding = _finding("development-close-unproven", "supervisor lost after possible release; containment confirmed, inspect retained work")
+                finding = _finding("development-close-unproven", "supervisor lost after possible release; containment confirmed, the actor's scratch is gone")
             else:
-                finding = _finding("development-close-unproven", "supervisor lost and containment unconfirmed; inspect retained scratch")
+                finding = _finding("development-close-unproven", "supervisor lost and containment unconfirmed; inspect the recorded namespace")
         with publication_lock(run):
             return publish_terminal(run, (finding,), grant_sha256=digest, candidate_sha256=None)

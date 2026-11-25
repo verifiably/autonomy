@@ -29,10 +29,10 @@ def _aborted(code: str, detail: str) -> DevelopmentAborted:
 
 
 def validate_candidate(
-    run: RunPaths, source: SourceBase, workspace: PreparedWorkspace, *, limits: Limits,
+    run: RunPaths, source: SourceBase, workspace: PreparedWorkspace, scratch_fd: int, *, limits: Limits,
 ) -> VerifiedCandidate:
     try:
-        staged = release_file(run.scratch / "outputs", _BUNDLE, run.run_dir / ".candidate-staged.bundle",
+        staged = release_file(scratch_fd, "outputs", _BUNDLE, run.run_dir / ".candidate-staged.bundle",
                               max_bytes=limits.candidate_bytes)
     except ReleaseFileMissing as caught:
         raise _aborted("development-bundle-missing", f"{caught}; write the declared output and rerun") from caught

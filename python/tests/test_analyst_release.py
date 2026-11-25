@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from autonomy.analyst.release import check_release_dir, release
+from autonomy.analyst.release import check_release_dir, release, retain
 from autonomy.analyst.toolchain import AnalystRefused
 
 
@@ -240,11 +240,12 @@ def test_copy_checks_bound_and_identity_before_publishing(tmp_path, monkeypatch,
         writes.append(len(data))
         return write(fd, data)
 
+    scratch_fd = os.open(out.parent, os.O_RDONLY | os.O_DIRECTORY)
     with monkeypatch.context() as patch:
         patch.setattr(os, "read", read_fixture)
         patch.setattr(os, "write", write_fixture)
         with pytest.raises(module.ReleaseFileRefused):
-            module.release_file(out, source.name, target, max_bytes=7)
+            module.release_file(scratch_fd, out.name, source.name, target, max_bytes=7)
     assert sum(writes) <= 7
     assert all(size <= 8 for size in calls)
     if change == "collision":
@@ -252,3 +253,48 @@ def test_copy_checks_bound_and_identity_before_publishing(tmp_path, monkeypatch,
     else:
         assert not target.exists()
     assert set(dest.iterdir()) <= {target}
+    os.close(scratch_fd)
+
+
+@pytest.fixture
+def scratch(tmp_path):
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    destination = tmp_path / "retained"
+    destination.mkdir()
+    fd = os.open(tree, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        yield tree, fd, destination
+    finally:
+        os.close(fd)
+
+
+def test_retention_copies_regular_work_and_counts_the_rest(scratch):
+    tree, fd, destination = scratch
+    (tree / "outputs").mkdir()
+    (tree / "outputs/candidate.bundle").write_bytes(b"bundle")
+    (tree / "link").symlink_to("/etc/passwd")
+    os.mkfifo(tree / "pipe")
+    (tree / "one").write_bytes(b"x")
+    os.link(tree / "one", tree / "two")
+    tally = retain(fd, destination, max_bytes=100)
+    assert (destination / "outputs/candidate.bundle").read_bytes() == b"bundle"
+    assert sorted(entry.name for entry in destination.iterdir()) == ["outputs"]
+    assert tally.to_json() == {"files": 1, "bytes": 6, "refused": {"fifo": 1, "hardlinked": 2, "symlink": 1}}
+
+
+def test_retention_never_copies_past_its_byte_bound(scratch, monkeypatch):
+    tree, fd, destination = scratch
+    (tree / "a").write_bytes(b"x" * 60)
+    (tree / "b").write_bytes(b"x" * 60)
+    (tree / "c").write_bytes(b"x" * 40)
+    with (tree / "sparse").open("wb") as stream:
+        stream.truncate(1 << 40)
+    reads = []
+    read = os.read
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "read", lambda fd, size: reads.append(size) or read(fd, size))
+        tally = retain(fd, destination, max_bytes=100)
+    assert {entry.name for entry in destination.iterdir()} == {"a", "c"}
+    assert tally.to_json() == {"files": 2, "bytes": 100, "refused": {"over-bound": 2}}
+    assert len(reads) < 10

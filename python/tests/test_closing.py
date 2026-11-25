@@ -27,6 +27,7 @@ SPEC_ROWS = {
     "development-deadline": "quarantined",
     "development-stopped": "quarantined",
     "development-actor-failed": "quarantined",
+    "development-storage-exhausted": "quarantined",
     "development-bundle-missing": "quarantined",
     "development-bundle-refused": "quarantined",
     "development-bundle-header-invalid": "quarantined",

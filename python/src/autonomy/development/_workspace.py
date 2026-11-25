@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import time
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
@@ -19,7 +20,7 @@ from autonomy.egress.route import all_egress_denied
 from autonomy.membership import Finding
 from autonomy.run import RunRefused
 from autonomy.sandbox.bwrap import probe
-from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, SYSTEM_RO, SandboxSpec
+from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, SYSTEM_RO, SandboxSpec, Storage
 from autonomy.sandbox.static import SandboxUnproven, check_binds
 
 _MIB = 1 << 20
@@ -31,6 +32,8 @@ class Limits:
     base_bytes: int = 64 * _MIB
     candidate_bytes: int = 32 * _MIB
     actor_fsize_bytes: int = 64 * _MIB
+    actor_storage_bytes: int = 1024 * _MIB
+    actor_storage_inodes: int = 128 * 1024
     prepare_seconds: int = 60
     receiver_seconds: int = 30
     receiver_memory_bytes: int = 512 * _MIB
@@ -176,6 +179,7 @@ def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits
     denied = (*inode_denied, runtime)
     spec = SandboxSpec(
         scratch=run.scratch, chdir=run.scratch / "repo", outputs_link=True, disable_nested_userns=True,
+        storage=Storage(limits.actor_storage_bytes, limits.actor_storage_inodes),
         env={
             "HOME": str(run.scratch / "home"),
             "LC_ALL": "C",
@@ -207,3 +211,10 @@ def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits
             "development-sandbox-unproven", str(run.scratch), f"{caught}; correct the named guard and rerun",
         )) from caught
     return PreparedWorkspace(spec, hashlib.sha256(data).hexdigest(), denied, walk_digest)
+
+
+def seed_scratch(prepared: Path, scratch_fd: int) -> None:
+    """Move the prepared tree into the actor's bounded scratch while its gate is held."""
+    for entry in sorted(prepared.iterdir()):
+        shutil.copytree(entry, f"/proc/self/fd/{scratch_fd}/{entry.name}", symlinks=True, dirs_exist_ok=True)
+        shutil.rmtree(entry)

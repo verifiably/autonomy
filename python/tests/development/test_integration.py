@@ -126,6 +126,8 @@ def test_supervised_offline_run_reconstructs_candidate_after_source_moves(tmp_pa
                               "grant_sha256", "actor_exit", "closed_at"}
     assert set(verdict) == {"version", "run", "mode", "disposition", "findings", "closed_at", "grant_sha256", "candidate_sha256"}
     assert grant["approval"] == "supervised-invocation" and grant["route"] is None and grant["allowance"] is None
+    assert (grant["limits"]["actor_storage_bytes"], grant["limits"]["actor_storage_inodes"]) == (1 << 30, 1 << 17)
+    assert list(Path(opened["scratch"]).iterdir()) == []
     assert grant["run_sha256"] == file_digest(directory / "run.json")
     assert grant["scope"]["walk_sha256"] == file_digest(directory / "walk.json")
     assert candidate["base_sha256"] == grant["base_sha256"] == file_digest(directory / "base.bundle")
@@ -293,6 +295,60 @@ def test_expired_run_with_complete_bundle_never_promotes(env, source):
     assert_finding(read_json(directory / "disposition.json"), "development-deadline")
     assert not (directory / "candidate.bundle").exists()
     assert (Path(opened["scratch"]) / "outputs/candidate.bundle").is_file()
+
+
+def test_exhausted_run_is_quarantined_with_its_work_retained(env, source):
+    repo, base, _ = source
+    actor = ACTOR + """
+i=0
+while head -c 60M /dev/zero > "$HOME/fill$i"; do i=$((i+1)); done
+exit 7
+"""
+    with attempt(env, options(repo, base, "60"), ("/usr/bin/sh", "-c", actor)) as (process, reports):
+        _, errors, (opened, closed) = finish(process, reports)
+        assert process.returncode == closed["exit"] == 3, errors
+    directory, scratch = Path(opened["run_dir"]), Path(opened["scratch"])
+    verdict = read_json(directory / "disposition.json")
+    assert [finding["code"] for finding in verdict["findings"]] == ["development-actor-failed", "development-storage-exhausted"]
+    grant = read_json(directory / "grant.json")
+    journal = [json.loads(record) for record in (directory / "events.jsonl").read_text().splitlines()]
+    retained = journal[-1]
+    assert retained["event"] == "scratch-retained" and journal[-2]["storage_bytes"] == grant["limits"]["actor_storage_bytes"]
+    assert (scratch / "outputs/candidate.bundle").is_file() and (scratch / "repo/sample").read_text() == "second\n"
+    copied = [path.stat().st_size for path in scratch.rglob("*") if path.is_file()]
+    assert (len(copied), sum(copied)) == (retained["files"], retained["bytes"])
+    assert sum(copied) <= grant["limits"]["actor_storage_bytes"]
+
+
+def test_lost_supervisor_leaves_no_actor_scratch(env, source):
+    repo, base, _ = source
+    with attempt(env, options(repo, base), ("/usr/bin/sh", "-c", ACTOR + "\nexec /usr/bin/sleep 18")) as (process, reports):
+        opened = json.loads(line(reports))
+        assert len(line(process.stdout).strip()) == len(base)
+        process.kill()
+        process.wait(timeout=10)
+        assert control(env, "close", opened["run"]).returncode == 3
+    directory = Path(opened["run_dir"])
+    assert_finding(read_json(directory / "disposition.json"), "development-close-unproven")
+    assert list(Path(opened["scratch"]).iterdir()) == []
+    assert (directory / "base.bundle").is_file() and (directory / "grant.json").is_file()
+
+
+def test_retention_failure_keeps_the_published_verdict(env, source):
+    repo, base, _ = source
+    program = """
+from autonomy.cli import main
+from autonomy.development import _run
+def refuse(*args, **kwargs):
+    raise OSError('fixture retention failure')
+_run.retain = refuse
+raise SystemExit(main())
+"""
+    with attempt(env, options(repo, base), actor=("/usr/bin/false",), program=program) as (process, reports):
+        _, errors, (opened, closed) = finish(process, reports)
+        assert process.returncode == closed["exit"] == 3, errors
+    journal = [json.loads(record) for record in (Path(opened["run_dir"]) / "events.jsonl").read_text().splitlines()]
+    assert journal[-1]["event"] == "scratch-unretained" and journal[-1]["detail"] == "fixture retention failure"
 
 
 def blocker(tmp_path, name):
