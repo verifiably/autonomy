@@ -505,7 +505,7 @@ def read_terminal(run: RunPaths) -> Terminal | None:
         no_candidate_sha256 = record.get("no_candidate_sha256")
         if (
             record.get("version") != 2 or record.get("mode") != MODE or record.get("run") != run.run_id
-            or type(containment_proven) is not bool
+            or type(containment_proven) is not bool or "no_candidate_sha256" not in record
         ):
             raise ValueError("invalid development disposition identity")
         if disposition in ("clean", "idle"):

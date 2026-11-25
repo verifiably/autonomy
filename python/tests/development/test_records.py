@@ -439,7 +439,7 @@ def test_an_idle_verdict_requires_containment_and_one_outcome(records, run):
     assert verdict["disposition"] == "quarantined" and verdict["no_candidate_sha256"] is None
 
 
-@pytest.mark.parametrize("damage", ["declaration", "findings", "candidate", "containment", "foreign-link"])
+@pytest.mark.parametrize("damage", ["declaration", "findings", "candidate", "containment", "foreign-link", "absent-field"])
 def test_a_damaged_idle_verdict_is_refused(records, run, damage):
     grant_digest, declaration_digest = _idle_inputs(records, run)
     with records.publication_lock(run):
@@ -457,6 +457,8 @@ def test_a_damaged_idle_verdict_is_refused(records, run, damage):
         path.write_text(json.dumps({**verdict, "candidate_sha256": "3" * 64}))
     elif damage == "containment":
         path.write_text(json.dumps({**verdict, "containment_proven": False}))
+    elif damage == "absent-field":
+        path.write_text(json.dumps({key: value for key, value in verdict.items() if key != "no_candidate_sha256"}))
     else:
         path.write_text(json.dumps({**verdict, "disposition": "quarantined"}))
     with pytest.raises(RunRefused, match="development-run-invalid"):
