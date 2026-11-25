@@ -773,3 +773,34 @@ def test_a_crashed_last_start_is_unfinished(tmp_path, stdio):
             fx["env"], diag=lambda _: None, progress=DevelopmentProgress(), actor_fds=stdio, host=fx["host"],
         )
     assert after_close.value.code == "delegation-exhausted"
+
+
+def test_leading_underscore_and_hyphen_identifiers_succeed(tmp_path, stdio):
+    from autonomy.development import _delegated, _run
+
+    fx = _build_fixture(tmp_path)
+    fx["grant"].revoke()
+    alt_grant = Delegation.issue(
+        fx["store_dir"],
+        definition(
+            {
+                **fx["grant"].grant().config,
+                "delegation_id": "_pool-1",
+            },
+            _delegated.ceiling(Limits()),
+        ),
+    )
+    status = _run.execute(
+        _run.DevelopmentRequest(
+            fx["repo"], fx["tip"], 15.0, ("/usr/bin/sh", "-c", ACTOR), None, "_pool-1", "-attempt_1"
+        ),
+        fx["env"],
+        diag=lambda _: None,
+        progress=DevelopmentProgress(),
+        actor_fds=stdio,
+        host=fx["host"],
+    )
+    assert status == 0
+    rep = _delegated.report(alt_grant, fx["host"], attempt="-attempt_1")
+    assert len(rep["starts"]) == 1
+    assert rep["starts"][0]["outcome"] == "clean"

@@ -366,3 +366,18 @@ def test_first_use_ancestor_sync_failure_refuses_before_record(records, places, 
             pytest.fail("allocated after an unsynced new ancestor")
     assert not (places.state / "runs").exists()
     assert not (places.cache / "scratch").exists()
+
+
+def test_run_delegation_identifier_grammar_matches_contract(records, places, tmp_path):
+    valid = {"id": "_pool-1", "grant_digest": "9" * 64, "attempt": "-attempt_1"}
+    with records.allocate_run(
+        places, repository=tmp_path / "repo", base=BASE, deadline_seconds=10.0, delegation=valid,
+    ) as opened:
+        assert records.lookup_run(places, opened.run_id) == opened
+        header = records.read_json(opened.run_dir / "run.json")
+        for bad_id in ("a.b", "a" * 65, ""):
+            for key in ("id", "attempt"):
+                bad_delegation = {**valid, key: bad_id}
+                (opened.run_dir / "run.json").write_text(json.dumps({**header, "delegation": bad_delegation}))
+                with pytest.raises(RunRefused, match="development-run-invalid"):
+                    records.lookup_run(places, opened.run_id)
