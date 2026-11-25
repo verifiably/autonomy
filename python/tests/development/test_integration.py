@@ -344,6 +344,18 @@ def test_expired_run_with_complete_bundle_never_promotes(env, source):
     assert (Path(opened["scratch"]) / "outputs/candidate.bundle").is_file()
 
 
+def test_a_declaration_does_not_survive_the_deadline(env, source):
+    repo, base, _ = source
+    with attempt(env, options(repo, base, "1.5"), ("/usr/bin/sh", "-c", IDLE + "exec /usr/bin/sleep 18")) as (process, reports):
+        _, errors, (opened, closed) = finish(process, reports)
+        assert process.returncode == closed["exit"] == 3, errors
+    directory = Path(opened["run_dir"])
+    record = read_json(directory / "disposition.json")
+    assert_finding(record, "development-deadline")
+    assert record["no_candidate_sha256"] is None and not (directory / "no-candidate.json").exists()
+    assert (Path(opened["scratch"]) / "outputs/no-candidate.json").is_file()
+
+
 def test_exhausted_run_is_quarantined_with_its_work_retained(env, source):
     repo, base, _ = source
     actor = ACTOR + """
@@ -447,10 +459,12 @@ def wait_for(path, process):
     assert path.exists(), process.communicate(timeout=10) if process.poll() is not None else "supervisor did not reach fixture barrier"
 
 
-def test_stop_during_validation_wins_before_terminal_commit(tmp_path, env, source):
+@pytest.mark.parametrize("output", ["bundle", "declaration"])
+def test_stop_during_validation_wins_before_terminal_commit(tmp_path, env, source, output):
     repo, base, _ = source
     program, started, resume = blocker(tmp_path, "validate_candidate")
-    with attempt(env, options(repo, base), program=program) as (process, reports):
+    actor = ("/usr/bin/sh", "-c", ACTOR if output == "bundle" else IDLE)
+    with attempt(env, options(repo, base), actor, program=program) as (process, reports):
         opened = json.loads(line(reports))
         wait_for(started, process)
         directory = Path(opened["run_dir"])
@@ -461,8 +475,8 @@ def test_stop_during_validation_wins_before_terminal_commit(tmp_path, env, sourc
         assert closed["exit"] == process.returncode == 3, errors
     record = read_json(directory / "disposition.json")
     assert_finding(record, "development-stopped")
-    assert record["candidate_sha256"] is None
-    assert not (directory / "candidate.json").exists()
+    assert record["candidate_sha256"] is None and record["no_candidate_sha256"] is None
+    assert not (directory / "candidate.json").exists() and not (directory / "no-candidate.json").exists()
 
 
 def test_actor_channels_reach_eof_before_candidate_validation_finishes(tmp_path, env, source):

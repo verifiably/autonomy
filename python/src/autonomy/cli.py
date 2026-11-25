@@ -123,7 +123,7 @@ def _parser(diag: Diag) -> _Parser:
     run = commands.add_parser(
         "run",
         help="run one actor under the envelope",
-        description="Run one actor under the envelope. Exit 0 clean, 3 quarantined, 4 unwired, 2 refused.",
+        description="Run one actor under the envelope. Exit 0 clean, 3 quarantined, 4 unwired, 5 idle (development), 2 refused.",
         epilog="For offline development use autonomy run --development --help. Use run stop ID to stop a run or run close ID to recover its verdict.",
     )
     run.add_argument("--allowance", metavar="CAMPAIGN/MEMBER")

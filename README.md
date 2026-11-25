@@ -48,6 +48,7 @@ for a person. At a terminal, run it as
 | 0 | `clean` |
 | 3 | `quarantined` |
 | 4 | `unwired`, or stopped before its close, its run directory left for `run close` |
+| 5 | `idle`: a development actor declared it found nothing to do; no candidate |
 | 2 | refused before a run directory exists: a configuration, stdio or usage error |
 
 Until science's run endpoint exists, science-mode runs that pass their checks close
@@ -78,6 +79,11 @@ with Git.
 git bundle create "$VERIFIABLY_DEVELOPMENT_BUNDLE" \
   "$VERIFIABLY_DEVELOPMENT_BASE..$VERIFIABLY_DEVELOPMENT_REF"
 ```
+
+An actor that finds nothing to do writes
+`{"version": 1, "reason": "<why>"}` to `$VERIFIABLY_DEVELOPMENT_NO_CANDIDATE`
+instead of a bundle, and the run closes `idle` (exit 5). Writing neither is
+quarantined as a missing bundle.
 
 A clean verdict identifies the verified base and candidate bundles. Accepting
 and integrating the candidate are separate operator actions.
