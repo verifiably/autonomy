@@ -310,6 +310,38 @@ output tokens, micro-USD and job starts in both the HTTP refusal and request
 receipt. A settled job's ledger reference must name the authenticated writer
 session of its reservation. A foreign reference leaves the debit outstanding.
 
+## Development delegation store
+
+Model-free delegated development grants (`kind: "development-delegation.v1"`)
+share the pinned private directory named in `<config>/allowance-storage.json`,
+where `<config>` is always resolved from the account's password-database home
+(`~/.config/verifiably-autonomy`), never from `HOME` or `XDG_CONFIG_HOME`.
+Delegation IDs share one namespace with campaign IDs. Opening a campaign ID as
+a delegation reports `delegation-missing`, and opening a delegation ID as a
+campaign reports `allowance-missing`, without modifying the file.
+
+An operator grant file at `<config>/delegations/NAME.json` (owned, mode `0600`)
+contains `kind`, `delegation_id`, `source`, `expires` (Unix seconds),
+`orchestrator` (`name` and systemd user service `unit`), `repositories`
+(canonical absolute `path` and full canonical `refs/heads/…` `ref`), `actors`
+(exact `argv` arrays), `limits` (`starts`, `deadline_seconds`, page-aligned
+`writable_bytes`, `memory_bytes`, `tasks`) and `model` (`null`).
+
+Under `<store>/.delegations.lock`, `issue` surveys existing `*.sqlite` files
+(rolling back any interrupted rollback journal via `mode=rw`), refuses if the
+unit already has a live grant or a held `<id>.lock`, refuses any existing
+`<id>.sqlite`, publishes or reuses an empty mode-`0600` `<id>.lock`, and
+publishes `<id>.sqlite` exclusively with `PRAGMA synchronous=EXTRA`. The grant
+digest covers the canonical stored `grant_record.cfg` JSON.
+
+Each start is serialized under `<id>.lock` and recorded in `delegation_start`
+with its 1-based `ordinal`, unique `attempt`, unique `run`, `at`, `state`,
+`cache`, `repository` name, `actor` name, `base`, `deadline`, caller `unit`,
+`cgroup` and `invocation`, `allocated` flag, settled `outcome` (`clean`,
+`quarantined`, `unwired` or `not-allocated`) and `disposition_sha256`. Starts
+are never returned. Closure in `grant_record.closed` is permanent (`expired`,
+`revoked` or `containment`, first cause kept).
+
 ## Observed independent child failure
 
 During a research close, Science can publish a private `job-stop.json` before its durable seal. The record contains `version` (job-stop.v1), `session_id`, `invocation_id`, `phase`, `intent`, `seal_cause`, `observation` (independent-failure) and a nonzero integer `returncode`. The kernel observed the outer child exit and verified the immutable closure before the writer gate closed. The intent remains unfulfilled. The member report joins a private singly linked record to the authenticated writer, reserved job, unfulfilled intent and the cause in the durable authenticated seal. A missing seal or conflicting evidence leaves the result unknown.
