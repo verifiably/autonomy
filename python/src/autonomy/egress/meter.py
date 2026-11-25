@@ -4,6 +4,16 @@ from autonomy.allowance._contract import debit
 from autonomy.egress.usage import StreamUsage
 
 
+def _price_blocks(content):
+    if not isinstance(content, list):
+        return
+    for block in content:
+        if block["type"] in ("image", "document"):
+            raise AllowanceRefused("allowance-unpriced", "the tariff covers text and local tools only")
+        if block["type"] == "tool_result":
+            _price_blocks(block.get("content"))
+
+
 class ModelMeter:
     def __init__(self, client, tariff):
         self.client = client
@@ -20,6 +30,8 @@ class ModelMeter:
                 raise AllowanceRefused("body-refused", "invalid thinking budget")
         if self.tariff["billing_mode"] != "standard":
             raise AllowanceRefused("allowance-unpriced", "unsupported billing profile")
+        for message in body["messages"]:
+            _price_blocks(message["content"])
         args = dict(seq=seq, model=body["model"], max_tokens=output, billing_mode="standard")
         reserved = debit("model", args, self.tariff)["micro_usd"]
         reply = self.client.call("reserve-model", args)

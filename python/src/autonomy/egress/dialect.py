@@ -116,6 +116,8 @@ def _thinking(value: object) -> None:
     thinking = _object(value, "thinking", required, {"display", "block_binding"} if active else set())
     if kind == "enabled":
         _scalar(thinking["budget_tokens"], int, "thinking.budget_tokens")
+        if thinking["budget_tokens"] < 1:
+            raise _refused("thinking.budget_tokens must be positive")
     if "display" in thinking:
         _one_of(thinking["display"], ("summarized", "omitted", "updates", None), "thinking.display")
     if "block_binding" in thinking and thinking["block_binding"] is not None:
@@ -260,6 +262,8 @@ def check_body(body: dict, op: Operation) -> None:
         for key in ("max_tokens", "top_k"):
             if key in body:
                 _scalar(body[key], int, key)
+        if body["max_tokens"] < 1:
+            raise _refused("max_tokens must be positive")
         for key in ("temperature", "top_p"):
             if key in body:
                 value = body[key]

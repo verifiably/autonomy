@@ -531,6 +531,10 @@ def governed_route(config, name, doc, *, caller="run", target=None):
     pin.chmod(0o600)
     model = doc["operations"][0]["models"][0]
     limits = dict(attempts=64, input_tokens=20_000_000, output_tokens=131072, micro_usd=100000000, job_starts=0)
+    if caller == "e21":
+        limits["attempts"] = 1
+    if target is None and caller == "run":
+        target = {"actor_argv": ["/usr/bin/true"], "model": model}
     rates = dict(input=1000000, output=5000000, cache_read=100000, cache_write_5m=1250000, cache_write_1h=2000000)
     Campaign.issue(storage, dict(campaign_id=campaign, source="local TLS test", expires=int(time.time()) + 3600,
                    limits=limits, tariff=dict(model=model, billing_mode="standard", context=200000, output_cap=2048,

@@ -338,8 +338,11 @@ def _route(request: RunRequest, where: Places) -> LoadedRoute | None:
                                     caller="band" if request.conversation_id else "run",
                                     conversation_id=request.conversation_id,
                                     provider_session_id=request.provider_session_id)
-        if request.conversation_id is None and request.tier.name != "report-only":
-            raise RunRefused("allowance-scope", "model-only run requires report-only tier")
+        if request.conversation_id is None:
+            member = loaded.member
+            expected = {"actor_argv": list(request.actor_argv), "model": member.tariff["model"]}
+            if request.tier.name != "report-only" or member.target != expected:
+                raise RunRefused("allowance-scope", "model-only run requires the bound actor and report-only tier")
         return loaded
     except (AllowanceRefused, RouteRefused) as caught:
         raise RunRefused(caught.code, caught.message) from None

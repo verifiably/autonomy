@@ -757,3 +757,14 @@ if "--resolve" in sys.argv:
                     send_signal(writer_fd, signal.SIGKILL)
                     assert exited(writer_fd, 3)
                 os.close(writer_fd)
+
+
+def test_model_only_member_is_bound_to_the_issued_actor(tmp_path, env, actor):
+    config = config_of(tmp_path)
+    credential = write_credential(config / "credentials" / "anthropic")
+    governed_route(config, "anthropic", pi_route(credential=credential),
+                   target={"actor_argv": ["/other"], "model": "claude-haiku-5-5"})
+    with pytest.raises(RunRefused, match="allowance-scope"):
+        execute(request_with_route("anthropic"), env, lambda _: (), diag=lambda _: None,
+                progress=Progress(), actor_fds=actor)
+    assert runs(tmp_path) == []

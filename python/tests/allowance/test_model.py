@@ -24,3 +24,14 @@ def test_bad_body_never_contacts_authority(change):
     with pytest.raises(AllowanceRefused, match="body-refused"):
         meter.admit("env", 1, {"model":"test","max_tokens":2048,"stream":True} | change, 0, 1)
     assert peer.requests == []
+
+
+@pytest.mark.parametrize("kind", ["image", "document"])
+def test_unpriced_content_inside_a_tool_result_refuses_before_reservation(kind):
+    peer = Calls()
+    meter = ModelMeter(peer, {"model":"test","billing_mode":"standard","output_cap":2048})
+    media = {"type": kind,"source":{"type":"base64","data":"AA==","media_type":"image/png"}}
+    messages = [{"role":"user","content":[{"type":"tool_result","tool_use_id":"t","content":[media]}]}]
+    with pytest.raises(AllowanceRefused, match="allowance-unpriced"):
+        meter.admit("env", 1, {"model":"test","max_tokens":12,"stream":True,"messages":messages}, 0, 1)
+    assert not peer.requests

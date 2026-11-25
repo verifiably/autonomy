@@ -163,3 +163,10 @@ prices in integer micro-USD per million tokens. One model reservation consumes
 one attempt, the full input context, the requested output ceiling and the
 combined worst charge rounded up to whole micro-USD. A job reservation consumes
 one job start. Actual use is separate from these debits.
+
+For the report-only production CLI, issue the model member with target fields
+`model` and `actor_argv` (the exact ordered command and arguments). The E21
+member also enforces one model attempt and zero job starts. A separately invoked
+E21 helper binds its own fixed command and takes a model-only target. Tariffs for
+text and client tools refuse image and document blocks, including nested tool
+results, before reservation or upstream connection.

@@ -20,7 +20,7 @@ import time
 import pytest
 
 from egress_fixtures import (
-    MODEL, FakeUpstream, TextTurn, message, pi_route, raw_request, tls, to_toml, write_credential, write_route,
+    MODEL, FakeUpstream, TextTurn, governed_route, message, pi_route, raw_request, tls, to_toml, write_credential, write_route,
 )
 
 from test_analyst_check import PI_1_1_0_BETAS, toolchain
@@ -317,11 +317,11 @@ def _upstream(tls, mode="json"):
         upstream.stop()
 
 
-def _route(world, tls, upstream, name="fixture", canary="disposable-route-canary"):
+def _route(world, tls, upstream, name="fixture", canary="disposable-route-canary", actor=_IDLE):
     config = Path(world.env["XDG_CONFIG_HOME"]) / "verifiably-autonomy"
     credential = write_credential(config / "credentials" / name, canary)
     route = pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert)
-    return write_route(config, name, route), credential
+    return governed_route(config, name, route, target={"actor_argv": list(actor), "model": MODEL}), credential
 
 
 @pytest.fixture
@@ -347,7 +347,7 @@ with socket.create_connection(("127.0.0.1", 4780), timeout=20) as stream:
         pass
 """]
     with _upstream(tls, "silent") as upstream, _upstream(tls) as replacement:
-        route_path, credential = _route(world, tls, upstream, canary=canary)
+        route_path, credential = _route(world, tls, upstream, canary=canary, actor=actor)
         original_digest = hashlib.sha256(route_path.read_bytes()).hexdigest()
         with _run(world, actor, options=("--model-route", "fixture")) as (child, report):
             opened = _line(report)
@@ -385,6 +385,7 @@ agent = scratch / "agent"
 agent.mkdir()
 (agent / "models.json").write_text(json.dumps({"providers": {"anthropic": {
     "baseUrl": os.environ["VERIFIABLY_MODEL_URL"], "apiKey": "actor-placeholder",
+    "modelOverrides": {sys.argv[sys.argv.index("--model")+1]: {"maxTokens": 2048}},
 }}}))
 os.environ["PI_CODING_AGENT_DIR"] = str(agent)
 os.environ["PI_OFFLINE"] = "1"
@@ -401,7 +402,7 @@ os.execv(sys.argv[2], sys.argv[2:])
         credential = write_credential(config / "credentials" / "fixture", "disposable-pi-canary")
         doc = pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert)
         doc["header_tokens"]["anthropic-beta"].extend(PI_1_1_0_BETAS)
-        write_route(config, "fixture", doc)
+        governed_route(config, "fixture", doc, caller="e21", target={"actor_argv": actor, "model": MODEL})
         options = ("--model-route", "fixture", "--toolchain", str(pi.dir), "--toolchain", str(node), "--deadline", "40")
         with _run(world, actor, options=options) as (child, report):
             opened = _line(report)
@@ -420,6 +421,8 @@ os.execv(sys.argv[2], sys.argv[2:])
             assert _line(report)["disposition"] == "clean"
         assert len(upstream.seen) == 1
         assert upstream.seen[0].headers["x-api-key"] == ["disposable-pi-canary"]
+        sent = json.loads(upstream.seen[0].body)
+        assert sent["stream"] is True and sent["max_tokens"] == 2048
     rows = [json.loads(line) for line in (directory / "egress.jsonl").read_text().splitlines()]
     closed = EgressClosed(rows[-1]["closed"], rows[-1]["last_seq"], False)
     actor_exit = next(row["status"] for row in _events(directory) if row["event"] == "actor-exit")
@@ -799,8 +802,8 @@ sys.stdin.read()
 """]
     with _another_world(world) as other, _upstream(tls, "sse") as a, _upstream(tls, "sse") as b:
         a.events = b.events = 1
-        _route(world, tls, a, name="first", canary="first-fake-credential")
-        _route(other, tls, b, name="second", canary="second-fake-credential")
+        _route(world, tls, a, name="first", canary="first-fake-credential", actor=actor)
+        _route(other, tls, b, name="second", canary="second-fake-credential", actor=actor)
         with _run(world, actor, options=("--model-route", "first", "--deadline", "45")) as (first, first_report), \
                 _run(other, actor, options=("--model-route", "second", "--deadline", "45")) as (second, second_report):
             assert _line(first_report)["run"] != _line(second_report)["run"]

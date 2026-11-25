@@ -34,7 +34,10 @@ def select(config, reference, route_reference, caller, route_digest, conversatio
     pool._active(receipt["closed"])
     grant = receipt["grant"]
     spec = grant["members"].get(name)
-    c.require(spec and spec["caller"] == caller and spec["route_digest"] == route_digest, "caller or route differs")
+    c.require(spec and spec["route_digest"] == route_digest, "member or route differs")
+    if caller == "run" and spec["caller"] == "e21":
+        caller = "e21"
+    c.require(spec["caller"] == caller, "caller differs from the grant")
     if caller == "e21":
         c.require(spec["limits"]["attempts"] <= 1 and spec["limits"]["job_starts"] == 0,
                   "smoke member exceeds one call or enables jobs")

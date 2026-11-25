@@ -379,10 +379,11 @@ def test_nested_permissions_and_contexts_recursion(source, mutation):
 
 
 @pytest.mark.parametrize("field", ["top_k", "budget_tokens", "temperature", "top_p"])
-@pytest.mark.parametrize("value", [True, 1.0, "1", None, {}, 0, -1, 1.25])
+@pytest.mark.parametrize("value", [True, 1.0, "1", None, {}, 0, -1, 1.25, 1])
 def test_numeric_controls_do_not_coerce(field, value):
     payload = body(thinking={"type": "enabled", "budget_tokens": value}) if field == "budget_tokens" else body(**{field: value})
-    accept = type(value) is int or (field in {"temperature", "top_p"} and type(value) is float)
+    accept = (type(value) is int and (field != "budget_tokens" or value > 0)
+              or field in {"temperature", "top_p"} and type(value) is float)
     if accept:
         assert check_body(parse_body(json.dumps(payload).encode()), OP) is None
     else:
@@ -391,9 +392,9 @@ def test_numeric_controls_do_not_coerce(field, value):
         assert caught.value.code == "body-refused"
 
 
-@pytest.mark.parametrize("value", [True, 1.0, "1", None, {}, 0, -1, 1.25])
+@pytest.mark.parametrize("value", [True, 1.0, "1", None, {}, 0, -1, 1.25, 1])
 def test_max_tokens_is_an_integer(value):
-    if type(value) is int:
+    if type(value) is int and value >= 1:
         assert check_body(body(max_tokens=value), OP) is None
     else:
         with pytest.raises(Refused) as caught:
