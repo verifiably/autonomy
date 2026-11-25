@@ -134,9 +134,22 @@ runtime directory. The actor receives the caller's byte channels. The CLI
 releases its copies immediately after the gate opens so the caller's streams can
 reach EOF before validation ends.
 
-The supervisor gives the actor the base OID, full development ref, and
-`/run/va/outputs/candidate.bundle` through `VERIFIABLY_DEVELOPMENT_BASE`,
-`VERIFIABLY_DEVELOPMENT_REF` and `VERIFIABLY_DEVELOPMENT_BUNDLE`.
+The supervisor gives the actor the base OID, full development ref,
+`/run/va/outputs/candidate.bundle` and `/run/va/outputs/no-candidate.json`
+through `VERIFIABLY_DEVELOPMENT_BASE`, `VERIFIABLY_DEVELOPMENT_REF`,
+`VERIFIABLY_DEVELOPMENT_BUNDLE` and `VERIFIABLY_DEVELOPMENT_NO_CANDIDATE`.
+
+An actor that finds nothing to do writes the declaration instead of a bundle:
+exactly `{"version": 1, "reason": "<text>"}`, at most 4096 bytes, with a
+non-blank reason of at most 500 characters. After a zero exit with containment
+proven, the supervisor releases it through the same single-link regular-file
+transfer as the bundle and closes the run `idle`. Saying nothing stays
+`development-bundle-missing`. A declaration beside a bundle (released or refused)
+is `development-no-candidate-conflict`. A declaration that is not a single-link
+regular file, or does not match the schema, is `development-no-candidate-invalid`.
+A nonzero exit, deadline, stop or exhausted pool keeps its own finding, whatever
+the actor wrote. The actor is not trusted. An idle verdict releases nothing, so an
+actor that declares idle while suppressing its work loses only that start.
 An immutable grant records the proved exposure, approval (`supervised-invocation`
 or `delegation`) and bounds.
 
@@ -200,8 +213,8 @@ under scratch to the recorded scratch path, at most `actor_storage_bytes` of
 content and 128 directories deep. Links, special files, files over the
 remaining bound, deeper directories, and entries whose mode denies their owner
 are counted by reason and left behind, as is anything the host disk has no
-room for. The contents of `/tmp` and `/dev/shm` are not copied. A clean run
-leaves the scratch directory empty. If the supervisor dies, the actor's scratch
+room for. The contents of `/tmp` and `/dev/shm` are not copied. A clean or idle
+run leaves the scratch directory empty. If the supervisor dies, the actor's scratch
 goes with it: recovery has the protected records and `base.bundle`, and no
 candidate. A supervisor lost during the copy leaves a partial copy that nothing
 completes.
@@ -318,6 +331,7 @@ Post-run evaluation determines the final research disposition:
 | `autonomy run` | 2 | Refused before execution; no run directory created. |
 | `autonomy run` | 3 | Quarantined. Science evidence failed or development output is ineligible. |
 | `autonomy run` | 4 | Unwired or unfinished. Inspect the retained run directory for a verdict. |
+| `autonomy run` | 5 | Idle. A development actor declared it found nothing to do; containment is proven and there is no candidate. Science runs never exit 5. |
 | `autonomy analyst` / `command` | 0 | Clean execution; outputs released without findings. |
 | `autonomy analyst` / `command` | 2 | Refused at step 1 before run directory allocation. |
 | `autonomy analyst` / `command` | 3 | Ran with findings (non-zero actor exit, release refusals, or egress errors). |
@@ -340,7 +354,7 @@ Post-run evaluation determines the final research disposition:
 ### Closing Finding Severities
 
 Finding codes mapped in `closing.SEVERITY`:
-- **quarantined**: `chain-discontinuous`, `entry-foreign`, `world-moved`, `basis-moved`, `development-close-unproven`, `development-deadline`, `development-stopped`, `development-actor-failed`, `development-storage-exhausted`, `development-bundle-missing`, `development-bundle-refused`, `development-bundle-header-invalid`, `development-bundle-validation-failed`, `development-candidate-unrecorded`.
+- **quarantined**: `chain-discontinuous`, `entry-foreign`, `world-moved`, `basis-moved`, `development-close-unproven`, `development-deadline`, `development-stopped`, `development-actor-failed`, `development-storage-exhausted`, `development-bundle-missing`, `development-bundle-refused`, `development-bundle-header-invalid`, `development-bundle-validation-failed`, `development-no-candidate-invalid`, `development-no-candidate-conflict`, `development-candidate-unrecorded`.
 - **unwired**: `actor-mismatch`, `baseline-raced`, `endpoint-unavailable`, `run-stopped-before-release`, `sandbox-unproven`, `seal-failed`, `baseline-pending`, `baseline-unavailable`, `ledger-unavailable`, `read-unavailable`, `ledger-malformed`, `seal-missing`, `outcome-unknown`, `intent-unfulfilled`, `seal-timeout`, `act-unverified`, `session-unclosed`, `permit-mismatch`, `orchestrator-lost`, `egress-unproven`, `development-workspace-unproven`, `development-sandbox-unproven`, `development-gate-unproven`, `development-stop-before-release`, `development-delegation-ended`.
 - **informational (None)**: `egress-lost`, `egress-close-timeout`, `mount-moved`, `after-run`.
 

@@ -13,16 +13,23 @@ from pathlib import Path
 from autonomy.analyst.release import retain
 from autonomy.baseline import append_event
 from autonomy.channel import LineChannel
-from autonomy.closing import disposition_of
 from autonomy.delegation import Host, current_host, in_user_service
-from autonomy.development._candidate import VerifiedCandidate, publish_candidate, validate_candidate
+from autonomy.development._candidate import (
+    DeclaredNoCandidate,
+    VerifiedCandidate,
+    publish_candidate,
+    publish_no_candidate,
+    validate_candidate,
+)
 from autonomy.development._delegated import admit, begin, check_base, check_bounds
 from autonomy.development._records import (
     MODE,
+    NO_CANDIDATE,
     REF,
     DevelopmentAborted,
     RunPaths,
     allocate_run,
+    development_disposition,
     development_places,
     lookup_run,
     publication_lock,
@@ -55,7 +62,8 @@ def _report(run: RunPaths, channel: LineChannel | None, phase: str, fields: Mapp
 
 
 def _finish(
-    run: RunPaths, progress: DevelopmentProgress, findings: list[Finding], result: VerifiedCandidate | None,
+    run: RunPaths, progress: DevelopmentProgress, findings: list[Finding],
+    result: VerifiedCandidate | DeclaredNoCandidate | None,
     *, grant_sha256: str | None, base: str, possible_release: bool, containment_proven: bool,
 ) -> int:
     with publication_lock(run):
@@ -64,16 +72,20 @@ def _finish(
             if not any(finding.code == code for finding in findings):
                 findings.append(Finding(code, "development", "stop preceded the verdict. Inspect retained work."))
         receipt = None
+        declaration = None
         if not findings:
             if result is None or grant_sha256 is None:
                 raise ValueError("candidate validation evidence is incomplete")
             try:
-                receipt = publish_candidate(run, result, grant_sha256=grant_sha256, base=base)
+                if isinstance(result, DeclaredNoCandidate):
+                    declaration = publish_no_candidate(run, result)
+                else:
+                    receipt = publish_candidate(run, result, grant_sha256=grant_sha256, base=base)
             except DevelopmentAborted as caught:
                 findings.append(caught.finding)
         status = publish_terminal(
             run, findings, grant_sha256=grant_sha256, candidate_sha256=receipt,
-            containment_proven=containment_proven,
+            no_candidate_sha256=declaration, containment_proven=containment_proven,
         )
         progress.durable_exit = status
     return status
@@ -180,6 +192,7 @@ def execute(
             _report(run, report, "run", {
                 "run_dir": str(run.run_dir), "scratch": str(run.scratch), "base": source.oid, "ref": REF,
                 "bundle_path": str(IN_SANDBOX_OUTPUTS / "candidate.bundle"),
+                "no_candidate_path": str(IN_SANDBOX_OUTPUTS / NO_CANDIDATE),
             })
             findings: list[Finding] = []
             result = None
@@ -249,9 +262,11 @@ def execute(
                 possible_release=possible_release,
                 containment_proven=outcome.containment_proven if outcome is not None else not possible_release,
             )
-            disposition = disposition_of(findings)
+            disposition = development_disposition(
+                findings, declared_no_candidate=isinstance(result, DeclaredNoCandidate),
+            )
             try:
-                if status and outcome is not None and outcome.containment_proven:
+                if disposition in ("quarantined", "unwired") and outcome is not None and outcome.containment_proven:
                     _retain_scratch(run, outcome.scratch_fd, limits)
             finally:
                 _report(run, report, "closing", {"disposition": disposition, "exit": status})

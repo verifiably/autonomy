@@ -202,8 +202,13 @@ def _write_run_verdict(
             limits={"deadline_seconds": 10.0},
         )
         candidate_digest = None
+        declaration_digest = None
         findings = []
-        if disposition == "clean":
+        if disposition == "idle":
+            declaration = run.run_dir / "no-candidate.json"
+            declaration.write_bytes(b'{"version": 1, "reason": "nothing to do"}')
+            declaration_digest = hashlib.sha256(declaration.read_bytes()).hexdigest()
+        elif disposition == "clean":
             bundle_path = run.run_dir / "candidate.bundle"
             bundle_path.write_bytes(b"bundle")
             candidate_digest = publish_json(
@@ -232,6 +237,7 @@ def _write_run_verdict(
                 findings,
                 grant_sha256=grant_digest,
                 candidate_sha256=candidate_digest,
+                no_candidate_sha256=declaration_digest,
                 containment_proven=containment_proven,
             )
         return hashlib.sha256((run.run_dir / "disposition.json").read_bytes()).hexdigest()
@@ -276,6 +282,16 @@ def test_settle_outcomes(delegated, tmp_path):
         ("att-5", "quarantined", d5),
         ("att-6", None, None),
     ]
+    assert grant.grant().closed is None
+
+
+def test_an_idle_start_settles_without_closing_the_grant(delegated, tmp_path):
+    host, grant, places, repo_dir, unit_cg, _ = _setup_host_and_grant(delegated, tmp_path, starts=2)
+    digest = _write_run_verdict(places, repo_dir, "1" * 32, "idle")
+    _record_start(grant, places, unit_cg, "att-1", "1" * 32, allocated=True)
+    with grant.lock(wait=1.0):
+        delegated.settle(grant, host)
+    assert [(r.attempt, r.outcome, r.disposition_sha256) for r in grant.starts()] == [("att-1", "idle", digest)]
     assert grant.grant().closed is None
 
 

@@ -16,11 +16,14 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
+from typing import Literal
 
 from autonomy.baseline import ADMISSION_LOCK, EVENTS, append_event, fsync_dir, lock, publish_bytes, utc_now
 from autonomy.closing import disposition_of
 from autonomy.membership import Finding
-from autonomy.run import EXIT_CODES, RunRefused, _xdg
+from autonomy.run import EXIT_CODES as _SCIENCE_EXIT_CODES
+from autonomy.run import RunRefused, _xdg
 from autonomy.stdio import StdioKind
 
 MODE = "development"
@@ -32,6 +35,43 @@ _OID = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _SUPERVISOR = "supervisor.lock"
 _PUBLICATION = "publication.lock"
+NO_CANDIDATE = "no-candidate.json"
+NO_CANDIDATE_BYTES = 4096
+_REASON_CHARS = 500
+
+# A development run adds `idle` to the science dispositions: the actor declared that it
+# found nothing to do, containment was proven, and no candidate exists.
+DevelopmentDisposition = Literal["clean", "idle", "unwired", "quarantined"]
+EXIT_CODES: Mapping[DevelopmentDisposition, int] = MappingProxyType({**_SCIENCE_EXIT_CODES, "idle": 5})
+
+
+def development_disposition(findings: Sequence[Finding], *, declared_no_candidate: bool) -> DevelopmentDisposition:
+    disposition = disposition_of(findings)
+    return "idle" if disposition == "clean" and declared_no_candidate else disposition
+
+
+def check_declaration(data: bytes) -> str:
+    """Return the reason from an exact version 1 no-candidate declaration, or raise ValueError."""
+
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        if len({key for key, _ in pairs}) != len(pairs):
+            raise ValueError("the declaration repeats a key")
+        return dict(pairs)
+
+    if len(data) > NO_CANDIDATE_BYTES:
+        raise ValueError(f"the declaration exceeds {NO_CANDIDATE_BYTES} bytes")
+    try:
+        record = json.loads(data.decode("utf-8"), object_pairs_hook=unique)
+    except (UnicodeDecodeError, json.JSONDecodeError) as caught:
+        raise ValueError(f"the declaration is not UTF-8 JSON: {caught}") from caught
+    if not isinstance(record, dict) or set(record) != {"version", "reason"}:
+        raise ValueError("the declaration must hold exactly version and reason")
+    reason = record["reason"]
+    if type(record["version"]) is not int or record["version"] != 1:
+        raise ValueError("the declaration must be version 1")
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > _REASON_CHARS:
+        raise ValueError(f"the reason must be non-blank text of at most {_REASON_CHARS} characters")
+    return reason
 
 
 class DevelopmentAborted(Exception):
@@ -372,29 +412,48 @@ def _delegations_agree(header: Mapping[str, object], grant: Mapping[str, object]
     )
 
 
-def _verify_clean(run: RunPaths, grant_sha256: object, candidate_sha256: object) -> None:
+def _verified_grant(run: RunPaths, grant_sha256: object, *, outcome: str) -> tuple[dict[str, object], dict[str, object], str]:
+    """Check the run header, grant, base bundle and walk that every released outcome rests on."""
     header = _checked_json(run.run_dir / "run.json", run.run_sha256)
     grant = _checked_json(run.run_dir / "grant.json", grant_sha256)
-    candidate = _checked_json(run.run_dir / "candidate.json", candidate_sha256)
-    if any(record.get("version") != 2 for record in (header, grant, candidate)):
-        raise ValueError("clean evidence requires version 2 records")
+    if any(record.get("version") != 2 for record in (header, grant)):
+        raise ValueError(f"{outcome} evidence requires version 2 records")
     base_digest = file_digest(run.run_dir / "base.bundle")
     _matches_digest(base_digest, grant.get("base_sha256"), "base.bundle")
-    _matches_digest(base_digest, candidate.get("base_sha256"), "base.bundle")
-    _matches_digest(file_digest(run.run_dir / "candidate.bundle"), candidate.get("bundle_sha256"), "candidate.bundle")
     scope = grant.get("scope")
     if not isinstance(scope, dict):
         raise ValueError("grant scope is missing")
     _matches_digest(file_digest(run.run_dir / "walk.json"), scope.get("walk_sha256"), "walk.json")
     if (
-        any(record.get("run") != run.run_id or record.get("mode") != MODE for record in (grant, candidate))
-        or grant.get("run_sha256") != run.run_sha256 or candidate.get("grant_sha256") != grant_sha256
-        or not _delegations_agree(header, grant)
+        grant.get("run") != run.run_id or grant.get("mode") != MODE
+        or grant.get("run_sha256") != run.run_sha256 or not _delegations_agree(header, grant)
+    ):
+        raise ValueError("run and grant identities do not agree")
+    return header, grant, base_digest
+
+
+def _verify_clean(run: RunPaths, grant_sha256: object, candidate_sha256: object) -> None:
+    header, _grant, base_digest = _verified_grant(run, grant_sha256, outcome="clean")
+    candidate = _checked_json(run.run_dir / "candidate.json", candidate_sha256)
+    if candidate.get("version") != 2:
+        raise ValueError("clean evidence requires version 2 records")
+    _matches_digest(base_digest, candidate.get("base_sha256"), "base.bundle")
+    _matches_digest(file_digest(run.run_dir / "candidate.bundle"), candidate.get("bundle_sha256"), "candidate.bundle")
+    if (
+        candidate.get("run") != run.run_id or candidate.get("mode") != MODE
+        or candidate.get("grant_sha256") != grant_sha256
         or candidate.get("base") != header.get("base") or candidate.get("ref") != REF
         or not _valid_oid(candidate.get("tip")) or candidate.get("tip") == candidate.get("base")
         or type(candidate.get("actor_exit")) is not int or candidate.get("actor_exit") != 0
     ):
         raise ValueError("candidate and grant identities do not agree")
+
+
+def _verify_idle(run: RunPaths, grant_sha256: object, no_candidate_sha256: object) -> None:
+    _verified_grant(run, grant_sha256, outcome="idle")
+    data = _read_bytes(run.run_dir / NO_CANDIDATE)
+    _matches_digest(hashlib.sha256(data).hexdigest(), no_candidate_sha256, NO_CANDIDATE)
+    check_declaration(data)
 
 
 def publish_terminal(
@@ -404,21 +463,30 @@ def publish_terminal(
     grant_sha256: str | None,
     candidate_sha256: str | None,
     containment_proven: bool,
+    no_candidate_sha256: str | None = None,
 ) -> int:
     if type(containment_proven) is not bool:
         raise ValueError("containment_proven must be a boolean")
-    disposition = disposition_of(findings)
-    if disposition == "clean":
+    if candidate_sha256 is not None and no_candidate_sha256 is not None:
+        raise ValueError("a verdict cannot link both a candidate and a no-candidate declaration")
+    disposition = development_disposition(findings, declared_no_candidate=no_candidate_sha256 is not None)
+    if disposition in ("clean", "idle"):
         if not containment_proven:
-            raise ValueError("a clean disposition requires proven containment")
-        _verify_clean(run, grant_sha256, candidate_sha256)
+            raise ValueError(f"a {disposition} disposition requires proven containment")
+        if disposition == "clean":
+            _verify_clean(run, grant_sha256, candidate_sha256)
+        else:
+            if findings:
+                raise ValueError("an idle disposition cannot carry findings")
+            _verify_idle(run, grant_sha256, no_candidate_sha256)
     else:
         candidate_sha256 = None
+        no_candidate_sha256 = None
     publish_json(run.run_dir / "disposition.json", {
         "version": 2, "run": run.run_id, "mode": MODE, "disposition": disposition,
         "findings": [{"code": f.code, "ref": f.ref, "message": f.message} for f in findings],
         "closed_at": utc_now(), "grant_sha256": grant_sha256, "candidate_sha256": candidate_sha256,
-        "containment_proven": containment_proven,
+        "no_candidate_sha256": no_candidate_sha256, "containment_proven": containment_proven,
     })
     return EXIT_CODES[disposition]
 
@@ -434,17 +502,25 @@ def read_terminal(run: RunPaths) -> Terminal | None:
         record = _json(data)
         disposition = record.get("disposition")
         containment_proven = record.get("containment_proven")
+        no_candidate_sha256 = record.get("no_candidate_sha256")
         if (
             record.get("version") != 2 or record.get("mode") != MODE or record.get("run") != run.run_id
             or type(containment_proven) is not bool
         ):
             raise ValueError("invalid development disposition identity")
-        if disposition == "clean":
+        if disposition in ("clean", "idle"):
             if not containment_proven:
-                raise ValueError("a clean disposition requires proven containment")
+                raise ValueError(f"a {disposition} disposition requires proven containment")
+        if disposition == "clean":
+            if no_candidate_sha256 is not None:
+                raise ValueError("a clean disposition cannot link a no-candidate declaration")
             _verify_clean(run, record.get("grant_sha256"), record.get("candidate_sha256"))
-        elif record.get("candidate_sha256") is not None:
-            raise ValueError("a non-clean disposition cannot link a candidate")
+        elif disposition == "idle":
+            if record.get("candidate_sha256") is not None or record.get("findings") != []:
+                raise ValueError("an idle disposition cannot link a candidate or carry findings")
+            _verify_idle(run, record.get("grant_sha256"), no_candidate_sha256)
+        elif record.get("candidate_sha256") is not None or no_candidate_sha256 is not None:
+            raise ValueError("a non-clean disposition cannot link a candidate or a declaration")
         status = EXIT_CODES[disposition]
         fsync_dir(run.run_dir)
         return Terminal(status, str(disposition), hashlib.sha256(data).hexdigest(), containment_proven)

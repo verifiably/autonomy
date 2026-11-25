@@ -161,6 +161,8 @@ the affected parameter or boundary in the owning test.
 | `development-actor-failed` | `test_limit_refusal_is_handled_or_signalled_by_the_actor` |
 | `development-storage-exhausted` | `test_exhausting_the_storage_bound_is_a_stated_verdict`, `test_exhausted_run_is_quarantined_with_its_work_retained` |
 | `development-bundle-missing`, `development-bundle-refused` | `test_only_declared_regular_single_link_file_can_transfer` |
+| `development-no-candidate-invalid`, `development-no-candidate-conflict` | `test_an_invalid_declaration_is_quarantined`, `test_a_declaration_must_be_a_single_link_regular_file`, `test_a_declaration_beside_a_bundle_is_a_conflict` |
+| `idle` disposition (exit 5) | `test_a_declared_no_candidate_closes_idle`, `test_a_declaration_does_not_mask_a_failed_actor`, `test_a_damaged_idle_verdict_is_refused`, `test_an_idle_start_settles_without_closing_the_grant` |
 | `development-bundle-header-invalid` | `test_header_requires_literal_multiplicity_and_matching_base` |
 | `development-bundle-validation-failed` | `test_confined_receiver_refuses_unproven_git_history`, `test_receiver_refuses_resource_overflow` |
 | `development-candidate-unrecorded` | `test_receipt_cannot_publish_before_artifact_durability` |

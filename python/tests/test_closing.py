@@ -33,6 +33,8 @@ SPEC_ROWS = {
     "development-bundle-refused": "quarantined",
     "development-bundle-header-invalid": "quarantined",
     "development-bundle-validation-failed": "quarantined",
+    "development-no-candidate-invalid": "quarantined",
+    "development-no-candidate-conflict": "quarantined",
     "development-candidate-unrecorded": "quarantined",
 }
 

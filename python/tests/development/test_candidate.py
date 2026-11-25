@@ -159,3 +159,74 @@ def test_receipt_cannot_publish_before_artifact_durability(candidate, attempt, m
         candidate.publish_candidate(run, result, grant_sha256="2" * 64, base=source.oid)
     assert caught.value.finding.code == "development-candidate-unrecorded"
     assert not (run.run_dir / "candidate.json").exists()
+
+
+DECLARATION = b'{"version": 1, "reason": "the derived file is already current"}'
+
+
+def declare(attempt, data=DECLARATION):
+    *_, path, _, _ = attempt
+    declaration = path.with_name("no-candidate.json")
+    declaration.write_bytes(data)
+    return declaration
+
+
+def test_declared_no_candidate_releases_the_declaration(candidate, attempt):
+    run, source, workspace, scratch_fd, *_ = attempt
+    declare(attempt)
+    result = candidate.validate_candidate(run, source, workspace, scratch_fd, limits=Limits())
+    assert isinstance(result, candidate.DeclaredNoCandidate)
+    digest = candidate.publish_no_candidate(run, result)
+    assert (run.run_dir / "no-candidate.json").read_bytes() == DECLARATION
+    assert digest == file_digest(run.run_dir / "no-candidate.json")
+    assert not (run.run_dir / "candidate.json").exists()
+    assert not (run.run_dir / "candidate.bundle").exists()
+    assert not (run.run_dir / "disposition.json").exists()
+
+
+@pytest.mark.parametrize("bundle_kind", ["valid", "refused"])
+def test_a_declaration_beside_a_bundle_is_a_conflict(candidate, attempt, bundle_kind):
+    *_, path, bundle, _ = attempt
+    if bundle_kind == "valid":
+        path.write_bytes(bundle)
+    else:
+        path.mkdir()
+    declare(attempt)
+    refused(candidate, attempt, "development-no-candidate-conflict")
+    assert not (attempt[0].run_dir / "no-candidate.json").exists()
+
+
+@pytest.mark.parametrize("data", [
+    b"not json",
+    b"[]",
+    b'{"version": 2, "reason": "r"}',
+    b'{"version": true, "reason": "r"}',
+    b'{"version": 1}',
+    b'{"version": 1, "reason": ""}',
+    b'{"version": 1, "reason": "   "}',
+    b'{"version": 1, "reason": 1}',
+    b'{"version": 1, "reason": "r", "extra": 1}',
+    b'{"version": 1, "reason": "r", "reason": "s"}',
+    b'{"version": 1, "reason": "' + b"x" * 501 + b'"}',
+    b'{"version": 1, "reason": "' + b"x" * 5000 + b'"}',
+    b'\xff\xfe',
+])
+def test_an_invalid_declaration_is_quarantined(candidate, attempt, data):
+    declare(attempt, data)
+    refused(candidate, attempt, "development-no-candidate-invalid")
+    assert not (attempt[0].run_dir / "no-candidate.json").exists()
+
+
+@pytest.mark.parametrize("kind", ["directory", "symlink", "hardlink"])
+def test_a_declaration_must_be_a_single_link_regular_file(candidate, attempt, kind):
+    *_, path, _, _ = attempt
+    declaration = path.with_name("no-candidate.json")
+    other = path.with_name("undeclared")
+    other.write_bytes(DECLARATION)
+    if kind == "directory":
+        declaration.mkdir()
+    elif kind == "symlink":
+        declaration.symlink_to(other)
+    else:
+        os.link(other, declaration)
+    refused(candidate, attempt, "development-no-candidate-invalid")

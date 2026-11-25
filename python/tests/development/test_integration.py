@@ -109,6 +109,7 @@ def test_supervised_offline_run_reconstructs_candidate_after_source_moves(tmp_pa
         "run": opened["run"], "mode": "development", "run_dir": str(run_store(env) / opened["run"]),
         "scratch": str(Path(env["XDG_CACHE_HOME"]) / "verifiably-autonomy/scratch" / opened["run"]),
         "base": base, "ref": REF, "bundle_path": "/run/va/outputs/candidate.bundle",
+        "no_candidate_path": "/run/va/outputs/no-candidate.json",
     }
     assert closed == {"run": opened["run"], "mode": "development", "disposition": "clean", "exit": 0}
     directory = Path(opened["run_dir"])
@@ -131,7 +132,7 @@ def test_supervised_offline_run_reconstructs_candidate_after_source_moves(tmp_pa
                               "grant_sha256", "actor_exit", "closed_at"}
     assert set(verdict) == {
         "version", "run", "mode", "disposition", "findings", "closed_at",
-        "grant_sha256", "candidate_sha256", "containment_proven",
+        "grant_sha256", "candidate_sha256", "no_candidate_sha256", "containment_proven",
     }
     assert (header["version"], grant["version"], candidate["version"], verdict["version"]) == (2, 2, 2, 2)
     assert header["delegation"] is None and isinstance(header["boot_id"], str)
@@ -146,6 +147,7 @@ def test_supervised_offline_run_reconstructs_candidate_after_source_moves(tmp_pa
     assert candidate["bundle_sha256"] == file_digest(directory / "candidate.bundle")
     assert candidate["grant_sha256"] == verdict["grant_sha256"] == file_digest(directory / "grant.json")
     assert verdict["candidate_sha256"] == file_digest(directory / "candidate.json")
+    assert verdict["no_candidate_sha256"] is None
     assert control(env, "close", opened["run"]).returncode == 0
     assert control(env, "stop", opened["run"]).returncode == 0
     assert not (directory / "stop.json").exists()
@@ -274,6 +276,39 @@ print("nested run refused")
         assert process.returncode == 3, errors
     assert output == b"nested run refused\n"
     assert_finding(read_json(Path(opened["run_dir"]) / "disposition.json"), "development-bundle-missing")
+
+
+IDLE = """printf '{"version": 1, "reason": "nothing to do"}' > "$VERIFIABLY_DEVELOPMENT_NO_CANDIDATE"
+"""
+
+
+def test_a_declared_no_candidate_closes_idle(env, source):
+    repo, base, _ = source
+    with attempt(env, options(repo, base), ("/usr/bin/sh", "-c", IDLE)) as (process, reports):
+        _, errors, (opened, closed) = finish(process, reports)
+        assert process.returncode == closed["exit"] == 5, errors
+    assert closed["disposition"] == "idle"
+    directory = Path(opened["run_dir"])
+    verdict = read_json(directory / "disposition.json")
+    assert verdict["disposition"] == "idle" and verdict["findings"] == []
+    assert verdict["no_candidate_sha256"] == file_digest(directory / "no-candidate.json")
+    assert (directory / "no-candidate.json").read_bytes() == b'{"version": 1, "reason": "nothing to do"}'
+    assert not (directory / "candidate.bundle").exists() and not (directory / "candidate.json").exists()
+    events = [json.loads(text)["event"] for text in (directory / "events.jsonl").read_text().splitlines()]
+    assert "scratch-retained" not in events and "scratch-unretained" not in events
+    assert control(env, "close", opened["run"]).returncode == 5
+
+
+def test_a_declaration_does_not_mask_a_failed_actor(env, source):
+    repo, base, _ = source
+    with attempt(env, options(repo, base), ("/usr/bin/sh", "-c", IDLE + "\nexit 7")) as (process, reports):
+        _, errors, (opened, closed) = finish(process, reports)
+        assert process.returncode == closed["exit"] == 3, errors
+    directory = Path(opened["run_dir"])
+    verdict = read_json(directory / "disposition.json")
+    assert_finding(verdict, "development-actor-failed")
+    assert verdict["no_candidate_sha256"] is None
+    assert not (directory / "no-candidate.json").exists()
 
 
 def test_stop_and_close_refuse_unknown_run(env):

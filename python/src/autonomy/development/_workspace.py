@@ -15,7 +15,7 @@ from pathlib import Path
 from autonomy.analyst.walk import mount_points, walk
 from autonomy.baseline import publish_bytes
 from autonomy.development._git import GitFailed, PinnedObjectDirectory, SourceViewInvalid, run_worker
-from autonomy.development._records import BASE_REF, REF, DevelopmentAborted, RunPaths, publish_json
+from autonomy.development._records import BASE_REF, NO_CANDIDATE, REF, DevelopmentAborted, RunPaths, publish_json
 from autonomy.egress.route import all_egress_denied
 from autonomy.membership import Finding
 from autonomy.run import RunRefused
@@ -187,6 +187,7 @@ def prepare_workspace(run: RunPaths, source: SourceBase, *, config: Path, limits
             "VERIFIABLY_DEVELOPMENT_BASE": source.oid,
             "VERIFIABLY_DEVELOPMENT_REF": REF,
             "VERIFIABLY_DEVELOPMENT_BUNDLE": str(IN_SANDBOX_OUTPUTS / "candidate.bundle"),
+            "VERIFIABLY_DEVELOPMENT_NO_CANDIDATE": str(IN_SANDBOX_OUTPUTS / NO_CANDIDATE),
         },
     )
     try:

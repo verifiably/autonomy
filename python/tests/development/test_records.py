@@ -381,3 +381,83 @@ def test_run_delegation_identifier_grammar_matches_contract(records, places, tmp
                 (opened.run_dir / "run.json").write_text(json.dumps({**header, "delegation": bad_delegation}))
                 with pytest.raises(RunRefused, match="development-run-invalid"):
                     records.lookup_run(places, opened.run_id)
+
+
+def _idle_inputs(records, run):
+    base_path = run.run_dir / "base.bundle"
+    base_path.write_bytes(b"pinned fixture bytes")
+    base_digest = hashlib.sha256(base_path.read_bytes()).hexdigest()
+    walk_digest = records.publish_json(run.run_dir / "walk.json", {"fixture": True})
+    grant_digest = grant(records, run, base_digest=base_digest, walk_digest=walk_digest)
+    declaration = run.run_dir / "no-candidate.json"
+    declaration.write_bytes(b'{"version": 1, "reason": "nothing to regenerate"}')
+    return grant_digest, hashlib.sha256(declaration.read_bytes()).hexdigest()
+
+
+def test_an_idle_verdict_links_the_declaration_and_exits_5(records, run):
+    grant_digest, declaration_digest = _idle_inputs(records, run)
+    with records.publication_lock(run):
+        assert records.publish_terminal(
+            run, [], grant_sha256=grant_digest, candidate_sha256=None,
+            no_candidate_sha256=declaration_digest, containment_proven=True,
+        ) == 5
+    verdict = records.read_json(run.run_dir / "disposition.json")
+    assert verdict["disposition"] == "idle" and verdict["findings"] == []
+    assert verdict["candidate_sha256"] is None and verdict["no_candidate_sha256"] == declaration_digest
+    assert records.read_terminal(run) == records.Terminal(
+        exit=5, disposition="idle",
+        sha256=hashlib.sha256((run.run_dir / "disposition.json").read_bytes()).hexdigest(),
+        containment_proven=True,
+    )
+
+
+def test_an_idle_verdict_requires_containment_and_one_outcome(records, run):
+    grant_digest, declaration_digest = _idle_inputs(records, run)
+    path = run.run_dir / "disposition.json"
+    with records.publication_lock(run):
+        with pytest.raises(ValueError, match="containment"):
+            records.publish_terminal(
+                run, [], grant_sha256=grant_digest, candidate_sha256=None,
+                no_candidate_sha256=declaration_digest, containment_proven=False,
+            )
+        with pytest.raises(ValueError, match="both"):
+            records.publish_terminal(
+                run, [], grant_sha256=grant_digest, candidate_sha256="3" * 64,
+                no_candidate_sha256=declaration_digest, containment_proven=True,
+            )
+        with pytest.raises(ValueError):
+            records.publish_terminal(
+                run, [], grant_sha256=grant_digest, candidate_sha256=None,
+                no_candidate_sha256="4" * 64, containment_proven=True,
+            )
+        assert not path.exists()
+        assert records.publish_terminal(
+            run, [Finding("development-stopped", "stop.json", "stopped")], grant_sha256=grant_digest,
+            candidate_sha256=None, no_candidate_sha256=declaration_digest, containment_proven=True,
+        ) == 3
+    verdict = records.read_json(path)
+    assert verdict["disposition"] == "quarantined" and verdict["no_candidate_sha256"] is None
+
+
+@pytest.mark.parametrize("damage", ["declaration", "findings", "candidate", "containment", "foreign-link"])
+def test_a_damaged_idle_verdict_is_refused(records, run, damage):
+    grant_digest, declaration_digest = _idle_inputs(records, run)
+    with records.publication_lock(run):
+        records.publish_terminal(
+            run, [], grant_sha256=grant_digest, candidate_sha256=None,
+            no_candidate_sha256=declaration_digest, containment_proven=True,
+        )
+    path = run.run_dir / "disposition.json"
+    verdict = records.read_json(path)
+    if damage == "declaration":
+        (run.run_dir / "no-candidate.json").write_bytes(b'{"version": 1, "reason": "changed"}')
+    elif damage == "findings":
+        path.write_text(json.dumps({**verdict, "findings": [{"code": "x", "ref": "y", "message": "z"}]}))
+    elif damage == "candidate":
+        path.write_text(json.dumps({**verdict, "candidate_sha256": "3" * 64}))
+    elif damage == "containment":
+        path.write_text(json.dumps({**verdict, "containment_proven": False}))
+    else:
+        path.write_text(json.dumps({**verdict, "disposition": "quarantined"}))
+    with pytest.raises(RunRefused, match="development-run-invalid"):
+        records.read_terminal(run)

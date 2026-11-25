@@ -262,22 +262,30 @@ version, run ID, mode, base, ref, tip, a zero actor exit, close time, and the
 SHA-256 digests of `base.bundle`, `candidate.bundle` and `grant.json`.
 Absent or failed transfer, invalid header, failed receiver checks and failed
 artifact or receipt publication each produce a quarantine finding.
+When the actor wrote a valid no-candidate declaration and no bundle, the
+supervisor instead promotes the exact staged declaration bytes to
+`no-candidate.json` in the run directory (`{"version": 1, "reason": ...}`).
 
 A development `disposition.json` carries version, run ID, mode, disposition,
-findings, close timestamp, grant digest, candidate receipt digest and boolean
-`containment_proven`. `containment_proven` is `true` when no release was
+findings, close timestamp, grant digest, candidate receipt digest,
+`no_candidate_sha256` and boolean `containment_proven`. A development
+disposition is `clean`, `idle` (exit 5), `quarantined` or `unwired`; `idle`
+never applies to science runs. `containment_proven` is `true` when no release was
 recorded, when live supervision or same-boot recovery confirmed the namespace
 ended, or when `run.json`'s `boot_id` differs from the live kernel boot ID;
 otherwise it is `false`. `recover_run` compares `run.json`'s `boot_id` with the
 current boot before reading `grant.json` or `events.jsonl`, so a power loss that
 tore the journal still proves containment after reboot. A clean verdict requires
 `containment_proven: true` and the matching version-2 run, grant, walk,
-candidate receipt, base bundle, and candidate bundle bytes. A quarantined or
-unwired record has a null candidate digest. Only the verified clean record makes
-the exact candidate eligible for acceptance.
+candidate receipt, base bundle, and candidate bundle bytes. An idle verdict
+requires `containment_proven: true`, no findings, a null candidate digest, and the matching version-2 run, grant, walk, base bundle and
+`no-candidate.json` bytes, whose SHA-256 is `no_candidate_sha256`. A clean,
+quarantined or unwired record has a null `no_candidate_sha256`, and a
+quarantined or unwired record has a null candidate digest. Only the verified
+clean record makes the exact candidate eligible for acceptance.
 
-The development opening report includes `mode`, `base`, `ref` and
-`bundle_path` in addition to `run`, `run_dir`, and `scratch`. The closing
+The development opening report includes `mode`, `base`, `ref`,
+`bundle_path` and `no_candidate_path` in addition to `run`, `run_dir`, and `scratch`. The closing
 report adds `mode` to `run`, `disposition`, and `exit`. The durable verdict
 is authoritative when reporting fails. If the supervisor left no disposition,
 use `autonomy run close <id>` to recover the run and its evidence.
@@ -350,7 +358,7 @@ digest covers the canonical stored `grant_record.cfg` JSON.
 Each start is serialized under `<id>.lock` and recorded in `delegation_start`
 with its 1-based `ordinal`, unique `attempt`, unique `run`, `at`, `state`,
 `cache`, `repository` name, `actor` name, `base`, `deadline`, caller `unit`,
-`cgroup` and `invocation`, `allocated` flag, settled `outcome` (`clean`,
+`cgroup` and `invocation`, `allocated` flag, settled `outcome` (`clean`, `idle`,
 `quarantined`, `unwired` or `not-allocated`) and `disposition_sha256`. Starts
 are never returned. Closure in `grant_record.closed` is permanent (`expired`,
 `revoked` or `containment`, first cause kept).
