@@ -23,6 +23,7 @@ from autonomy import development, science_run
 from autonomy.analyst.toolchain import AnalystRefused
 from autonomy.baseline import write_all
 from autonomy.channel import LineChannel
+from autonomy.commands import allowance
 from autonomy.run import (
     DEADLINE_DEFAULT, EXIT_CODES, EXIT_REFUSED, LEASE_DEFAULT, LEASE_FLOOR, DevelopmentProgress, Diag,
     Progress, RunRefused, RunRequest,
@@ -117,6 +118,7 @@ def _parser(diag: Diag) -> _Parser:
     commands = parser.add_subparsers(
         dest="command", required=True, parser_class=functools.partial(_Parser, diag=diag)
     )
+    allowance.add_parser(commands)
     run = commands.add_parser(
         "run",
         help="run one actor under the envelope",
@@ -368,6 +370,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 progress = DevelopmentProgress()
                 return _development_run(before[1:], actor, diag, progress)
         args = _parser(diag).parse_args(before if raw_argv[:1] == ["command"] else raw_argv)
+        if args.command == "allowance":
+            return allowance.execute(args)
         if args.command == "analyst":
             label = "analyst run"
             progress = analyst.Progress()

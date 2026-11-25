@@ -254,3 +254,22 @@ The development opening report includes `mode`, `base`, `ref` and
 report adds `mode` to `run`, `disposition`, and `exit`. The durable verdict
 is authoritative when reporting fails. If the supervisor left no disposition,
 use `autonomy run close <id>` to recover the run and its evidence.
+
+## Campaign allowance store
+
+One owned 0600 SQLite database per campaign lives under the pinned private
+allowance directory. Issue creates and syncs a complete database before
+publishing its name exclusively and syncing its parent. Grant JSON has
+`campaign_id`, `source`, `expires` (Unix seconds), `limits`, `tariff` and
+`members`. Each member names its `caller`, `target`, `route_digest` and
+`limits`. Limits count `attempts`, `input_tokens`, `output_tokens`,
+`micro_usd` and `job_starts`. The tariff fields are `model`, `billing_mode`,
+`context`, `output_cap`, `max_input_micro_usd_per_mtok` and
+`output_micro_usd_per_mtok`.
+
+Reservation, settlement, identity binding and revocation serialize under
+SQLite immediate transactions with full synchronous commits. The effective
+remaining units are the smaller of the campaign and member balances. Each
+envelope's role and sequence or invocation/phase identify its reservation.
+Repetition returns its recorded state. Settlement preserves the original
+debit. An identical report or settlement can be redelivered after closure.

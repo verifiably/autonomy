@@ -146,3 +146,13 @@ The proxy lifecycle coordinates four steps across an `AF_UNIX` `SOCK_SEQPACKET` 
 | `route-closed` | Request attempted after route entered shutdown. |
 
 HTTP 502 responses return error type `egress_upstream` when TCP connections, TLS handshakes, or upstream transfers fail. Closing findings record `egress-unproven`, `egress-lost`, `egress-close-timeout`, or `ProxySurvived` when a proxy process survives shutdown.
+
+## Operator tariff and grant
+
+The grant issued by `autonomy allowance issue NAME` binds a SHA-256 digest of
+the exact route file for each member. Its tariff fixes the model, billing mode,
+maximum billable input context, output ceiling and conservative input/output
+prices in integer micro-USD per million tokens. One model reservation consumes
+one attempt, the full input context, the requested output ceiling and the
+combined worst charge rounded up to whole micro-USD. A job reservation consumes
+one job start. Actual use is separate from these debits.

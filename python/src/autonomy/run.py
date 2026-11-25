@@ -96,6 +96,10 @@ def state_root(env: Mapping[str, str]) -> Path:
     return _xdg(env, "XDG_STATE_HOME", ".local", "state") / "verifiably-autonomy"
 
 
+def config_root(env: Mapping[str, str]) -> Path:
+    return _xdg(env, "XDG_CONFIG_HOME", ".config") / "verifiably-autonomy"
+
+
 def places(env: Mapping[str, str]) -> Places:
     runtime = _absolute(env.get("XDG_RUNTIME_DIR", ""))
     if runtime is None:
@@ -106,7 +110,7 @@ def places(env: Mapping[str, str]) -> Places:
         state=state_root(env),
         cache=_xdg(env, "XDG_CACHE_HOME", ".cache") / "verifiably-autonomy",
         runtime=runtime,
-        config=_xdg(env, "XDG_CONFIG_HOME", ".config") / "verifiably-autonomy",
+        config=config_root(env),
     )
 
 

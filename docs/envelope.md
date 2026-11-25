@@ -260,3 +260,26 @@ Finding codes mapped in `closing.SEVERITY`:
 Development admission and findings use the same exit and severity catalog.
 The [negative verification matrix](development.md#development-decision-matrix)
 lists each supervised development code and its verification arm.
+
+## Operator allowance commands
+
+`autonomy allowance issue NAME` reads the owned 0600 JSON file
+`allowances/NAME.json` under the Autonomy config directory. It issues the
+campaign once. The receipt names its grant and tariff digests, issuer, original
+limits, members, expiration and storage identity. `autonomy allowance revoke ID`
+durably closes the campaign and reports which envelopes still owe a close.
+These are operator commands. They write a JSON receipt on stdout and refuse
+with exit 2 and a diagnostic on stderr. A Band host can attach a validated
+`band-turn.v1` projection on stdin using `autonomy allowance record-turn
+CAMPAIGN/MEMBER --conversation-id C --envelope R`. Redelivery of identical
+evidence is idempotent, including after an envelope closes.
+
+The operator pins a private durable directory in `allowance-storage.json`
+(mode 0600). Its exact fields are `version` (1), `path` (absolute canonical
+directory), `device` and `inode` (integer stat identities). Use an owned 0700
+directory outside file synchronization on a qualified local ext4, XFS or Btrfs
+volume. Qualify independent-process locking, durable commit and interrupted
+transaction recovery on that volume before selecting it. Replacing the pinned
+directory requires explicit operator reconfiguration. A caller cannot initialize
+missing accounting state. Preserve the grant database for the full lifetime of
+its identity, including after revocation.
