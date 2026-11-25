@@ -1,6 +1,6 @@
 # Run Directory Records, Permits, and Ledger Schemas
 
-Type: data model; document types 1. Explicit versions include disposition.json and ledger.v1 (version 1), launch.json (launch.v1), and job-stop.json (job-stop.v1).
+Type: data model; document types 1. Explicit versions include science disposition.json and ledger.v1 (version 1), development run.json, grant.json, candidate.json and disposition.json (version 2), launch.json (launch.v1), and job-stop.json (job-stop.v1).
 
 The autonomy runtime records structured, append-only JSON and JSONL artifacts within dedicated state and cache directories for every run, capturing command lifecycles and closing checks defined in the [envelope protocol](envelope.md) alongside route configurations and proxy accounting defined in the [egress contract](egress.md). These records capture pre-launch environment provenance, real-time lifecycle transitions, egress accounting, released files, and closing research dispositions.
 
@@ -222,15 +222,22 @@ Both are empty mode-`0600` files opened without following links. The supervisor
 syncs the parent of each state and cache directory in the allocation path
 before publishing the run identity.
 
-`run.json` records version, run ID, development mode, timestamp, canonical
-repository and scratch paths, pinned base, task ref and deadline. Its exact
-SHA-256 binds the identity to `grant.json`, which records the effective
-read-only and denied paths, stdio classes, resource limits, and digests of the
-base bundle and the scratch walk. `limits.actor_storage_bytes` and
-`limits.actor_storage_inodes` are the total for everything the actor can
-write, scratch, `/tmp` and `/dev/shm` together. Route and allowance fields are null for the
-model-free slice. The receiver memory limit counts virtual address space per
-process. Preparation helpers use the same memory and temporary storage limits.
+`run.json`, `grant.json`, `candidate.json` and `disposition.json` are version 2
+for both supervised and delegated runs; version 1 records are refused as
+`development-run-invalid`. `run.json` records version, run ID, development mode,
+timestamp, canonical repository and scratch paths, pinned base, task ref,
+deadline, kernel `boot_id`, and `delegation` (`null` for supervised runs, or
+`id`, `grant_digest` and `attempt`). Its exact SHA-256 binds the identity to
+`grant.json`, which records `approval` (`"supervised-invocation"` or
+`"delegation"`), `delegation` (`null`, or `id`, `grant_digest`, `storage`,
+`attempt`, `start`, `repository`, `actor`, `ref`, `caller` and `bounds`), the
+effective read-only and denied paths, stdio classes, resource limits, and
+digests of the base bundle and the scratch walk. `limits.actor_storage_bytes`
+and `limits.actor_storage_inodes` are the total for everything the actor can
+write, scratch, `/tmp` and `/dev/shm` together. Route and allowance fields are
+null for the model-free slice. The receiver memory limit counts virtual address
+space per process. Preparation helpers use the same memory and temporary storage
+limits.
 
 The journal starts with an `allocated` event carrying run ID and mode.
 The supervisor syncs `releasing` before opening the gate. It includes
@@ -257,11 +264,17 @@ Absent or failed transfer, invalid header, failed receiver checks and failed
 artifact or receipt publication each produce a quarantine finding.
 
 A development `disposition.json` carries version, run ID, mode, disposition,
-findings, close timestamp, grant digest and candidate receipt digest. A clean
-verdict requires the matching run, grant, walk, candidate receipt, base bundle,
-and candidate bundle bytes. A quarantined or unwired record has a null candidate
-digest. Only the verified clean record makes the exact candidate eligible for
-acceptance.
+findings, close timestamp, grant digest, candidate receipt digest and boolean
+`containment_proven`. `containment_proven` is `true` when no release was
+recorded, when live supervision or same-boot recovery confirmed the namespace
+ended, or when `run.json`'s `boot_id` differs from the live kernel boot ID;
+otherwise it is `false`. `recover_run` compares `run.json`'s `boot_id` with the
+current boot before reading `grant.json` or `events.jsonl`, so a power loss that
+tore the journal still proves containment after reboot. A clean verdict requires
+`containment_proven: true` and the matching version-2 run, grant, walk,
+candidate receipt, base bundle, and candidate bundle bytes. A quarantined or
+unwired record has a null candidate digest. Only the verified clean record makes
+the exact candidate eligible for acceptance.
 
 The development opening report includes `mode`, `base`, `ref` and
 `bundle_path` in addition to `run`, `run_dir`, and `scratch`. The closing

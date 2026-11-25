@@ -261,7 +261,7 @@ def test_recovery_distinguishes_unarmed_armed_and_torn_journals(supervisor, tmp_
         digest = grant(run)
         if journal == "armed":
             append_event(run.run_dir, "releasing", child_pid=12, start_time=1,
-                         boot_id=supervisor._boot_id(), grant_sha256=digest)
+                         boot_id=supervisor.boot_id(), grant_sha256=digest)
         elif journal == "torn":
             with (run.run_dir / "events.jsonl").open("a") as stream:
                 stream.write('{"event":')
@@ -276,11 +276,132 @@ def test_recovery_distinguishes_unarmed_armed_and_torn_journals(supervisor, tmp_
 def test_recovery_never_signals_a_reused_or_unverified_pid(supervisor, monkeypatch):
     calls = []
     monkeypatch.setattr(supervisor.signal, "pidfd_send_signal", lambda *args: calls.append(args))
-    identity = supervisor._Identity(os.getpid(), 0, supervisor._boot_id())
+    identity = supervisor._Identity(os.getpid(), 0, supervisor.boot_id())
     monkeypatch.setattr(supervisor, "_start_time", lambda pid: 1)
     assert supervisor._recover_namespace(identity)
     assert not supervisor._recover_namespace(replace(identity, boot_id="00000000-0000-0000-0000-000000000000"))
     assert calls == []
+
+
+OTHER_BOOT = "00000000-0000-0000-0000-000000000001"
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_proven", "expected_code", "expected_exit"),
+    [
+        ("no_release", True, "orchestrator-lost", 4),
+        ("confirmed_exit", True, "development-close-unproven", 3),
+        ("pid_reused", True, "development-close-unproven", 3),
+        ("unconfirmed_same_boot", False, "development-close-unproven", 3),
+        ("torn_same_boot", False, "development-close-unproven", 3),
+        ("torn_after_reboot", True, "development-close-unproven", 3),
+        ("releasing_changed_boot", True, "development-close-unproven", 3),
+    ],
+)
+def test_recovery_containment(supervisor, tmp_path, monkeypatch, case, expected_proven, expected_code, expected_exit):
+    from autonomy.development import _records
+
+    where = development_places({"XDG_STATE_HOME": str(tmp_path / "state"), "XDG_CACHE_HOME": str(tmp_path / "cache")})
+    live_boot = _records.boot_id()
+    assert live_boot != OTHER_BOOT
+    with allocate_run(where, repository=tmp_path, base="1" * 40, deadline_seconds=3) as run:
+        digest = grant(run)
+        if case in ("confirmed_exit", "pid_reused", "unconfirmed_same_boot", "releasing_changed_boot"):
+            pid = os.getpid() if case in ("pid_reused", "unconfirmed_same_boot") else 2_000_000_000
+            append_event(
+                run.run_dir, "releasing", child_pid=pid, start_time=0, boot_id=live_boot, grant_sha256=digest,
+            )
+        elif case in ("torn_same_boot", "torn_after_reboot"):
+            with (run.run_dir / "events.jsonl").open("a") as stream:
+                stream.write('{"event":"releasing"')
+
+    if case == "pid_reused":
+        monkeypatch.setattr(supervisor, "_start_time", lambda pid: 999_999_999)
+    elif case == "unconfirmed_same_boot":
+        monkeypatch.setattr(supervisor, "_start_time", lambda pid: 0)
+        monkeypatch.setattr(supervisor, "_terminate", lambda fd: False)
+    elif case in ("torn_after_reboot", "releasing_changed_boot"):
+        monkeypatch.setattr(supervisor, "boot_id", lambda: OTHER_BOOT)
+        events_order: list[str] = []
+        real_boot = supervisor.boot_id
+        real_journal = supervisor.read_journal
+        monkeypatch.setattr(supervisor, "boot_id", lambda: events_order.append("boot") or real_boot())
+        monkeypatch.setattr(supervisor, "read_journal", lambda target: events_order.append("journal") or real_journal(target))
+
+    assert supervisor.recover_run(run) == expected_exit
+    if case in ("torn_after_reboot", "releasing_changed_boot"):
+        assert events_order[0] == "boot"
+    verdict = read_json(run.run_dir / "disposition.json")
+    assert verdict["containment_proven"] is expected_proven
+    assert verdict["findings"][0]["code"] == expected_code
+    terminal = _records.read_terminal(run)
+    assert terminal is not None and terminal.containment_proven is expected_proven
+
+
+def test_live_unconfirmed_shutdown_is_not_proven(supervisor, tmp_path, stdio, monkeypatch):
+    from autonomy.development import _run
+    from autonomy.run import DevelopmentProgress
+    from development.test_workspace import make_source
+
+    repo = tmp_path / "repo"
+    base, _ = make_source(repo)
+    env = {
+        "HOME": str(tmp_path), "XDG_STATE_HOME": str(tmp_path / "state"),
+        "XDG_CACHE_HOME": str(tmp_path / "cache"), "XDG_CONFIG_HOME": str(tmp_path / "config"),
+    }
+    monkeypatch.setattr(supervisor, "_await_actor", lambda actor, run, until: (0, "exit", False))
+    progress = DevelopmentProgress()
+    status = _run.execute(
+        _run.DevelopmentRequest(repo, base, 5.0, ("/usr/bin/true",), None),
+        env, diag=lambda _: None, progress=progress, actor_fds=stdio,
+    )
+    assert status == 3
+    assert progress.run_dir is not None
+    verdict = read_json(progress.run_dir / "disposition.json")
+    assert verdict["disposition"] == "quarantined"
+    assert verdict["containment_proven"] is False
+    assert [f["code"] for f in verdict["findings"]] == ["development-close-unproven"]
+
+
+def test_a_gate_that_breaks_after_releasing_is_unproven(supervisor, tmp_path, stdio, monkeypatch):
+    from autonomy.development import _run
+    from autonomy.run import DevelopmentProgress
+    from autonomy.sandbox import bwrap
+    from development.test_workspace import make_source
+
+    repo = tmp_path / "repo"
+    base, _ = make_source(repo)
+    env = {
+        "HOME": str(tmp_path), "XDG_STATE_HOME": str(tmp_path / "state"),
+        "XDG_CACHE_HOME": str(tmp_path / "cache"), "XDG_CONFIG_HOME": str(tmp_path / "config"),
+    }
+    real_write = bwrap.os.write
+
+    def broken_gate(fd, data):
+        if data == bwrap.RELEASE:
+            raise BrokenPipeError("gate pipe closed")
+        return real_write(fd, data)
+
+    monkeypatch.setattr(bwrap.os, "write", broken_gate)
+    progress = DevelopmentProgress()
+    status = _run.execute(
+        _run.DevelopmentRequest(repo, base, 5.0, ("/usr/bin/true",), None),
+        env, diag=lambda _: None, progress=progress, actor_fds=stdio,
+    )
+    assert status == 3
+    assert progress.run_dir is not None
+    events = [row["event"] for row in read_journal(_records_run(env, progress.run_dir.name))]
+    assert "releasing" in events and "launched" not in events
+    verdict = read_json(progress.run_dir / "disposition.json")
+    assert verdict["disposition"] == "quarantined"
+    assert verdict["containment_proven"] is False
+    assert [f["code"] for f in verdict["findings"]] == ["development-close-unproven"]
+
+
+def _records_run(env, run_id):
+    from autonomy.development._records import lookup_run
+
+    return lookup_run(development_places(env), run_id)
 
 
 def test_actor_exit_waits_for_its_namespace_pidfd(tmp_path):

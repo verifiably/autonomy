@@ -51,7 +51,7 @@ def _report(run: RunPaths, channel: LineChannel | None, phase: str, fields: Mapp
 
 def _finish(
     run: RunPaths, progress: DevelopmentProgress, findings: list[Finding], result: VerifiedCandidate | None,
-    *, grant_sha256: str | None, base: str, possible_release: bool,
+    *, grant_sha256: str | None, base: str, possible_release: bool, containment_proven: bool,
 ) -> int:
     with publication_lock(run):
         if stop_requested(run):
@@ -66,7 +66,10 @@ def _finish(
                 receipt = publish_candidate(run, result, grant_sha256=grant_sha256, base=base)
             except DevelopmentAborted as caught:
                 findings.append(caught.finding)
-        status = publish_terminal(run, findings, grant_sha256=grant_sha256, candidate_sha256=receipt)
+        status = publish_terminal(
+            run, findings, grant_sha256=grant_sha256, candidate_sha256=receipt,
+            containment_proven=containment_proven,
+        )
         progress.durable_exit = status
     return status
 
@@ -138,8 +141,11 @@ def execute(
             except DevelopmentAborted as caught:
                 findings.append(caught.finding)
                 possible_release |= caught.finding.code == "development-close-unproven"
-            status = _finish(run, progress, findings, result, grant_sha256=grant_digest, base=source.oid,
-                             possible_release=possible_release)
+            status = _finish(
+                run, progress, findings, result, grant_sha256=grant_digest, base=source.oid,
+                possible_release=possible_release,
+                containment_proven=outcome.containment_proven if outcome is not None else not possible_release,
+            )
             disposition = disposition_of(findings)
             try:
                 if status and outcome is not None and outcome.containment_proven:

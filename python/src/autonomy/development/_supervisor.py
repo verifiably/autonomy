@@ -21,6 +21,7 @@ from autonomy.development._records import (
     MODE,
     DevelopmentAborted,
     RunPaths,
+    boot_id,
     file_digest,
     publication_lock,
     publish_json,
@@ -59,13 +60,6 @@ class _Identity:
     child_pid: int
     start_time: int
     boot_id: str
-
-
-def _boot_id() -> str:
-    value = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    if str(uuid.UUID(value)) != value:
-        raise ValueError("boot ID is not canonical")
-    return value
 
 
 def _start_time(pid: int) -> int:
@@ -187,7 +181,7 @@ def _supervise(
             scratch_fd = hold_storage(child_pid, spec)
             held.callback(os.close, scratch_fd)
             start_time = _start_time(child_pid)
-            boot_id = _boot_id()
+            current_boot = boot_id()
         except (SandboxUnproven, OSError, ValueError, IndexError) as caught:
             raise DevelopmentAborted(_finding("development-sandbox-unproven", f"{caught}; correct the launch guard and rerun")) from caught
         try:
@@ -202,11 +196,11 @@ def _supervise(
                 if _exited(pidfd):
                     raise OSError("the held namespace exited")
                 append_event(run.run_dir, "releasing", child_pid=child_pid, start_time=start_time,
-                             boot_id=boot_id, grant_sha256=grant_sha256)
+                             boot_id=current_boot, grant_sha256=grant_sha256)
                 armed = True
                 until = time.monotonic() + deadline_seconds
                 yield
-        except (OSError, RunRefused, ValueError) as caught:
+        except (SandboxUnproven, OSError, RunRefused, ValueError) as caught:
             code = "development-close-unproven" if armed else "development-gate-unproven"
             raise DevelopmentAborted(_finding(code, f"{caught}; inspect the retained release evidence")) from caught
 
@@ -262,7 +256,10 @@ def _grant_digest(run: RunPaths) -> str | None:
         grant = read_json(path)
     except FileNotFoundError:
         return None
-    if grant.get("run") != run.run_id or grant.get("mode") != MODE or grant.get("run_sha256") != run.run_sha256:
+    if (
+        grant.get("version") != 2 or grant.get("run") != run.run_id
+        or grant.get("mode") != MODE or grant.get("run_sha256") != run.run_sha256
+    ):
         raise ValueError("grant identity does not match the run")
     return file_digest(path)
 
@@ -283,9 +280,9 @@ def _release_identity(run: RunPaths, digest: str | None) -> _Identity | None:
         (), ("launched",), ("launched", "actor-ended"),
     ):
         raise ValueError("unexpected release journal sequence")
-    pid, ticks, boot_id = row.get("child_pid"), row.get("start_time"), row.get("boot_id")
+    pid, ticks, recorded_boot = row.get("child_pid"), row.get("start_time"), row.get("boot_id")
     if (type(pid) is not int or pid <= 0 or type(ticks) is not int or ticks < 0
-            or not isinstance(boot_id, str) or str(uuid.UUID(boot_id)) != boot_id
+            or not isinstance(recorded_boot, str) or str(uuid.UUID(recorded_boot)) != recorded_boot
             or digest is None or row.get("grant_sha256") != digest):
         raise ValueError("release identity or grant digest is invalid")
     if tail and tail[0].get("child_pid") != pid:
@@ -294,12 +291,12 @@ def _release_identity(run: RunPaths, digest: str | None) -> _Identity | None:
                            or tail[1].get("cause") not in ("exit", "deadline", "stop")
                            or type(tail[1].get("containment_proven")) is not bool):
         raise ValueError("invalid actor exit evidence")
-    return _Identity(pid, ticks, boot_id)
+    return _Identity(pid, ticks, recorded_boot)
 
 
 def _recover_namespace(identity: _Identity) -> bool:
     try:
-        if _boot_id() != identity.boot_id:
+        if boot_id() != identity.boot_id:
             return False
         try:
             fd = os.pidfd_open(identity.child_pid)
@@ -325,18 +322,32 @@ def recover_run(run: RunPaths) -> int:
         status = terminal_exit(run)
         if status is not None:
             return status
+        try:
+            rebooted = run.boot_id != boot_id()
+        except (OSError, ValueError):
+            rebooted = False
         digest = None
         try:
             digest = _grant_digest(run)
             identity = _release_identity(run, digest)
         except (OSError, ValueError) as caught:
             finding = _finding("development-close-unproven", f"release evidence is uncertain ({caught}); inspect the journal")
+            containment_proven = rebooted
         else:
             if identity is None:
                 finding = _finding("orchestrator-lost", "the journal proves no release; inspect events and rerun if appropriate")
+                containment_proven = True
+            elif rebooted:
+                finding = _finding("development-close-unproven", "supervisor lost across a reboot; the prior boot ended, the actor's scratch is gone")
+                containment_proven = True
             elif _recover_namespace(identity):
                 finding = _finding("development-close-unproven", "supervisor lost after possible release; containment confirmed, the actor's scratch is gone")
+                containment_proven = True
             else:
                 finding = _finding("development-close-unproven", "supervisor lost and containment unconfirmed; inspect the recorded namespace")
+                containment_proven = False
         with publication_lock(run):
-            return publish_terminal(run, (finding,), grant_sha256=digest, candidate_sha256=None)
+            return publish_terminal(
+                run, (finding,), grant_sha256=digest, candidate_sha256=None,
+                containment_proven=containment_proven,
+            )

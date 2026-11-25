@@ -119,13 +119,25 @@ def test_supervised_offline_run_reconstructs_candidate_after_source_moves(tmp_pa
     header, grant, candidate, verdict = (
         read_json(directory / name) for name in ("run.json", "grant.json", "candidate.json", "disposition.json")
     )
-    assert set(header) == {"version", "run", "mode", "created_at", "repository", "base", "ref", "deadline_seconds", "scratch"}
-    assert set(grant) == {"version", "run", "mode", "issued_at", "run_sha256", "approval", "operation",
-                          "base_sha256", "route", "allowance", "scope", "stdio", "limits"}
+    assert set(header) == {
+        "version", "run", "mode", "created_at", "repository", "base", "ref",
+        "deadline_seconds", "scratch", "boot_id", "delegation",
+    }
+    assert set(grant) == {
+        "version", "run", "mode", "issued_at", "run_sha256", "approval", "delegation", "operation",
+        "base_sha256", "route", "allowance", "scope", "stdio", "limits",
+    }
     assert set(candidate) == {"version", "run", "mode", "base", "ref", "tip", "base_sha256", "bundle_sha256",
                               "grant_sha256", "actor_exit", "closed_at"}
-    assert set(verdict) == {"version", "run", "mode", "disposition", "findings", "closed_at", "grant_sha256", "candidate_sha256"}
-    assert grant["approval"] == "supervised-invocation" and grant["route"] is None and grant["allowance"] is None
+    assert set(verdict) == {
+        "version", "run", "mode", "disposition", "findings", "closed_at",
+        "grant_sha256", "candidate_sha256", "containment_proven",
+    }
+    assert (header["version"], grant["version"], candidate["version"], verdict["version"]) == (2, 2, 2, 2)
+    assert header["delegation"] is None and isinstance(header["boot_id"], str)
+    assert grant["approval"] == "supervised-invocation" and grant["delegation"] is None
+    assert grant["route"] is None and grant["allowance"] is None
+    assert verdict["containment_proven"] is True
     assert (grant["limits"]["actor_storage_bytes"], grant["limits"]["actor_storage_inodes"]) == (1 << 30, 1 << 17)
     assert list(Path(opened["scratch"]).iterdir()) == []
     assert grant["run_sha256"] == file_digest(directory / "run.json")

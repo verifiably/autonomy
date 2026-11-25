@@ -388,7 +388,8 @@ def _lookup(state: Path, run_id: str) -> tuple[Path, dict[str, object]]:
         meta = read_record(path / "run.json")
     except FileNotFoundError:
         return path, {}
-    if (type(meta.get("version")) is not int or meta["version"] != 1 or meta.get("run") != run_id
+    expected_version = 2 if meta.get("mode") == "development" else 1
+    if (type(meta.get("version")) is not int or meta["version"] != expected_version or meta.get("run") != run_id
             or meta.get("mode") not in ("science", "development")):
         raise ValueError("run identity is invalid")
     return path, meta

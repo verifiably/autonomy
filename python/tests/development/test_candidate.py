@@ -115,6 +115,7 @@ def test_confined_receiver_checks_git_and_ancestry(candidate, attempt):
     assert result.tip == tip
     receipt_digest = candidate.publish_candidate(run, result, grant_sha256="2" * 64, base=source.oid)
     receipt = read_json(run.run_dir / "candidate.json")
+    assert receipt["version"] == 2
     assert receipt_digest == file_digest(run.run_dir / "candidate.json")
     assert receipt["bundle_sha256"] == file_digest(run.run_dir / "candidate.bundle")
     assert receipt["base_sha256"] == workspace.base_sha256

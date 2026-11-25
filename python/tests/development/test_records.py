@@ -95,31 +95,58 @@ def test_publication_lock_is_independent_of_supervisor_ownership(records, run, t
     assert probe_lock(run.run_dir / "supervisor.lock", tmp_path).returncode != 0
 
 
+def test_publication_lock_wait_times_out_when_held(records, run, tmp_path):
+    holder = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import fcntl, sys, time; f = open(sys.argv[1], 'rb'); "
+            "fcntl.flock(f, fcntl.LOCK_EX); sys.stdout.write('held\\n'); sys.stdout.flush(); time.sleep(10)",
+            str(run.run_dir / "publication.lock"),
+        ],
+        env={"PATH": os.defpath, "HOME": str(tmp_path)},
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        assert holder.stdout.readline() == b"held\n"
+        with pytest.raises(TimeoutError):
+            with records.publication_lock(run, wait=0.05):
+                pytest.fail("acquired held publication lock")
+    finally:
+        holder.kill()
+        holder.wait(timeout=5)
+
+
 def test_development_records_match_the_approved_schema(records, places, run, tmp_path):
     header = records.read_json(run.run_dir / "run.json")
     assert set(header) == {
-        "version", "run", "mode", "created_at", "repository", "base", "ref", "deadline_seconds", "scratch",
+        "version", "run", "mode", "created_at", "repository", "base", "ref",
+        "deadline_seconds", "scratch", "boot_id", "delegation",
     }
-    assert (header["run"], header["mode"], header["base"], header["repository"]) == (
-        run.run_id, "development", BASE, str(tmp_path / "repo"),
+    assert (header["version"], header["run"], header["mode"], header["base"], header["repository"]) == (
+        2, run.run_id, "development", BASE, str(tmp_path / "repo"),
     )
+    assert header["boot_id"] == run.boot_id == records.boot_id()
+    assert header["delegation"] is None
     assert records.lookup_run(places, run.run_id) == run
     assert records.read_json(run.run_dir / "events.jsonl")["event"] == "allocated"
     for invalid in ("../outside", "b" * 32, str(INCOMPLETE)):
         with pytest.raises(RunRefused, match="development-run-invalid"):
             records.lookup_run(places, invalid)
-    for field, value in (("mode", "science"), ("scratch", str(tmp_path))):
+    for field, value in (("mode", "science"), ("scratch", str(tmp_path)), ("boot_id", "not-a-uuid")):
         invalid_header = {**header, field: value}
         (run.run_dir / "run.json").write_text(json.dumps(invalid_header))
         with pytest.raises(RunRefused, match="development-run-invalid"):
             records.lookup_run(places, run.run_id)
 
 
-def grant(records, run, *, base_digest="1" * 64, walk_digest="2" * 64):
+def grant(records, run, *, base_digest="1" * 64, walk_digest="2" * 64, delegation=None):
     return records.publish_grant(
         run, base_sha256=base_digest, walk_sha256=walk_digest,
         read_only=(Path("/usr"), Path("/etc")), denied=(Path("/secret"),),
-        stdio=("pipe", "socket", "null"), limits=LIMITS,
+        stdio=("pipe", "socket", "null"), limits=LIMITS, delegation=delegation,
     )
 
 
@@ -128,11 +155,114 @@ def test_grant_binds_exact_run_header_and_effective_scope(records, run):
     path = run.run_dir / "grant.json"
     saved = records.read_json(path)
     assert digest == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert saved["version"] == 2
+    assert saved["approval"] == "supervised-invocation" and saved["delegation"] is None
     assert saved["run_sha256"] == hashlib.sha256((run.run_dir / "run.json").read_bytes()).hexdigest()
     assert saved["scope"] == {"read_only": ["/usr", "/etc"], "denied": ["/secret"], "walk_sha256": "2" * 64}
     assert saved["stdio"] == {"stdin": "pipe", "stdout": "socket", "stderr": "null"}
     assert saved["limits"] == LIMITS
     assert saved["route"] is None and saved["allowance"] is None
+
+
+def test_records_are_version_2(records, places, tmp_path):
+    from autonomy.analyst.release import ReleasedFile
+    from autonomy.development._candidate import VerifiedCandidate, publish_candidate
+
+    with records.allocate_run(places, repository=tmp_path / "repo", base=BASE, deadline_seconds=10.0) as opened:
+        base_path = opened.run_dir / "base.bundle"
+        base_path.write_bytes(b"pinned fixture bytes")
+        base_digest = hashlib.sha256(base_path.read_bytes()).hexdigest()
+        walk_digest = records.publish_json(opened.run_dir / "walk.json", {"fixture": True})
+        grant_digest = grant(records, opened, base_digest=base_digest, walk_digest=walk_digest)
+        staged = opened.run_dir / ".candidate-staged.bundle"
+        staged.write_bytes(b"validated fixture bytes")
+        staged_digest = hashlib.sha256(staged.read_bytes()).hexdigest()
+        verified = VerifiedCandidate("b" * 40, ReleasedFile(staged, 23, staged_digest), base_digest)
+        candidate_digest = publish_candidate(opened, verified, grant_sha256=grant_digest, base=BASE)
+        with records.publication_lock(opened):
+            assert records.publish_terminal(
+                opened, [], grant_sha256=grant_digest, candidate_sha256=candidate_digest, containment_proven=True,
+            ) == 0
+
+        header = records.read_json(opened.run_dir / "run.json")
+        grant_record = records.read_json(opened.run_dir / "grant.json")
+        candidate_record = records.read_json(opened.run_dir / "candidate.json")
+        verdict = records.read_json(opened.run_dir / "disposition.json")
+        assert (header["version"], grant_record["version"], candidate_record["version"], verdict["version"]) == (2, 2, 2, 2)
+        assert header["delegation"] is None and header["boot_id"] == opened.boot_id
+        assert grant_record["approval"] == "supervised-invocation" and grant_record["delegation"] is None
+        assert verdict["containment_proven"] is True
+        terminal = records.read_terminal(opened)
+        assert terminal == records.Terminal(
+            exit=0,
+            disposition="clean",
+            sha256=hashlib.sha256((opened.run_dir / "disposition.json").read_bytes()).hexdigest(),
+            containment_proven=True,
+        )
+
+    explicit_id = "f" * 32
+    header_delegation = {"id": "del-1", "grant_digest": "9" * 64, "attempt": "att-1"}
+    grant_delegation = {
+        **header_delegation,
+        "storage": {"path": "/store", "device": 1, "inode": 2},
+        "start": 1,
+        "repository": "autonomy",
+        "actor": "check",
+        "ref": "refs/heads/main",
+        "caller": {"unit": "band.service", "cgroup": "/user.slice/band.service", "invocation_id": "c" * 32},
+        "bounds": {"memory_bytes": 436207616, "swap_bytes": 0, "tasks": 64},
+    }
+    with records.allocate_run(
+        places, repository=tmp_path / "repo", base=BASE, deadline_seconds=10.0,
+        run_id=explicit_id, delegation=header_delegation,
+    ) as delegated:
+        assert delegated.run_id == explicit_id
+        assert records.read_json(delegated.run_dir / "run.json")["delegation"] == header_delegation
+        grant(records, delegated, delegation=grant_delegation)
+        saved_grant = records.read_json(delegated.run_dir / "grant.json")
+        assert saved_grant["approval"] == "delegation"
+        assert saved_grant["delegation"] == grant_delegation
+
+
+def test_version_1_records_are_refused(records, places, tmp_path):
+    with records.allocate_run(places, repository=tmp_path / "repo", base=BASE, deadline_seconds=10.0) as opened:
+        base_path = opened.run_dir / "base.bundle"
+        base_path.write_bytes(b"pinned fixture bytes")
+        base_digest = hashlib.sha256(base_path.read_bytes()).hexdigest()
+        walk_digest = records.publish_json(opened.run_dir / "walk.json", {"fixture": True})
+        grant_digest = grant(records, opened, base_digest=base_digest, walk_digest=walk_digest)
+        bundle_path = opened.run_dir / "candidate.bundle"
+        bundle_path.write_bytes(b"validated fixture bytes")
+        v1_candidate = records.publish_json(opened.run_dir / "candidate.json", {
+            "version": 1, "run": opened.run_id, "mode": "development", "base": BASE,
+            "ref": "refs/heads/development", "tip": "b" * 40,
+            "base_sha256": base_digest, "grant_sha256": grant_digest, "actor_exit": 0,
+            "closed_at": "2026-11-20T00:00:00Z",
+            "bundle_sha256": hashlib.sha256(bundle_path.read_bytes()).hexdigest(),
+        })
+        with records.publication_lock(opened):
+            with pytest.raises(ValueError, match="version"):
+                records.publish_terminal(
+                    opened, [], grant_sha256=grant_digest, candidate_sha256=v1_candidate, containment_proven=True,
+                )
+            assert records.publish_terminal(
+                opened, [Finding("development-stopped", "stop.json", "stopped")],
+                grant_sha256=grant_digest, candidate_sha256=None, containment_proven=True,
+            ) == 3
+
+        verdict_path = opened.run_dir / "disposition.json"
+        v1_verdict = {**records.read_json(verdict_path), "version": 1}
+        verdict_path.write_text(json.dumps(v1_verdict))
+        with pytest.raises(RunRefused, match="development-run-invalid"):
+            records.read_terminal(opened)
+        with pytest.raises(RunRefused, match="development-run-invalid"):
+            records.terminal_exit(opened)
+
+        run_path = opened.run_dir / "run.json"
+        v1_header = {**records.read_json(run_path), "version": 1}
+        run_path.write_text(json.dumps(v1_header))
+        with pytest.raises(RunRefused, match="development-run-invalid"):
+            records.lookup_run(places, opened.run_id)
 
 
 def test_failed_grant_publication_leaves_no_confirmed_digest(records, run, monkeypatch):
@@ -146,8 +276,11 @@ def test_failed_grant_publication_leaves_no_confirmed_digest(records, run, monke
     assert aborted.value.finding.code == "development-gate-unproven"
     assert not (run.run_dir / "grant.json").exists()
     with records.publication_lock(run):
-        assert records.publish_terminal(run, [aborted.value.finding], grant_sha256=None, candidate_sha256=None) == 4
-    assert records.read_json(run.run_dir / "disposition.json")["grant_sha256"] is None
+        assert records.publish_terminal(
+            run, [aborted.value.finding], grant_sha256=None, candidate_sha256=None, containment_proven=True,
+        ) == 4
+    verdict = records.read_json(run.run_dir / "disposition.json")
+    assert verdict["grant_sha256"] is None and verdict["containment_proven"] is True
 
 
 def test_terminal_publication_is_immutable_and_requires_durable_inputs(records, run, monkeypatch):
@@ -160,7 +293,7 @@ def test_terminal_publication_is_immutable_and_requires_durable_inputs(records, 
     walk_digest = records.publish_json(run.run_dir / "walk.json", {"fixture": True})
     grant_digest = grant(records, run, base_digest=base_digest, walk_digest=walk_digest)
     candidate = {
-        "version": 1, "run": run.run_id, "mode": "development", "base": BASE,
+        "version": 2, "run": run.run_id, "mode": "development", "base": BASE,
         "ref": "refs/heads/development", "tip": "b" * 40,
         "base_sha256": base_digest, "grant_sha256": grant_digest, "actor_exit": 0,
         "closed_at": "2026-11-20T00:00:00Z", "bundle_sha256": hashlib.sha256(bundle_path.read_bytes()).hexdigest(),
@@ -169,7 +302,9 @@ def test_terminal_publication_is_immutable_and_requires_durable_inputs(records, 
     path = run.run_dir / "disposition.json"
     with records.publication_lock(run):
         with pytest.raises((ValueError, OSError)):
-            records.publish_terminal(run, [], grant_sha256=grant_digest, candidate_sha256="3" * 64)
+            records.publish_terminal(
+                run, [], grant_sha256=grant_digest, candidate_sha256="3" * 64, containment_proven=True,
+            )
         assert not path.exists()
 
         def fail_publish(*args, **kwargs):
@@ -178,13 +313,19 @@ def test_terminal_publication_is_immutable_and_requires_durable_inputs(records, 
         with monkeypatch.context() as patch:
             patch.setattr(records, "publish_json", fail_publish)
             with pytest.raises(OSError):
-                records.publish_terminal(run, [], grant_sha256=grant_digest, candidate_sha256=digest)
+                records.publish_terminal(
+                    run, [], grant_sha256=grant_digest, candidate_sha256=digest, containment_proven=True,
+                )
         assert records.terminal_exit(run) is None
-        assert records.publish_terminal(run, [], grant_sha256=grant_digest, candidate_sha256=digest) == 0
+        assert records.publish_terminal(
+            run, [], grant_sha256=grant_digest, candidate_sha256=digest, containment_proven=True,
+        ) == 0
         saved = path.read_bytes()
         with pytest.raises(FileExistsError):
-            records.publish_terminal(run, [Finding("development-stopped", "stop.json", "stopped")],
-                                     grant_sha256=grant_digest, candidate_sha256=None)
+            records.publish_terminal(
+                run, [Finding("development-stopped", "stop.json", "stopped")],
+                grant_sha256=grant_digest, candidate_sha256=None, containment_proven=True,
+            )
     assert path.read_bytes() == saved
     assert records.terminal_exit(run) == 0
     bundle_path.write_bytes(b"changed")

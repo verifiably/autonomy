@@ -11,6 +11,7 @@ import re
 import secrets
 import stat
 import time
+import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ MODE = "development"
 REF = "refs/heads/development"
 BASE_REF = "refs/heads/base"
 _RUN_ID = re.compile(r"[0-9a-f]{32}")
+_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _OID = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _SUPERVISOR = "supervisor.lock"
@@ -46,6 +48,15 @@ class RunPaths:
     run_dir: Path
     scratch: Path
     run_sha256: str
+    boot_id: str
+
+
+@dataclass(frozen=True)
+class Terminal:
+    exit: int
+    disposition: str
+    sha256: str
+    containment_proven: bool
 
 
 @dataclass(frozen=True)
@@ -53,6 +64,13 @@ class DevelopmentPlaces:
     state: Path
     cache: Path
     config: Path
+
+
+def boot_id() -> str:
+    value = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    if str(uuid.UUID(value)) != value:
+        raise ValueError("boot ID is not canonical")
+    return value
 
 
 def development_places(env: Mapping[str, str]) -> DevelopmentPlaces:
@@ -79,16 +97,30 @@ def _open_regular(path: Path) -> int:
 
 
 @contextmanager
-def _locked(path: Path, *, nowait: bool) -> Iterator[None]:
+def _locked(path: Path, *, nowait: bool = False, wait: float | None = None) -> Iterator[None]:
     try:
         fd = _open_regular(path)
     except (OSError, ValueError) as caught:
         raise _invalid(f"cannot open {path.name}: {caught}") from caught
     try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | (fcntl.LOCK_NB if nowait else 0))
-        except BlockingIOError as caught:
-            raise RunRefused("development-supervisor-live", "the supervisor owns this run; use stop or wait") from caught
+        if nowait:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as caught:
+                raise RunRefused("development-supervisor-live", "the supervisor owns this run; use stop or wait") from caught
+        elif wait is not None:
+            deadline = time.monotonic() + max(0.0, wait)
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError(f"timed out waiting for {path.name}") from None
+                    time.sleep(min(0.02, remaining))
+        else:
+            fcntl.flock(fd, fcntl.LOCK_EX)
         yield
     finally:
         os.close(fd)
@@ -101,8 +133,8 @@ def supervisor_lock(run: RunPaths) -> Iterator[None]:
 
 
 @contextmanager
-def publication_lock(run: RunPaths) -> Iterator[None]:
-    with _locked(run.run_dir / _PUBLICATION, nowait=False):
+def publication_lock(run: RunPaths, *, wait: float | None = None) -> Iterator[None]:
+    with _locked(run.run_dir / _PUBLICATION, wait=wait):
         yield
 
 
@@ -155,16 +187,49 @@ def _durable_parents(path: Path) -> None:
         fsync_dir(directory.parent)
 
 
+def _valid_boot_id(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(uuid.UUID(value)) == value
+    except ValueError:
+        return False
+
+
+def _valid_run_delegation(value: object) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, dict) or set(value) != {"id", "grant_digest", "attempt"}:
+        return False
+    return (
+        all(isinstance(value[key], str) and _ID.fullmatch(value[key]) is not None for key in ("id", "attempt"))
+        and isinstance(value["grant_digest"], str)
+        and _DIGEST.fullmatch(value["grant_digest"]) is not None
+    )
+
+
 @contextmanager
 def allocate_run(
-    places: DevelopmentPlaces, *, repository: Path, base: str, deadline_seconds: float,
+    places: DevelopmentPlaces,
+    *,
+    repository: Path,
+    base: str,
+    deadline_seconds: float,
+    run_id: str | None = None,
+    delegation: Mapping[str, str] | None = None,
 ) -> Iterator[RunPaths]:
-    run_id = secrets.token_hex(16)
-    run_dir = places.state / "runs" / run_id
-    scratch = places.cache / "scratch" / run_id
     made: list[Path] = []
     retained = False
     try:
+        chosen_id = secrets.token_hex(16) if run_id is None else run_id
+        if not _RUN_ID.fullmatch(chosen_id):
+            raise ValueError("invalid run ID")
+        run_delegation = None if delegation is None else dict(delegation)
+        if not _valid_run_delegation(run_delegation):
+            raise ValueError("invalid run delegation identity")
+        current_boot = boot_id()
+        run_dir = places.state / "runs" / chosen_id
+        scratch = places.cache / "scratch" / chosen_id
         for parent in (run_dir.parent, scratch.parent):
             _durable_parents(parent)
         with ExitStack() as lifetime:
@@ -179,11 +244,12 @@ def allocate_run(
                         os.close(fd)
                     lifetime.enter_context(_locked(run_dir / _SUPERVISOR, nowait=True))
                     digest = publish_json(run_dir / "run.json", {
-                        "version": 1, "run": run_id, "mode": MODE, "created_at": utc_now(),
+                        "version": 2, "run": chosen_id, "mode": MODE, "created_at": utc_now(),
                         "repository": str(repository), "base": base, "ref": REF,
                         "deadline_seconds": deadline_seconds, "scratch": str(scratch),
+                        "boot_id": current_boot, "delegation": run_delegation,
                     })
-                    append_event(run_dir, "allocated", run=run_id, mode=MODE)
+                    append_event(run_dir, "allocated", run=chosen_id, mode=MODE)
                 except BaseException:
                     for directory in reversed(made):
                         if directory == run_dir:
@@ -193,8 +259,8 @@ def allocate_run(
                         fsync_dir(directory.parent)
                     raise
             retained = True
-            yield RunPaths(run_id, run_dir, scratch, digest)
-    except (OSError, RunRefused) as caught:
+            yield RunPaths(chosen_id, run_dir, scratch, digest, current_boot)
+    except (OSError, ValueError, RunRefused) as caught:
         if retained:
             raise
         raise RunRefused("allocation-failed", f"cannot allocate a development run: {caught}; restore state or cache storage") from caught
@@ -230,13 +296,15 @@ def lookup_run(places: DevelopmentPlaces, run_id: str) -> RunPaths:
         data = _read_bytes(run_dir / "run.json")
         record = _json(data)
         if (
-            record.get("version") != 1 or record.get("mode") != MODE or record.get("run") != run_id
+            record.get("version") != 2 or record.get("mode") != MODE or record.get("run") != run_id
             or record.get("scratch") != str(scratch) or record.get("ref") != REF
             or not _canonical_path(record.get("repository"))
             or not _valid_oid(record.get("base")) or not _bound(record.get("deadline_seconds"))
+            or not _valid_boot_id(record.get("boot_id"))
+            or "delegation" not in record or not _valid_run_delegation(record["delegation"])
         ):
             raise ValueError("run header identity or scope is invalid")
-        return RunPaths(run_id, run_dir, scratch, hashlib.sha256(data).hexdigest())
+        return RunPaths(run_id, run_dir, scratch, hashlib.sha256(data).hexdigest(), str(record["boot_id"]))
     except (OSError, ValueError) as caught:
         raise _invalid(str(caught)) from caught
 
@@ -253,11 +321,14 @@ def valid_run(run_dir: Path, env: Mapping[str, str]) -> bool:
 def publish_grant(
     run: RunPaths, *, base_sha256: str, walk_sha256: str, read_only: tuple[Path, ...],
     denied: tuple[Path, ...], stdio: tuple[StdioKind, StdioKind, StdioKind],
-    limits: Mapping[str, int | float],
+    limits: Mapping[str, int | float], delegation: Mapping[str, object] | None = None,
 ) -> str:
+    approval = "supervised-invocation" if delegation is None else "delegation"
     record = {
-        "version": 1, "run": run.run_id, "mode": MODE, "issued_at": utc_now(),
-        "run_sha256": run.run_sha256, "approval": "supervised-invocation", "operation": "prepare-git-candidate",
+        "version": 2, "run": run.run_id, "mode": MODE, "issued_at": utc_now(),
+        "run_sha256": run.run_sha256, "approval": approval,
+        "delegation": None if delegation is None else dict(delegation),
+        "operation": "prepare-git-candidate",
         "base_sha256": base_sha256, "route": None, "allowance": None,
         "scope": {"read_only": list(map(str, read_only)), "denied": list(map(str, denied)), "walk_sha256": walk_sha256},
         "stdio": dict(zip(("stdin", "stdout", "stderr"), stdio, strict=True)), "limits": dict(limits),
@@ -286,10 +357,27 @@ def _checked_json(path: Path, digest: object) -> dict[str, object]:
     return _json(data)
 
 
+def _delegations_agree(header: Mapping[str, object], grant: Mapping[str, object]) -> bool:
+    if "delegation" not in header or "delegation" not in grant:
+        return False
+    run_delegation = header["delegation"]
+    grant_delegation = grant["delegation"]
+    if run_delegation is None:
+        return grant.get("approval") == "supervised-invocation" and grant_delegation is None
+    if not isinstance(run_delegation, dict) or not isinstance(grant_delegation, dict):
+        return False
+    return (
+        grant.get("approval") == "delegation"
+        and {key: grant_delegation.get(key) for key in ("id", "grant_digest", "attempt")} == run_delegation
+    )
+
+
 def _verify_clean(run: RunPaths, grant_sha256: object, candidate_sha256: object) -> None:
     header = _checked_json(run.run_dir / "run.json", run.run_sha256)
     grant = _checked_json(run.run_dir / "grant.json", grant_sha256)
     candidate = _checked_json(run.run_dir / "candidate.json", candidate_sha256)
+    if any(record.get("version") != 2 for record in (header, grant, candidate)):
+        raise ValueError("clean evidence requires version 2 records")
     base_digest = file_digest(run.run_dir / "base.bundle")
     _matches_digest(base_digest, grant.get("base_sha256"), "base.bundle")
     _matches_digest(base_digest, candidate.get("base_sha256"), "base.bundle")
@@ -301,6 +389,7 @@ def _verify_clean(run: RunPaths, grant_sha256: object, candidate_sha256: object)
     if (
         any(record.get("run") != run.run_id or record.get("mode") != MODE for record in (grant, candidate))
         or grant.get("run_sha256") != run.run_sha256 or candidate.get("grant_sha256") != grant_sha256
+        or not _delegations_agree(header, grant)
         or candidate.get("base") != header.get("base") or candidate.get("ref") != REF
         or not _valid_oid(candidate.get("tip")) or candidate.get("tip") == candidate.get("base")
         or type(candidate.get("actor_exit")) is not int or candidate.get("actor_exit") != 0
@@ -309,38 +398,60 @@ def _verify_clean(run: RunPaths, grant_sha256: object, candidate_sha256: object)
 
 
 def publish_terminal(
-    run: RunPaths, findings: Sequence[Finding], *, grant_sha256: str | None, candidate_sha256: str | None,
+    run: RunPaths,
+    findings: Sequence[Finding],
+    *,
+    grant_sha256: str | None,
+    candidate_sha256: str | None,
+    containment_proven: bool,
 ) -> int:
+    if type(containment_proven) is not bool:
+        raise ValueError("containment_proven must be a boolean")
     disposition = disposition_of(findings)
     if disposition == "clean":
+        if not containment_proven:
+            raise ValueError("a clean disposition requires proven containment")
         _verify_clean(run, grant_sha256, candidate_sha256)
     else:
         candidate_sha256 = None
     publish_json(run.run_dir / "disposition.json", {
-        "version": 1, "run": run.run_id, "mode": MODE, "disposition": disposition,
+        "version": 2, "run": run.run_id, "mode": MODE, "disposition": disposition,
         "findings": [{"code": f.code, "ref": f.ref, "message": f.message} for f in findings],
         "closed_at": utc_now(), "grant_sha256": grant_sha256, "candidate_sha256": candidate_sha256,
+        "containment_proven": containment_proven,
     })
     return EXIT_CODES[disposition]
 
 
-def terminal_exit(run: RunPaths) -> int | None:
+def read_terminal(run: RunPaths) -> Terminal | None:
     try:
-        record = read_json(run.run_dir / "disposition.json")
+        data = _read_bytes(run.run_dir / "disposition.json")
     except FileNotFoundError:
         return None
     except (OSError, ValueError) as caught:
         raise _invalid(str(caught)) from caught
     try:
+        record = _json(data)
         disposition = record.get("disposition")
-        if record.get("version") != 1 or record.get("mode") != MODE or record.get("run") != run.run_id:
+        containment_proven = record.get("containment_proven")
+        if (
+            record.get("version") != 2 or record.get("mode") != MODE or record.get("run") != run.run_id
+            or type(containment_proven) is not bool
+        ):
             raise ValueError("invalid development disposition identity")
         if disposition == "clean":
+            if not containment_proven:
+                raise ValueError("a clean disposition requires proven containment")
             _verify_clean(run, record.get("grant_sha256"), record.get("candidate_sha256"))
         elif record.get("candidate_sha256") is not None:
             raise ValueError("a non-clean disposition cannot link a candidate")
         status = EXIT_CODES[disposition]
         fsync_dir(run.run_dir)
-        return status
+        return Terminal(status, str(disposition), hashlib.sha256(data).hexdigest(), containment_proven)
     except (OSError, ValueError, KeyError, TypeError) as caught:
         raise _invalid(str(caught)) from caught
+
+
+def terminal_exit(run: RunPaths) -> int | None:
+    terminal = read_terminal(run)
+    return None if terminal is None else terminal.exit

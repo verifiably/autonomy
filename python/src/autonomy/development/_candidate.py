@@ -65,7 +65,7 @@ def publish_candidate(run: RunPaths, result: VerifiedCandidate, *, grant_sha256:
         result.staged.path.unlink()
         fsync_dir(run.run_dir)
         return publish_json(run.run_dir / "candidate.json", {
-            "version": 1, "run": run.run_id, "mode": MODE, "base": base, "ref": REF, "tip": result.tip,
+            "version": 2, "run": run.run_id, "mode": MODE, "base": base, "ref": REF, "tip": result.tip,
             "base_sha256": result.base_sha256, "bundle_sha256": result.staged.sha256,
             "grant_sha256": grant_sha256, "actor_exit": 0, "closed_at": utc_now(),
         })
