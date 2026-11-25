@@ -6,7 +6,8 @@ import re
 
 from autonomy.baseline import read_private_bytes
 from . import _contract as c
-from ._store import Campaign, _private
+from ._database import GrantUnusable, private_path
+from ._store import Campaign
 
 
 def parse_json(data):
@@ -36,7 +37,7 @@ def storage(config_dir):
     try:
         c.keys(record, ("version", "path", "device", "inode"))
         root = Path(record["path"])
-        _private(root, True)
+        private_path(root, directory=True)
         info = root.stat()
         if (record["version"], record["device"], record["inode"]) != (1, info.st_dev, info.st_ino):
             raise ValueError("qualified directory was replaced")
@@ -53,7 +54,7 @@ def storage(config_dir):
         if not candidates or max(candidates)[1] not in ("ext4", "xfs", "btrfs"):
             raise ValueError("unsupported accounting filesystem")
         return root
-    except (OSError, TypeError, ValueError, c.AllowanceRefused) as exc:
+    except (OSError, TypeError, ValueError, GrantUnusable, c.AllowanceRefused) as exc:
         raise c.AllowanceRefused("allowance-unavailable", "cannot verify qualified local storage") from exc
 
 

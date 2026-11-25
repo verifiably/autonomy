@@ -2,15 +2,13 @@
 import json
 import os
 import sqlite3
-import stat
-import tempfile
 import time
-from contextlib import closing, contextmanager
+from contextlib import contextmanager
 from pathlib import Path
 
-from autonomy.baseline import fsync_dir
 from . import _contract as c
 from ._contract import AllowanceRefused
+from ._database import GrantMissing, GrantUnusable, grant_transaction, publish_grant_file
 
 _SCHEMA = """
 CREATE TABLE grant_record (cfg TEXT NOT NULL, issuer INTEGER NOT NULL, issued INTEGER NOT NULL, closed TEXT, closed_at INTEGER, closed_by INTEGER);
@@ -21,15 +19,6 @@ CREATE UNIQUE INDEX one_open ON envelope(name) WHERE closed=0;
 CREATE TABLE reservation (envelope TEXT, role TEXT, ticket TEXT, request TEXT NOT NULL, debit TEXT NOT NULL,
                           actor TEXT, settlement TEXT, PRIMARY KEY(envelope,role,ticket));
 """
-
-
-def _private(path, directory):
-    info = path.lstat()
-    mode = 0o700 if directory else 0o600
-    kind = stat.S_ISDIR if directory else stat.S_ISREG
-    c.require(path.is_absolute() and path == path.resolve() and kind(info.st_mode)
-              and stat.S_IMODE(info.st_mode) == mode and info.st_uid == os.geteuid(),
-              "accounting requires private owned storage", "allowance-unavailable")
 
 
 class Campaign:
@@ -43,53 +32,32 @@ class Campaign:
         c.definition(config)
         campaign = cls(root, config["campaign_id"])
         c.require(config["expires"] > time.time(), "grant already expired", "allowance-expired")
+
+        def build(db: sqlite3.Connection) -> None:
+            db.executescript(_SCHEMA)
+            db.execute("INSERT INTO grant_record(cfg,issuer,issued) VALUES (?,?,?)",
+                       (c.canonical(config), os.geteuid(), int(time.time())))
+            db.executemany("INSERT INTO member(name,limits) VALUES (?,?)",
+                           [(name, c.canonical(row["limits"])) for name, row in config["members"].items()])
+
         try:
-            _private(root, True)
-            with tempfile.NamedTemporaryFile(dir=root, prefix=".issuing-") as temporary:
-                with closing(sqlite3.connect(temporary.name)) as db:
-                    db.execute("PRAGMA synchronous=FULL")
-                    db.executescript(_SCHEMA)
-                    db.execute("INSERT INTO grant_record(cfg,issuer,issued) VALUES (?,?,?)",
-                               (c.canonical(config), os.geteuid(), int(time.time())))
-                    db.executemany("INSERT INTO member(name,limits) VALUES (?,?)",
-                                   [(name, c.canonical(row["limits"])) for name, row in config["members"].items()])
-                    db.commit()
-                os.fsync(temporary.fileno())
-                os.link(temporary.name, campaign.path)
-                fsync_dir(root)
+            publish_grant_file(root, campaign.path, build)
         except FileExistsError:
             raise AllowanceRefused("allowance-closed", "campaign ID was already issued") from None
-        except (OSError, sqlite3.Error) as exc:
+        except GrantUnusable as exc:
             raise AllowanceRefused("allowance-unavailable", "cannot publish durable grant") from exc
         return campaign
 
     @contextmanager
     def _transaction(self):
         try:
-            _private(self.root, True)
-            try:
-                _private(self.path, False)
-            except FileNotFoundError:
-                raise AllowanceRefused("allowance-missing", "unknown campaign") from None
-            with closing(sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True, timeout=1)) as db:
-                db.row_factory = sqlite3.Row
-                db.execute("PRAGMA synchronous=FULL")
-                db.execute("BEGIN IMMEDIATE")
-                rows = db.execute("SELECT * FROM grant_record").fetchall()
-                c.require(len(rows) == 1, "invalid grant record", "allowance-unavailable")
-                config = json.loads(rows[0]["cfg"])
-                c.require(config["campaign_id"] == self.name, "grant identity differs", "allowance-unavailable")
+            with grant_transaction(self.root, self.path, "campaign_id", self.name) as (db, config, cause):
                 db.execute("CREATE TABLE IF NOT EXISTS turn_dispute (envelope TEXT, report TEXT, PRIMARY KEY(envelope,report))")
                 db.execute("CREATE TABLE IF NOT EXISTS turn_exit (envelope TEXT PRIMARY KEY, normal INTEGER NOT NULL)")
-                cause = rows[0]["closed"]
-                if cause is None and time.time() >= config["expires"]:
-                    db.execute("UPDATE grant_record SET closed='expired',closed_at=?", (int(time.time()),))
-                    db.commit()
-                    db.execute("BEGIN IMMEDIATE")
-                    cause = "expired"
                 yield db, config, cause
-                db.commit()
-        except (sqlite3.Error, OSError, ValueError, KeyError, TypeError) as exc:
+        except GrantMissing:
+            raise AllowanceRefused("allowance-missing", "unknown campaign") from None
+        except (GrantUnusable, sqlite3.Error, OSError, ValueError, KeyError, TypeError) as exc:
             raise AllowanceRefused("allowance-unavailable", "unusable accounting state") from exc
 
     @staticmethod

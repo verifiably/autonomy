@@ -289,3 +289,28 @@ def test_early_report_cannot_reopen_before_host_confirms_the_terminal_exit(tmp_p
     pool.confirm_exit("action", R, True)
     with pytest.raises(AllowanceRefused, match="allowance-closed"):
         pool.open("action", R2, **opening)
+
+
+@pytest.mark.parametrize("delta", [3600, -30])
+def test_another_kind_of_grant_is_missing_here(tmp_path, delta):
+    import json
+    import sqlite3
+
+    path = tmp_path / "pool.sqlite"
+    cfg = {"kind": "development-delegation.v1", "delegation_id": "pool", "expires": int(time.time()) + delta}
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "CREATE TABLE grant_record ("
+            "cfg TEXT NOT NULL, issuer INTEGER NOT NULL, issued INTEGER NOT NULL, "
+            "closed TEXT, closed_at INTEGER, closed_by INTEGER)"
+        )
+        db.execute(
+            "INSERT INTO grant_record(cfg, issuer, issued) VALUES (?, ?, ?)",
+            (json.dumps(cfg, sort_keys=True, separators=(",", ":")), os.geteuid(), int(time.time())),
+        )
+    path.chmod(0o600)
+    before = path.read_bytes()
+    with pytest.raises(AllowanceRefused, match="allowance-missing"):
+        Campaign(tmp_path, "pool").receipt()
+    assert path.read_bytes() == before
+

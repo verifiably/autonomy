@@ -282,7 +282,8 @@ publishing its name exclusively and syncing its parent. Grant JSON has
 `output_micro_usd_per_mtok` and `rates_micro_usd_per_mtok` (actual input, output, cache_read, cache_write_5m and cache_write_1h prices).
 
 Reservation, settlement, identity binding and revocation serialize under
-SQLite immediate transactions with full synchronous commits. The effective
+SQLite immediate transactions with synchronous commits that also sync the
+directory (`synchronous=EXTRA`). The effective
 remaining units are the smaller of the campaign and member balances. Each
 envelope's role and sequence or invocation/phase identify its reservation.
 Repetition returns its recorded state. Settlement preserves the original
