@@ -118,8 +118,8 @@ def frame(request: Request, route: Route, headers: tuple[tuple[str, str], ...], 
     return ("\r\n".join(lines) + "\r\n\r\n").encode("latin-1") + body
 
 
-def refusal(code: str, message: str) -> bytes:
-    body = json.dumps({"type": "error", "error": {"type": "egress_refused", "code": code, "message": message}}).encode()
+def refusal(code: str, message: str, **units) -> bytes:
+    body = json.dumps({"type": "error", "error": {"type": "egress_refused", "code": code, "message": message, **units}}).encode()
     head = (
         "HTTP/1.1 403 Forbidden\r\ncontent-type: application/json\r\n"
         f"content-length: {len(body)}\r\nconnection: close\r\n\r\n"

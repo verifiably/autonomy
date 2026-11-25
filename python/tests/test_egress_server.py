@@ -294,7 +294,8 @@ def test_twenty_concurrent_requests_are_all_served(serve):  # Review Focus 4
 def test_an_allowance_refusal_is_answered_and_never_forwarded(serve):
     class Refuse:
         def admit(self, run, operation, model, request_bytes, in_flight):
-            raise AllowanceRefused("allowance-exhausted", "the run's allowance is spent")
+            raise AllowanceRefused("allowance-exhausted", "the run's allowance is spent", dimension="attempts",
+                                 remaining=dict(attempts=0,input_tokens=5,output_tokens=4,micro_usd=3,job_starts=2))
 
         def settle(self, seq, upstream_request_id, usage):
             raise AssertionError("never settled")
@@ -303,6 +304,8 @@ def test_an_allowance_refusal_is_answered_and_never_forwarded(serve):
     status, body = status_and_body(exchange(s.port, raw_request(body=message())))
     s.server.close("close")
     assert status == 403 and json.loads(body)["error"]["code"] == "allowance-exhausted"
+    assert json.loads(body)["error"]["dimension"] == "attempts"
+    assert json.loads(body)["error"]["remaining"]["attempts"] == 0
     assert s.upstream.seen == []
 
 

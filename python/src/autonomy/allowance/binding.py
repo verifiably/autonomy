@@ -17,6 +17,8 @@ class Member:
     expires: int
     conversation_id: str | None
     provider_session_id: str | None
+    grant_digest: str
+    storage: dict
 
     def open(self, envelope):
         return self.pool.open(self.name, envelope, caller=self.caller, target=self.target, route_digest=self.route_digest,
@@ -48,4 +50,4 @@ def select(config, reference, route_reference, caller, route_digest, conversatio
     pool.check_open(name, caller=caller, target=spec["target"], route_digest=route_digest,
                     conversation_id=conversation_id, provider_session_id=provider_session_id)
     return Member(pool, name, caller, spec["target"], route_digest, grant["tariff"], grant["expires"],
-                  conversation_id, provider_session_id)
+                  conversation_id, provider_session_id, receipt["grant_digest"], receipt["storage"])

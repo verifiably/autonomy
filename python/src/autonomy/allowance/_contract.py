@@ -95,7 +95,7 @@ def definition(value):
 
 def ticket(role, args):
     if role == "model":
-        return str(integer(args.get("seq")))
+        return str(integer(args.get("seq"), 1))
     require(role == "job", "invalid peer role")
     invocation = opaque(args.get("invocation_id"))
     phase = args.get("phase")

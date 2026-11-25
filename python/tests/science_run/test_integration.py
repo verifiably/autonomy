@@ -299,6 +299,11 @@ def test_dead_supervisor_leaves_an_orphan_until_state_only_close(world, idle_rou
     env = {k: v for k, v in world.env.items() if k != "XDG_RUNTIME_DIR"}
     recovered = world.control("close", opened["run"], env=env)
     assert recovered.returncode == 4, recovered.stderr.decode()
+    from autonomy.allowance._configuration import resolve
+    receipt = json.loads((directory / "allowance.json").read_bytes())
+    config = Path(world.env["XDG_CONFIG_HOME"]) / "verifiably-autonomy"
+    pool, member = resolve(config, receipt["campaign_id"] + "/" + receipt["member_id"])
+    assert pool.snapshot(member)["envelopes"][0]["closed"] == 1
     assert [f["code"] for f in json.loads(recovered.stdout)["findings"]] == ["orchestrator-lost"]
     assert any(row.get("event") == "egress-closed" and row.get("cause") == "eof" for row in _events(directory))
     with _run(world, ["/usr/bin/true"]) as (successor, report):

@@ -17,7 +17,7 @@ def _receive(peer):
         raise EOFError
     if flags & (socket.MSG_TRUNC | socket.MSG_CTRUNC):
         raise ValueError("truncated frame")
-    value = parse_json(data)
+    value = parse_json(data.decode("utf-8"))
     if type(value) is not dict or value.get("version") != VERSION:
         raise ValueError("invalid allowance version")
     return value

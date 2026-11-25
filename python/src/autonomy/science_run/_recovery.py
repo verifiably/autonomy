@@ -14,6 +14,7 @@ import stat
 import time
 
 from autonomy import development
+from autonomy.allowance import AllowanceRefused, Campaign
 from autonomy.baseline import ADMISSION_LOCK, lock, read_events, read_record
 from autonomy.closing import close as classify, disposition_of
 from autonomy.egress.session import EgressClosed, kill_orphan
@@ -444,6 +445,14 @@ def control(action: str, run_id: str, env: Mapping[str, str], *, diag: Diag, emi
                 return status
             events, torn = read_events(run_dir)
             findings = _orphan_findings(run_dir, meta, events, owner, torn=torn)
+            if "allowance" in meta:
+                bound = meta["allowance"]
+                storage = bound["storage"]
+                try:
+                    pool = Campaign(_path(storage["path"]), bound["campaign_id"])
+                    pool.recover_envelope(bound["member_id"], run_id, bound["grant_digest"], storage)
+                except AllowanceRefused as error:
+                    raise ValueError(error.message) from error
             result = collect(run_dir, env, findings, orphan=True)
             write_disposition(run_dir, run_id, disposition_of(result.findings), result.findings,
                               members=result.members, closing_heads=result.closing_heads)

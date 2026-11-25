@@ -29,7 +29,11 @@ ownership. Each state root defines one admission domain on the host.
 
 For science, `run.json` records version, mode, run ID, canonical config path and
 opening digest, executable, original operations root, deadline, lease and seal
-timeout. The allocation event records the supervisor PID, boot ID and kernel
+timeout. A governed run also pins its allowance before registration. The
+`allowance` object contains `campaign_id`, `member_id`, `grant_digest`, and
+`storage` with the canonical directory path, device and inode. Recovery checks
+that identity even if operator configuration has since changed.
+The allocation event records the supervisor PID, boot ID and kernel
 start ticks. `baseline.json` is an immutable version-1 snapshot containing tier,
 permit, world identity and digests, written and mounted chain identities and
 digests, actor arguments, sandbox settings, route metadata and lease. The
@@ -288,3 +292,9 @@ CAMPAIGN/MEMBER --conversation-id C --provider-session-id P`. For each sealed
 envelope it reads the original ledger and includes the command, input digest,
 ordered acts and close outcome. A mismatched member, incomplete ledger or
 non-clean predecessor refuses the whole export.
+
+An `allowance-exhausted` refusal includes the exhausted dimension. When the
+host can read the balances it also returns remaining attempts, input tokens,
+output tokens, micro-USD and job starts in both the HTTP refusal and request
+receipt. A settled job's ledger reference must name the authenticated writer
+session of its reservation. A foreign reference leaves the debit outstanding.

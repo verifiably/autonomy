@@ -1,0 +1,1 @@
+{"args":{"message_id":"m1","request_id":"r1","seq":1,"status":"complete","usage":{"cache_read":0,"cache_write_1h":0,"cache_write_5m":0,"input":8,"output":3}},"id":1,"op":"settle-model","version":"allowance.v1"}

@@ -165,7 +165,7 @@ class Admission:
         self._fd: int | None = None
 
     @contextmanager
-    def open(self, where: Places, _route: LoadedRoute | None, progress: Progress | None = None) -> Iterator[RunDirs]:
+    def open(self, where: Places, route: LoadedRoute | None, progress: Progress | None = None) -> Iterator[RunDirs]:
         self.config, self.reader, self.unavailable = operator(self.env)
         ensure_run_parents(where)
         with self._opening_lock(where) as admission_fd:
@@ -181,7 +181,7 @@ class Admission:
                 fsync_dir(directory)
             with lock(dirs.run_dir / SUPERVISOR_LOCK, create=True):
                 config = self.config
-                publish_json(dirs.run_dir / "run.json", {
+                meta = {
                     "version": 1, "mode": "science", "run": dirs.run_id,
                     "config": str(config.path) if config else None,
                     "config_sha256": config.digest if config else None,
@@ -189,7 +189,12 @@ class Admission:
                     "executable": str(self.reader.executable) if self.reader else None,
                     "deadline_seconds": self.request.deadline,
                     "lease_seconds": self.request.lease, "seal_timeout_seconds": SEAL_TIMEOUT,
-                })
+                }
+                if route is not None and route.member is not None:
+                    member = route.member
+                    meta["allowance"] = {"campaign_id": member.pool.name, "member_id": member.name,
+                                         "grant_digest": member.grant_digest, "storage": member.storage}
+                publish_json(dirs.run_dir / "run.json", meta)
                 append_event(dirs.run_dir, "allocated", mode="science", run=dirs.run_id, **ProcessIdentity.capture(os.getpid()).fields())
                 self._fd = admission_fd
                 try:

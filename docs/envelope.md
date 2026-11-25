@@ -287,7 +287,9 @@ its identity, including after revocation.
 A routed run or analyst selects the issued member with `--allowance CAMPAIGN/MEMBER`
 or the operator's route setting. A conflicting selection refuses at startup.
 At envelope close, the host closes new reservations before draining the proxy
-and Science endpoint. Previously admitted work can settle while either peer drains.
+and Science endpoint. After supervisor loss, state-only `run close` seals the
+recorded envelope in its original campaign before publishing a disposition.
+Previously admitted work can settle while either peer drains.
 On a governed research launch the supervisor passes a separate job descriptor
 to Science and requires the open reply to echo the canonical research-action
 digest before actor release. A model-only run requires the report-only tier.

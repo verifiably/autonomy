@@ -65,6 +65,21 @@ def test_shared_debit_and_idempotent_settlement_after_close(tmp_path):
     assert len(report["reservations"]) == 1
 
 
+def test_orphan_close_uses_original_storage_grant_and_member(tmp_path):
+    pool = issued(tmp_path)
+    receipt = pool.receipt()
+    digest, storage = receipt["grant_digest"], receipt["storage"]
+    for member, sha, identity in [("smoke", digest, storage), ("action", "f" * 64, storage),
+                                  ("action", digest, storage | {"inode": storage["inode"] + 1})]:
+        with pytest.raises(AllowanceRefused):
+            pool.recover_envelope(member, R, sha, identity)
+    pool.recover_envelope("action", R2, digest, storage)  # death before registration
+    assert [(row["id"], row["closed"]) for row in pool.snapshot("action")["envelopes"]] == [(R, 0)]
+    for _ in range(2):
+        pool.recover_envelope("action", R, digest, storage)
+    assert pool.snapshot("action")["envelopes"][0]["closed"] == 1
+
+
 def test_open_and_late_report_cannot_change_identity(tmp_path):
     pool = issued(tmp_path)
     pool.seal("action", R)
@@ -100,7 +115,7 @@ except AllowanceRefused as error:
                               env={"PATH": os.defpath, "HOME": str(tmp_path)}, capture_output=True,
                               text=True, timeout=20, check=True).stdout.strip()
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        assert sorted(executor.map(contender, range(4))) == ["admitted"] + ["allowance-exhausted"] * 3
+        assert sorted(executor.map(contender, range(1, 5))) == ["admitted"] + ["allowance-exhausted"] * 3
     assert pool.snapshot("action")["remaining"]["attempts"] == 0
 
 

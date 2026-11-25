@@ -328,10 +328,7 @@ class ProxyServer:
                 self._in_flight += 1
                 in_flight = self._in_flight
             try:
-                try:
-                    reserved = self._allowance.admit(self._run, seq, parsed, len(body), in_flight)
-                except AllowanceRefused as error:
-                    raise Refused(error.code, error.message) from None
+                reserved = self._allowance.admit(self._run, seq, parsed, len(body), in_flight)
                 admitted = True
                 record.update(envelope_id=self._run, reserved_micro_usd=reserved, actual_micro_usd=None,
                               message_id=None, usage_status="unknown", usage=None)
@@ -366,11 +363,12 @@ class ProxyServer:
             finally:
                 with self._lock:
                     self._in_flight -= 1
-        except Refused as refused:
-            record.update(refused=refused.code, status=403)
+        except (AllowanceRefused, Refused) as refused:
+            units = refused.data if isinstance(refused, AllowanceRefused) else {}
+            record.update(refused=refused.code, status=403, **units)
             if refused.code == "route-closed":
                 record["ended"] = "route-closed"  # a request the close cut
-            self._answer(conn, refusal(refused.code, refused.message))
+            self._answer(conn, refusal(refused.code, refused.message, **units))
         except RouteClosed as closed:
             record["ended"] = "route-closed"
             if closed.attempted or closed.sent:

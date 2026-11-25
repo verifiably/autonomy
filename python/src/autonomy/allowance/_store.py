@@ -198,7 +198,10 @@ class Campaign:
         key = (envelope, role, c.ticket(role, evidence))
         with self._transaction() as (db, _, _cause):
             self._envelope(db, member, envelope)
-            row = db.execute("SELECT settlement FROM reservation WHERE envelope=? AND role=? AND ticket=?", key).fetchone()
+            row = db.execute("SELECT settlement,actor FROM reservation WHERE envelope=? AND role=? AND ticket=?", key).fetchone()
+            if role == "job" and evidence.get("ledger_ref") is not None:
+                c.require(row and row["actor"] == "session:" + evidence["ledger_ref"]["session_id"],
+                          "terminal act belongs to a different writer")
             encoded = c.canonical(evidence)
             c.require(row and row["settlement"] in (None, encoded), "unknown or conflicting settlement")
             db.execute("UPDATE reservation SET settlement=? WHERE envelope=? AND role=? AND ticket=?", (encoded, *key))
@@ -208,6 +211,17 @@ class Campaign:
         with self._transaction() as (db, _, _cause):
             self._envelope(db, member, envelope)
             db.execute("UPDATE envelope SET closed=1 WHERE id=?", (envelope,))
+
+    def recover_envelope(self, member, envelope, digest, storage):
+        with self._transaction() as (db, config, _cause):
+            info = self.root.stat()
+            c.require(storage == {"path": str(self.root), "device": info.st_dev, "inode": info.st_ino}
+                      and c.digest(config) == digest and member in config["members"],
+                      "recorded allowance identity differs", "allowance-unavailable")
+            row = db.execute("SELECT name FROM envelope WHERE id=?", (envelope,)).fetchone()
+            if row is not None:
+                c.require(row["name"] == member, "recorded envelope belongs to a different member")
+                db.execute("UPDATE envelope SET closed=1 WHERE id=?", (envelope,))
 
     def revoke(self):
         with self._transaction() as (db, _, cause):
