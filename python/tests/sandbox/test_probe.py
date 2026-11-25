@@ -239,3 +239,98 @@ def test_build_argv_refuses_noncanonical_scratch(layout, monkeypatch, kind):
     with pytest.raises(SandboxUnproven) as caught:
         build_argv(SandboxSpec(scratch=path), ["/usr/bin/true"], info_fd=None)
     assert caught.value.code == "bind-unreadable"
+
+
+@pytest.mark.bwrap
+@pytest.mark.parametrize("bounded", [False, True])
+def test_supervisor_environment_never_reaches_proc_in_probe(layout, bounded):
+    import secrets
+    import sys
+    import textwrap
+
+    canary = f"va-supervisor-canary-{secrets.token_hex(16)}"
+    supervisor = textwrap.dedent(r"""
+        import os, sys
+        from pathlib import Path
+        import autonomy.sandbox.bwrap as bwrap
+        from autonomy.sandbox.spec import SandboxSpec, Storage
+
+        scratch, denied = Path(sys.argv[1]), Path(sys.argv[2])
+        needle_hex = sys.argv[3]
+        bounded = sys.argv[4] == "1"
+        bwrap._PROBE = bwrap._PROBE + f'''
+        needle = bytes.fromhex({needle_hex!r})
+        leaked = []
+        for pid in sorted(os.listdir("/proc")):
+            if not pid.isdigit():
+                continue
+            for part in ("environ", "cmdline"):
+                if needle in open(f"/proc/{{pid}}/{{part}}", "rb").read():
+                    leaked.append(f"/proc/{{pid}}/{{part}}")
+        entries = open("/proc/1/environ", "rb").read().rstrip(b"\\x00").split(b"\\x00")
+        init_env = dict(item.decode("utf-8").split("=", 1) for item in entries if item)
+        if leaked or init_env != {{"PATH": "/usr/bin", "LC_ALL": "C"}}:
+            raise SystemExit(f"leaked={{leaked}} init_env={{init_env}}")
+        '''
+        storage = Storage(256 * os.sysconf("SC_PAGE_SIZE"), 64) if bounded else None
+        spec = SandboxSpec(
+            scratch=scratch,
+            env={"PROBE_DECLARED": "allowed-value"},
+            disable_nested_userns=bounded,
+            storage=storage,
+        )
+        bwrap.probe(spec, (denied,))
+    """)
+    result = subprocess.run(
+        [
+            sys.executable, "-c", supervisor,
+            str(layout["scratch"]), str(layout["corpus"]), canary.encode().hex(), "1" if bounded else "0",
+        ],
+        env={"PATH": "/usr/bin", "HOME": str(layout["tmp"]), "LC_ALL": "C", "SUPERVISOR_CANARY": canary},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.bwrap
+def test_preflight_and_host_proof_pass_fixed_environment(tmp_path):
+    import json
+    import secrets
+    import sys
+    import textwrap
+
+    canary = f"va-supervisor-canary-{secrets.token_hex(16)}"
+    supervisor = textwrap.dedent("""
+        import json, subprocess
+        from autonomy.sandbox.bwrap import preflight, prove_development_host
+
+        seen = []
+        real_run = subprocess.run
+
+        def recording(*args, **kwargs):
+            env = kwargs.get("env")
+            seen.append(None if env is None else dict(env))
+            return real_run(*args, **kwargs)
+
+        subprocess.run = recording
+        preflight()
+        prove_development_host()
+        print(json.dumps(seen))
+    """)
+    result = subprocess.run(
+        [sys.executable, "-c", supervisor],
+        env={"PATH": "/usr/bin", "HOME": str(tmp_path), "LC_ALL": "C", "SUPERVISOR_CANARY": canary},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    assert json.loads(result.stdout) == [
+        {"PATH": "/usr/bin", "LC_ALL": "C"},
+        {"PATH": "/usr/bin", "LC_ALL": "C"},
+    ]
+

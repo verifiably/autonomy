@@ -28,9 +28,27 @@ from autonomy.egress.proxy import BOOT, IN_SANDBOX_CA, IN_SANDBOX_CREDENTIAL, re
 from autonomy.egress.route import LoadedRoute, Route
 from autonomy.membership import Finding
 from autonomy.process import ProcessIdentity, exited as pidfd_exited
-from autonomy.sandbox.bwrap import read_info
+from autonomy.sandbox.bwrap import BWRAP_ENV, read_info
 from autonomy.sandbox.static import system_symlinks
 from autonomy.sandbox.static import SandboxUnproven, check_sources
+
+__all__ = [
+    "CLOSE_TIMEOUT",
+    "EGRESS_RECORDS",
+    "EgressClosed",
+    "EgressSession",
+    "LISTENING_TIMEOUT",
+    "PROXY_LOG",
+    "PROXY_START_TIMEOUT",
+    "ProxyBinds",
+    "ProxySurvived",
+    "check_proxy",
+    "closing_line",
+    "kill_orphan",
+    "proxy_argv",
+    "proxy_binds",
+    "unproven",
+]
 
 PROXY_START_TIMEOUT = 10.0
 LISTENING_TIMEOUT = 5.0
@@ -171,7 +189,7 @@ class EgressSession:
             process = subprocess.Popen(
                 proxy_argv(binds, links, control_fd=theirs.fileno(), records_fd=records, info_fd=info_write, allowance_fd=delegate.fileno()),
                 pass_fds=(theirs.fileno(), records, info_write, delegate.fileno()), stdin=subprocess.DEVNULL,
-                stdout=log, stderr=log, start_new_session=True,
+                stdout=log, stderr=log, start_new_session=True, env=BWRAP_ENV,
             )
         except OSError as caught:
             host_peer.close()

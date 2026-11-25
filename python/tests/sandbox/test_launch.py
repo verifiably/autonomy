@@ -855,3 +855,88 @@ while True: time.sleep(1)
         assert (tmp_path / "flushed").read_text() == "closed"
     finally:
         actor.close()
+
+
+@pytest.mark.parametrize("bounded", [False, True])
+def test_supervisor_environment_never_reaches_proc_in_launch(tmp_path, bounded):
+    canary = f"va-supervisor-canary-{secrets.token_hex(16)}"
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    supervisor = textwrap.dedent(r"""
+        import json, os, sys
+        from contextlib import closing
+        from pathlib import Path
+        from autonomy.sandbox.bwrap import launch
+        from autonomy.sandbox.spec import SandboxSpec, Storage
+
+        scratch = Path(sys.argv[1])
+        needle_hex = sys.argv[2]
+        bounded = sys.argv[3] == "1"
+        actor_code = '''
+        import json, os, sys
+        needle = bytes.fromhex(sys.argv[1])
+        leaked = []
+        for pid in sorted(os.listdir("/proc")):
+            if not pid.isdigit():
+                continue
+            for part in ("environ", "cmdline"):
+                raw = open(f"/proc/{pid}/{part}", "rb").read()
+                if needle in raw:
+                    leaked.append(f"/proc/{pid}/{part}")
+        def parse_env(path):
+            entries = open(path, "rb").read().rstrip(b"\\x00").split(b"\\x00")
+            return dict(item.decode("utf-8").split("=", 1) for item in entries if item)
+        init_cmd = open("/proc/1/cmdline", "rb").read()
+        print(json.dumps({
+            "leaked": leaked,
+            "init_env": parse_env("/proc/1/environ"),
+            "self_env": parse_env("/proc/self/environ"),
+            "declared_in_init_cmdline": b"allowed-value" in init_cmd,
+        }))
+        '''
+        storage = Storage(256 * os.sysconf("SC_PAGE_SIZE"), 64) if bounded else None
+        spec = SandboxSpec(
+            scratch=scratch,
+            env={"ACTOR_DECLARED": "allowed-value"},
+            disable_nested_userns=bounded,
+            storage=storage,
+        )
+        out_read, out_write = os.pipe()
+        null = os.open(os.devnull, os.O_RDWR)
+        try:
+            with closing(launch(
+                spec,
+                ["/usr/bin/python3", "-I", "-c", actor_code, needle_hex],
+                stdin=null,
+                stdout=out_write,
+                stderr=null,
+                actor_fsize_bytes=65536 if bounded else None,
+            )) as sandbox:
+                os.close(out_write)
+                out_write = -1
+                data = b""
+                while chunk := os.read(out_read, 4096):
+                    data += chunk
+                assert sandbox.wait(timeout=15) == 0
+            sys.stdout.buffer.write(data)
+        finally:
+            if out_write >= 0:
+                os.close(out_write)
+            os.close(out_read)
+            os.close(null)
+    """)
+    result = subprocess.run(
+        [sys.executable, "-c", supervisor, str(scratch), canary.encode().hex(), "1" if bounded else "0"],
+        env={"PATH": "/usr/bin", "HOME": str(tmp_path), "LC_ALL": "C", "SUPERVISOR_CANARY": canary},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    report = __import__("json").loads(result.stdout)
+    assert report["leaked"] == []
+    assert report["init_env"] == {"PATH": "/usr/bin", "LC_ALL": "C"}
+    assert report["self_env"] == {"PATH": "/usr/bin", "ACTOR_DECLARED": "allowed-value"}
+    assert report["declared_in_init_cmdline"] is True
+

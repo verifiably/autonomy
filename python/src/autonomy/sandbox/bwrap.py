@@ -16,10 +16,29 @@ from collections.abc import Callable, Iterable
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from autonomy.sandbox.spec import IN_SANDBOX_OUTPUTS, IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec, Storage
 from autonomy.sandbox.static import SandboxUnproven, check_binds, system_symlinks
 from autonomy.sandbox.storage import pool_binds, pool_command
+
+__all__ = [
+    "BWRAP_ENV",
+    "LAUNCH_TIMEOUT",
+    "NET_TARGETS",
+    "RELEASE",
+    "Sandboxed",
+    "build_argv",
+    "launch",
+    "preflight",
+    "probe",
+    "prove",
+    "prove_development_host",
+    "read_info",
+]
+
+BWRAP_ENV = MappingProxyType({"PATH": "/usr/bin", "LC_ALL": "C"})
+"""The fixed environment passed to bwrap and any pre-exec stage: never the caller's."""
 
 _PROBE = """\
 import errno, os, socket, sys
@@ -54,7 +73,13 @@ def preflight(which: Callable[[str], str | None] = shutil.which) -> None:
         "--", "/usr/bin/true",
     ]
     try:
-        result = subprocess.run(trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+        result = subprocess.run(
+            trial, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, env=BWRAP_ENV,
+        )
+    except FileNotFoundError as caught:
+        raise SandboxUnproven("bwrap-missing", "bwrap", str(caught)) from caught
+    except OSError as caught:
+        raise SandboxUnproven("userns-unavailable", "bwrap", str(caught)) from caught
     except subprocess.TimeoutExpired:
         raise SandboxUnproven("userns-unavailable", "bwrap", "the trial sandbox did not exit in 30 s") from None
     if result.returncode != 0:
@@ -85,7 +110,9 @@ def prove_development_host() -> None:
         argv.extend(("--symlink", target, link))
     argv.extend(("--", "/usr/bin/python3", "-I", "-c", _USERNS_PROOF))
     try:
-        result = subprocess.run(argv, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+        result = subprocess.run(
+            argv, capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL, env=BWRAP_ENV,
+        )
     except (OSError, subprocess.TimeoutExpired) as caught:
         raise SandboxUnproven("userns-unavailable", "bwrap", str(caught)) from caught
     if result.returncode != 0:
@@ -168,7 +195,9 @@ def probe(spec: SandboxSpec, denied: Iterable[Path], *, timeout: float = 60) -> 
         raise SandboxUnproven("probe-failed", "denied", "the probe needs at least one denied path")
     argv = build_argv(spec, ["/usr/bin/python3", "-I", "-c", _PROBE, *paths], info_fd=None)
     try:
-        result = subprocess.run(argv, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL)
+        result = subprocess.run(
+            argv, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL, env=BWRAP_ENV,
+        )
     except subprocess.TimeoutExpired:
         raise SandboxUnproven("probe-failed", "bwrap", f"the probe did not exit in {timeout:g} s") from None
     stdout = result.stdout.decode("utf-8", errors="replace")
@@ -478,6 +507,7 @@ def launch(
             stdout=stdout,
             stderr=stderr,
             process_group=0,
+            env=BWRAP_ENV,
         )
     except BaseException:
         os.close(info_read)

@@ -819,3 +819,84 @@ def test_e22_a_proxy_that_never_listens_is_unproven(world):
     assert caught.value.code == "proxy-unlistening" and 4.5 < time.monotonic() - started < 8
     assert not (world.scratch.parent / "actor.out").read_bytes()
     session.kill()
+
+
+def test_supervisor_environment_never_reaches_proxy_or_actor_proc(world):
+    canary = f"va-supervisor-canary-{os.urandom(16).hex()}"
+    package_parent = str(Path(autonomy.__file__).resolve().parent.parent)
+    supervisor = textwrap.dedent(f"""
+        import json, os, sys
+        sys.path.insert(0, sys.argv[1])
+        from pathlib import Path
+        from autonomy.egress.helper import MODEL_URL
+        from autonomy.egress.route import egress_denied, load_governed_route
+        from autonomy.egress.session import EgressSession
+        from autonomy.sandbox.bwrap import launch
+        from autonomy.sandbox.spec import SandboxSpec
+
+        ACTOR = {ACTOR!r}
+        config, run_dir, scratch = Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
+        needle_hex = sys.argv[5]
+        needle = bytes.fromhex(needle_hex)
+        loaded = load_governed_route(config, "anthropic", None, caller="run")
+        loaded.member.open(run_dir.name)
+        session = EgressSession.start(loaded, run_dir, lease=30.0, denied=egress_denied(config, loaded))
+        try:
+            children = Path(f"/proc/{{session.init_pid}}/task/{{session.init_pid}}/children").read_text().split()
+            proxy_child = int(children[0])
+            host_leaked = []
+            for label, pid in (("outer", session.process.pid), ("init", session.init_pid), ("proxy", proxy_child)):
+                for part in ("environ", "cmdline"):
+                    if needle in Path(f"/proc/{{pid}}/{{part}}").read_bytes():
+                        host_leaked.append(f"{{label}}:{{part}}")
+            entries = Path(f"/proc/{{session.init_pid}}/environ").read_bytes().rstrip(b"\\x00").split(b"\\x00")
+            proxy_init_env = dict(item.decode("utf-8").split("=", 1) for item in entries if item)
+
+            spec = SandboxSpec(scratch=scratch, env={{"VERIFIABLY_MODEL_URL": MODEL_URL, "SCRATCH": str(scratch)}})
+            out = scratch.parent / "actor-env-check.out"
+            with open(out, "wb") as stdout, open(os.devnull, "rb") as null:
+                actor = launch(
+                    spec,
+                    ["/usr/bin/python3", "-I", "-c", ACTOR, json.dumps([{{"kind": "sweep", "name": "sweep", "needle": needle_hex}}])],
+                    stdin=null.fileno(),
+                    stdout=stdout.fileno(),
+                    stderr=stdout.fileno(),
+                    before_release=session.attach,
+                )
+                try:
+                    assert actor.wait(timeout=30) == 0
+                finally:
+                    actor.close()
+            lines = out.read_bytes().decode("utf-8").strip().splitlines()
+            actor_report = json.loads(lines[-1])
+            closed = session.close()
+            print(json.dumps({{
+                "host_leaked": host_leaked,
+                "proxy_init_env": proxy_init_env,
+                "actor_sweep": actor_report["sweep"],
+                "closed": closed.cause,
+            }}))
+        finally:
+            if session.pidfd >= 0:
+                session.kill()
+    """)
+    result = subprocess.run(
+        [
+            sys.executable, "-c", supervisor,
+            package_parent, str(world.config), str(world.run_dir), str(world.scratch), canary.encode().hex(),
+        ],
+        env={"PATH": "/usr/bin", "HOME": str(world.scratch.parent), "LC_ALL": "C", "SUPERVISOR_CANARY": canary},
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    )
+    report = json.loads(result.stdout)
+    assert report == {
+        "host_leaked": [],
+        "proxy_init_env": {"PATH": "/usr/bin", "LC_ALL": "C"},
+        "actor_sweep": [],
+        "closed": "close",
+    }
+
