@@ -15,6 +15,7 @@ This guide serves contributors and automated agents developing, maintaining, or 
 - **Package and Workspace Managers:** `uv` (fast Python package manager) and `just` (command runner).
 - **Process Isolation:** `bubblewrap` (`bwrap`) installed and functional, with unprivileged user namespaces enabled (`kernel.apparmor_restrict_unprivileged_userns=0` on systems with Ubuntu AppArmor restrictions).
 - **Optional Toolchain for Analyst:** Pinned `pi` 1.1.0 installation (resolved via `--pi-dir`, `PI_DIR`, or `~/.local/share/pi/1.1.0`) and Node.js (resolved via `--node-dir`, `NODE_DIR`, or `PATH`). The Node prefix must not contain `rg` or `fd` binaries in its `bin/` directory, preventing them from shadowing host tools.
+- **Systemd User Manager for Delegated Starts:** `systemd` 254 or later with a running `systemd --user` manager that delegates `memory` and `pids` controllers (`Delegate=memory pids`, `DelegateSubgroup=main`). Required locally for `user_manager` end-to-end tests.
 
 ### Reading order
 
@@ -31,8 +32,10 @@ The codebase is organized into the `verifiably-autonomy` package under `python/s
 | Package Module / Script | Responsibility | Test Suite |
 | --- | --- | --- |
 | `autonomy.cli` | Command-line interface and subcommand entrypoints | `python/tests/test_cli.py` |
+| `autonomy.commands.delegation` | Operator `autonomy delegation issue`, `revoke` and `report` subcommands | `python/tests/delegation/test_commands.py` |
+| `autonomy.delegation` | Delegation grant schema, bounds, store, caller identity and actor cgroups | `python/tests/delegation/` |
 | `autonomy.run` | Unattended research run lifecycle and disposition writing | `python/tests/test_run.py` |
-| `autonomy.development` | Supervised offline Git workspace, actor supervision, recovery and candidate validation | `python/tests/development/` |
+| `autonomy.development` | Supervised and delegated offline Git workspace, actor supervision, recovery and candidate validation | `python/tests/development/` |
 | `autonomy.closing` | Post-run evidence evaluation and disposition derivation | `python/tests/test_closing.py` |
 | `autonomy.membership` | Session ledger chain classification and crash recovery | `python/tests/test_membership.py` |
 | `autonomy.tiers` | Write-class permits and tier permission definitions | `python/tests/test_tiers.py` |
@@ -108,6 +111,7 @@ Certain tests require specific host privileges or external binaries and are mark
 
 - `bwrap`: Tests requiring `bubblewrap` and unprivileged user namespaces (`sandbox/test_probe.py`, `sandbox/test_launch.py`, `sandbox/test_storage.py`, `test_egress_helper.py`, `test_egress_session.py`, `test_analyst_walk.py`, `test_analyst_check.py`, `test_analyst_launch.py`, `test_command_check.py`, `analyst/test_command_launch.py`).
 - `pi`: Tests requiring the pinned `pi` 1.1.0 toolchain and Node.js prefix (`test_analyst_check.py`, `test_analyst_launch.py`). These tests resolve `PI_DIR` and `NODE_DIR` through `autonomy.analyst.toolchain` and skip gracefully if the binaries are absent or shadow host utilities.
+- `user_manager`: Tests requiring a `systemd --user` manager (254 or later) that delegates `memory` and `pids` controllers (`delegation/test_cgroup.py`, `sandbox/test_launch.py::test_launcher_joins_before_the_sandbox`, `development/test_delegation_end_to_end.py`). End-to-end rows mount a disposable `/etc/passwd` inside a user/mount namespace so the installed `autonomy` binary never touches the operator's real configuration or store. Because hosted runners provide no user manager, run `just test-one -m user_manager -rs` locally (with 0 skips) before landing changes to delegation, actor cgroup bounds, or delegated development starts.
 
 ### Offline development workspace verification
 
@@ -185,4 +189,4 @@ Hosted verification is defined in `.github/workflows/test.yml` and triggers on e
 4. **Namespace and Egress Proof:** Runs focused tests (`tests/sandbox/test_probe.py`, `tests/test_egress_helper.py`, `tests/test_egress_upstream.py`) before running the broad suite.
 5. **Hygiene and Full Suite:** Executes `just ci-check-hygiene` followed by `just test-full` with `TT_FORCE=1`.
 
-The hosted workflow omits `pi`-marked tests (as the runner image does not vendor the pinned `pi` distribution), `tasks check` (which requires the private detached records repository), and the paid `just live-egress` recipe. Hosted job runs are grouped by workflow and reference with in-progress cancellation enabled.
+The hosted workflow omits `pi`-marked tests (as the runner image does not vendor the pinned `pi` distribution), `user_manager`-marked tests (as the runner provides no `systemd --user` manager delegating `memory` and `pids`), `tasks check` (which requires the private detached records repository), and the paid `just live-egress` recipe. Hosted job runs are grouped by workflow and reference with in-progress cancellation enabled.

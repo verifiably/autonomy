@@ -25,6 +25,12 @@ marked `pi` also need the pinned pi 1.1.0 install (`PI_DIR`, default
 `~/.local/share/pi/1.1.0`) and node (`NODE_DIR` when `/usr/bin/node` would shadow
 `rg` or `fd`), and `python/tests/test_analyst_check.py` is run locally when touching
 the analyst launch or toolchain because the hosted workflow has neither pi nor node.
+Tests marked `user_manager` need a systemd user manager (254 or later) that
+delegates the `memory` and `pids` controllers, plus unprivileged user namespaces
+for the private `/etc/passwd` bind wrapper; run `just test-one -m user_manager -rs`
+locally (expecting 0 skips on a qualifying workstation) before landing any change to
+`autonomy.delegation`, `autonomy.commands.delegation`, delegated development starts,
+or the actor cgroup launch because the hosted workflow has no user manager.
 The `science_endpoint` integration tests take an absolute `SCIENCE_BIN` pointing
 at the qualified science installation and `SCIENCE_TEST_ROOT` on writable
 storage certified by atoms. Use science `6af2b56`, beliefs `6d993df3`,
@@ -57,8 +63,9 @@ restriction on unprivileged user namespaces with a runtime sysctl on its disposa
 an approved exception that is never persisted and never applies to a host. `ci_suite_refs`
 declares that schedule so a covered push takes the shorter hook; the declaration is intent,
 not proof that the pushed head passed. The hosted hygiene has known gaps: `tasks check`
-requires the private detached records repository, and ops-check cannot compare
-vendored tools with an ops checkout it lacks, so both stay mandatory locally. The paid live-egress
+requires the private detached records repository, ops-check cannot compare
+vendored tools with an ops checkout it lacks, and `user_manager` tests skip
+without a `systemd --user` session manager, so all three stay mandatory locally. The paid live-egress
 recipe runs in neither place.
 
 ## Layout

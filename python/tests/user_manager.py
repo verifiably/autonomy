@@ -4,11 +4,58 @@ from __future__ import annotations
 import os
 import secrets
 import shutil
+import stat
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+
+_ETC_CACHE: dict[int, Path] = {}
+
+
+def _template_etc(parent: Path) -> Path:
+    dev = parent.stat().st_dev
+    cached = _ETC_CACHE.get(dev)
+    if cached is not None and cached.is_dir():
+        return cached
+    template = parent / f".etc-template-{os.getpid()}-{secrets.token_hex(4)}"
+    template.mkdir(mode=0o755)
+    src_root = Path("/etc")
+    stack: list[tuple[Path, Path]] = [(src_root, template)]
+    while stack:
+        src_dir, dst_dir = stack.pop()
+        try:
+            entries = list(os.scandir(src_dir))
+        except OSError:
+            continue
+        for entry in entries:
+            if src_dir == src_root and entry.name == "passwd":
+                continue
+            dst_entry = dst_dir / entry.name
+            try:
+                info = entry.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if stat.S_ISLNK(info.st_mode):
+                try:
+                    dst_entry.symlink_to(os.readlink(entry.path))
+                except OSError:
+                    continue
+            elif stat.S_ISDIR(info.st_mode):
+                if not os.access(entry.path, os.R_OK | os.X_OK):
+                    continue
+                dst_entry.mkdir(mode=0o755, exist_ok=True)
+                stack.append((Path(entry.path), dst_entry))
+            elif stat.S_ISREG(info.st_mode):
+                try:
+                    data = Path(entry.path).read_bytes()
+                except OSError:
+                    continue
+                dst_entry.write_bytes(data)
+                dst_entry.chmod(stat.S_IMODE(info.st_mode) | 0o400)
+    _ETC_CACHE[dev] = template
+    return template
 
 
 def unit_env(home: Path) -> dict[str, str]:
@@ -68,8 +115,12 @@ def with_passwd_home(home: Path, argv: Sequence[str]) -> list[str]:
             lines.append(raw)
     if not matched:
         raise RuntimeError(f"uid {uid} not found in /etc/passwd")
-    passwd_file = home.parent / f".passwd-{home.name}-{secrets.token_hex(4)}"
+    template = _template_etc(home.parent)
+    etc_dir = home.parent / f".etc-{home.name}-{secrets.token_hex(4)}"
+    shutil.copytree(template, etc_dir, symlinks=True, copy_function=os.link)
+    passwd_file = etc_dir / "passwd"
     passwd_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    passwd_file.chmod(0o644)
     return [
         "/usr/bin/unshare",
         "--map-current-user",
@@ -77,9 +128,9 @@ def with_passwd_home(home: Path, argv: Sequence[str]) -> list[str]:
         "--keep-caps",
         "/usr/bin/sh",
         "-c",
-        'mount --bind "$1" /etc/passwd && shift && exec "$@"',
+        'mount --bind "$1" /etc && shift && exec /usr/bin/setpriv --inh-caps=-all -- "$@"',
         "sh",
-        str(passwd_file),
+        str(etc_dir),
         *argv,
     ]
 
