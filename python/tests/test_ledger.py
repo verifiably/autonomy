@@ -42,7 +42,7 @@ def test_a_complete_ledger():
     assert isinstance(got, Ledger)
     assert got.actor == f"session:{SID}"
     assert got.permit.to_json() == PERMIT
-    assert got.acts == (ActLine("inv1", CORPUS, ENTRY, INTENT),)
+    assert got.acts == (ActLine("inv1", CORPUS, ENTRY, INTENT, (("u", "note:1"),)),)
     assert got.closed and not got.torn_tail and got.open_invocations == ()
     assert not got.incomplete
 
@@ -144,3 +144,28 @@ def test_canonical_utf8_uses_literal_non_ascii_characters():
     raw = opening().replace(b"session:" + SID.encode(), "café".encode())
     got = read_ledger(SID, raw)
     assert isinstance(got, Ledger) and got.actor == "café"
+
+
+def test_ledger_retains_ordered_invocations_for_recovery():
+    raw = opening() + inv_open() + act() + inv_close() + inv_open("other") + line(
+        line="invocation-close", invocation="other", outcome={"refusal": {"code":"invalid-input","message":"reason","data":{}}}
+    ) + closing()
+    ledger = read_ledger(SID, raw)
+    assert [row.invocation for row in ledger.invocations] == ["inv1", "other"]
+    assert ledger.invocations[0].command == "note"
+    assert ledger.invocations[0].input_digest == "0" * 64
+    assert ledger.invocations[0].outcome == {"done": [["u", "note:1"]]}
+    assert ledger.acts[0].records == (("u", "note:1"),)
+    assert ledger.invocations[1].outcome["refusal"]["code"] == "invalid-input"
+
+
+@pytest.mark.parametrize("change", [
+    {"command":""}, {"invocation":"bad!id"}, {"input_digest":"bad"},
+])
+def test_bad_invocation_identity_is_not_recovery_evidence(change):
+    malformed(opening() + line(**(json.loads(inv_open()) | change)))
+
+
+@pytest.mark.parametrize("outcome", [{"refusal": {"code":"invalid-input","message":"why"}}, {"done": [1]}, {}])
+def test_unknown_outcome_is_not_recovery_evidence(outcome):
+    malformed(opening() + inv_open() + line(line="invocation-close", invocation="inv1", outcome=outcome))

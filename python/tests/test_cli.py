@@ -479,14 +479,14 @@ def test_an_unknown_model_route_exits_2_with_no_run_directory(tmp_path, pipes):
     assert drain(pipes["out"]) == b""
 
 
-def test_a_valid_model_route_passes_step_2(tmp_path, pipes):
+def test_a_valid_model_route_needs_an_issued_allowance(tmp_path, pipes):
     environment(tmp_path)
     config = default_config(tmp_path)
     credential = write_credential(config / "credentials" / "anthropic")
     write_route(config, "anthropic", pi_route(credential=credential))
     status, _ = autonomy(tmp_path, [*RUN, "--model-route", "anthropic", *ACTOR], pipes["io"])
-    assert status == 4  # this build closes unwired at step 3, after step 2 accepted the route
-    assert len(runs(tmp_path)) == 1
+    assert status == 2 and b"allowance-missing" in drain(pipes["err"])
+    assert not runs(tmp_path)
 
 
 def test_the_analyst_parser_builds_a_request(monkeypatch):

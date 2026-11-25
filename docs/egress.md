@@ -88,10 +88,17 @@ Body parsing and verification in `python/src/autonomy/egress/dialect.py` strictl
 Actor request processing in `python/src/autonomy/egress/request.py` and `python/src/autonomy/egress/server.py` enforces protocol framing:
 - `parse_head(raw)`: Restricts request heads to `MAX_HEAD = 64 KiB` (65536 bytes). Enforces HTTP/1.1; rejects `CONNECT`, `Upgrade`, URI fragments, `Transfer-Encoding`, missing or duplicate `Content-Length`, obsolete line folding, or control characters (`request-malformed`, `target-refused`).
 - `forwarded_headers(request, route)`: Filters client headers against `route.forward_headers`, strips hop-by-hop and `always_dropped` names, and validates header values against declared `route.header_tokens` (`Refused("header-refused", ...)`).
-- `Allowance`:
-  - `admit(run, operation, model, request_bytes, in_flight) -> str | None`: Evaluated before connecting upstream. A non-None return aborts the request (`Refused("allowance-refused", ...)`).
-  - `settle(seq, upstream_request_id, usage) -> None`: Invoked in a `finally` block when streaming completes to record accounting and token usage.
-  - Default implementation is `NoAllowance`, which permits all valid requests under the route.
+- Each routed request requires an issued member. The supervisor passes a dedicated
+  sequenced-packet descriptor to the proxy. After validating the route and body,
+  the proxy sends `reserve-model` with its sequence, model, output ceiling and
+  billing mode. Only a new durable reservation admits an upstream connection.
+  Reusing the sequence cannot dispatch again. The campaign database stays on the host.
+- The request must set `stream` to true and supply an integer `max_tokens`
+  between one and the grant ceiling. An enabled thinking budget must be
+  positive and strictly below that output ceiling.
+- On response completion or interruption, the proxy sends `settle-model` with
+  its sequence, provider IDs, status and token counts. Settlement does not release
+  the precharge. The proxy writes its transaction receipt after this exchange.
 - Responses: Upstream bodies stream to the actor with HTTP/1.1 `Transfer-Encoding: chunked`. The terminating chunk `0\r\n\r\n` is transmitted only if the full upstream response is received while `Gate.is_open`. Refusals return HTTP 403 (`egress_refused`) or HTTP 502 (`egress_upstream`) JSON payloads with explicit `Content-Length`.
 
 ## Proxy and namespace helper lifecycle
@@ -142,7 +149,7 @@ The proxy lifecycle coordinates four steps across an `AF_UNIX` `SOCK_SEQPACKET` 
 | `header-refused` | Request headers not in `forward_headers` or feature tokens disallowed. |
 | `model-refused` | Requested model not in operation `models` list. |
 | `body-refused` | Payload fields, block types, tool types, or source types disallowed. |
-| `allowance-refused` | `Allowance.admit` rejected request. |
+| `allowance-scope`, `allowance-unpriced`, `allowance-exhausted`, `allowance-expired`, `allowance-closed`, `allowance-unavailable` | Host authorization refused the request or its receipt could not be confirmed. |
 | `route-closed` | Request attempted after route entered shutdown. |
 
 HTTP 502 responses return error type `egress_upstream` when TCP connections, TLS handshakes, or upstream transfers fail. Closing findings record `egress-unproven`, `egress-lost`, `egress-close-timeout`, or `ProxySurvived` when a proxy process survives shutdown.

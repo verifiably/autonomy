@@ -12,6 +12,7 @@ import autonomy.egress.server as server_module
 from egress_fixtures import (  # noqa: F401  (tls, serve and served are fixtures)
     CANARY, MODEL, PI_BETAS, exchange, message, raw_request, serve, served, status_and_body, tls,
 )
+from autonomy.allowance import AllowanceRefused
 from autonomy.egress.server import Hooks
 from autonomy.egress.upstream import Gate
 
@@ -293,7 +294,7 @@ def test_twenty_concurrent_requests_are_all_served(serve):  # Review Focus 4
 def test_an_allowance_refusal_is_answered_and_never_forwarded(serve):
     class Refuse:
         def admit(self, run, operation, model, request_bytes, in_flight):
-            return "the run's allowance is spent"
+            raise AllowanceRefused("allowance-exhausted", "the run's allowance is spent")
 
         def settle(self, seq, upstream_request_id, usage):
             raise AssertionError("never settled")
@@ -301,7 +302,7 @@ def test_an_allowance_refusal_is_answered_and_never_forwarded(serve):
     s = serve(allowance=Refuse())
     status, body = status_and_body(exchange(s.port, raw_request(body=message())))
     s.server.close("close")
-    assert status == 403 and json.loads(body)["error"]["code"] == "allowance-refused"
+    assert status == 403 and json.loads(body)["error"]["code"] == "allowance-exhausted"
     assert s.upstream.seen == []
 
 
@@ -807,3 +808,28 @@ def test_large_numeric_tokens_reach_upstream(served, field):
     record = served.records()[0]
     assert record["status"] == 200 and record["ended"] == "complete"
     assert record["forwarded"] is True and record["refused"] is None
+
+
+def test_metered_proxy_settles_before_publishing_byte_stream_receipt(serve):
+    from egress_fixtures import exchange, message, raw_request, status_and_body
+    receipts = []
+
+    class Meter:
+        def admit(self, run, seq, body, request_bytes, in_flight):
+            assert body["stream"] is True
+            return 19
+
+        def settle(self, seq, upstream_request_id, stream):
+            assert stream.complete
+            assert stream.message_id == "msg_0"
+            receipts.append(seq)
+            return 3
+
+    s = serve(mode="script", allowance=Meter())
+    status, body = status_and_body(exchange(s.port, raw_request(body=message(stream=True))))
+    assert status == 200 and b"message_stop" in body
+    s.server.close("close")
+    assert receipts == [1]
+    row = s.records()[0]
+    assert row["usage_status"] == "complete" and row["reserved_micro_usd"] == 19
+    assert row["actual_micro_usd"] == 3 and row["usage"]["cache_write_5m"] == 0

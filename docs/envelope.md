@@ -283,3 +283,11 @@ transaction recovery on that volume before selecting it. Replacing the pinned
 directory requires explicit operator reconfiguration. A caller cannot initialize
 missing accounting state. Preserve the grant database for the full lifetime of
 its identity, including after revocation.
+
+A routed run or analyst selects the issued member with `--allowance CAMPAIGN/MEMBER`
+or the operator's route setting. A conflicting selection refuses at startup.
+At envelope close, the host closes new reservations before draining the proxy
+and Science endpoint. Previously admitted work can settle while either peer drains.
+On a governed research launch the supervisor passes a separate job descriptor
+to Science and requires the open reply to echo the canonical research-action
+digest before actor release. A model-only run requires the report-only tier.

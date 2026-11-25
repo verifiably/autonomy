@@ -265,7 +265,7 @@ publishing its name exclusively and syncing its parent. Grant JSON has
 `limits`. Limits count `attempts`, `input_tokens`, `output_tokens`,
 `micro_usd` and `job_starts`. The tariff fields are `model`, `billing_mode`,
 `context`, `output_cap`, `max_input_micro_usd_per_mtok` and
-`output_micro_usd_per_mtok`.
+`output_micro_usd_per_mtok` and `rates_micro_usd_per_mtok` (actual input, output, cache_read, cache_write_5m and cache_write_1h prices).
 
 Reservation, settlement, identity binding and revocation serialize under
 SQLite immediate transactions with full synchronous commits. The effective
@@ -273,3 +273,18 @@ remaining units are the smaller of the campaign and member balances. Each
 envelope's role and sequence or invocation/phase identify its reservation.
 Repetition returns its recorded state. Settlement preserves the original
 debit. An identical report or settlement can be redelivered after closure.
+
+For an admitted model call, the transaction line in `egress.jsonl` records the
+reserved micro-USD, provider message identifier, usage status and counts of
+input, output, cache-read, five-minute cache-write and one-hour cache-write
+tokens. Absent zero-cache fields in message_start count as zero. A complete
+stream needs a message ID, known input and cumulative output, unambiguous cache
+classes, and message_stop. Partial usage keeps known fields and leaves the
+actual charge unknown. A lost settlement acknowledgement is recorded as
+`settlement: "unacknowledged"`.
+
+The host exports `member-history.v1` through `autonomy allowance reconcile
+CAMPAIGN/MEMBER --conversation-id C --provider-session-id P`. For each sealed
+envelope it reads the original ledger and includes the command, input digest,
+ordered acts and close outcome. A mismatched member, incomplete ledger or
+non-clean predecessor refuses the whole export.

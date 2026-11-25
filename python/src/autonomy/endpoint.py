@@ -19,6 +19,7 @@ import subprocess
 import threading
 import time
 
+from autonomy.allowance._contract import digest
 from autonomy.baseline import append_event, decode_object, publish_json
 from autonomy.ledger import LedgerUnusable, load_ledger
 from autonomy.process import ProcessSurvived, exited, send_signal, spawn_recorded
@@ -45,6 +46,13 @@ class EndpointError(Exception):
 
 
 @dataclass(frozen=True)
+class ResearchLaunch:
+    allowance_fd: int
+    research_action: dict
+    resume_handoff: dict
+
+
+@dataclass(frozen=True)
 class Launch:
     dirs: RunDirs
     executable: Path
@@ -54,6 +62,7 @@ class Launch:
     written: tuple[ChainHead, ...]
     lease: float
     seal_timeout: float
+    research: ResearchLaunch | None = None
 
 
 @dataclass(frozen=True)
@@ -265,13 +274,19 @@ def _spawn(launch: Launch, env: Mapping[str, str], source: Path) -> tuple[subpro
             env={key: value for key, value in env.items() if key != "SCIENCE_CONFIG"},
             record=lambda identity: append_event(launch.dirs.run_dir, "endpoint-starting", **identity.fields()),
             stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+            pass_fds=(launch.research.allowance_fd,) if launch.research else (),
         )
 
 
 def _opening(control: Control, launch: Launch, deadline: float) -> SessionOpen:
     row = control._read(deadline)
     sid, basis = row.get("session_id"), row.get("basis_open")
-    if (row["type"] != "open" or set(row) != {"type", "version", "session_id", "ledger_path", "basis_open"}
+    fields = {"type", "version", "session_id", "ledger_path", "basis_open"}
+    if launch.research is not None:
+        fields.add("research_action_digest")
+        if row.get("research_action_digest") != digest(launch.research.research_action):
+            raise EndpointError("endpoint did not acknowledge the bound research action", code="allowance-scope")
+    if (row["type"] != "open" or set(row) != fields
             or not isinstance(sid, str) or not _SID.fullmatch(sid) or not _digest(basis)):
         raise EndpointError("invalid endpoint open report")
     ledger_path = launch.operations / "sessions" / sid / "ledger.v1"
@@ -335,6 +350,8 @@ class Endpoint:
                 "token_file": str(token), "permit": launch.permit.to_json(),
                 "written_chains": [{"id": c.chain_id, "role": c.role, "root": str(c.root)} for c in launch.written],
                 "lease_seconds": launch.lease, "seal_timeout_seconds": launch.seal_timeout,
+                **({"allowance_fd": launch.research.allowance_fd, "research_action": launch.research.research_action,
+                    "resume_handoff": launch.research.resume_handoff} if launch.research else {}),
             })
             process, pidfd = _spawn(launch, env, source)
             peer: socket.socket | None = None

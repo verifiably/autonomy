@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -12,13 +13,16 @@ import subprocess
 import threading
 import time
 
+from autonomy.allowance import AllowanceRefused
+from autonomy.allowance.protocol import HostPeer
+from autonomy.allowance.binding import Member
 from autonomy.analyst.walk import walk
 from autonomy.baseline import append_event, publish_json
 from autonomy.egress.errors import EgressUnproven
 from autonomy.egress.helper import MODEL_URL
 from autonomy.egress.route import all_egress_denied, egress_denied
 from autonomy.egress.session import CLOSE_TIMEOUT, EgressSession, check_proxy, proxy_binds, unproven
-from autonomy.endpoint import Control, Endpoint, EndpointError, Launch, check_seal
+from autonomy.endpoint import Control, Endpoint, EndpointError, Launch, ResearchLaunch, check_seal
 from autonomy.membership import Finding
 from autonomy.process import ProcessIdentity, exited, send_signal
 from autonomy.run import Opened
@@ -26,6 +30,8 @@ from autonomy.sandbox import bwrap
 from autonomy.sandbox.spec import IN_SANDBOX_SOCKET, IN_SANDBOX_TOKEN, SYSTEM_RO, SandboxSpec
 from autonomy.sandbox.static import SandboxUnproven, check_binds
 from autonomy.science_reads import ChainHead, ReadUnavailable
+from autonomy.science_run.action import research_action
+from autonomy.science_run.history import history, resume_handoff
 from autonomy.science_run._admission import Opening, SEAL_TIMEOUT, START_TIMEOUT
 
 _SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
@@ -96,7 +102,7 @@ class Heartbeat:
                 proxy = self.proxy
                 if proxy is not None and not self.stopping.is_set():
                     proxy.renew()
-            except (EndpointError, OSError, EOFError):
+            except (EndpointError, EgressUnproven, AllowanceRefused, OSError, EOFError):
                 if not self.stopping.is_set():
                     self.failed.set()
                 return
@@ -247,7 +253,9 @@ def _close_proxy(proxy: EgressSession) -> tuple[Finding, ...]:
 
 
 def finish(run_dir: Path, endpoint: Endpoint, proxy: EgressSession | None, actor: bwrap.Sandboxed | None,
-           written: tuple[ChainHead, ...], cause: str) -> tuple[Finding, ...]:
+           written: tuple[ChainHead, ...], cause: str, *, member: Member | None = None) -> tuple[Finding, ...]:
+    if member is not None:
+        member.pool.seal(member.name, run_dir.name)
     journal_error: BaseException | None = None
     try:
         append_event(run_dir, "close-start", cause=cause)
@@ -272,15 +280,34 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
               actor_launched: Callable[[Path], None]) -> tuple[Finding, ...]:
     if (cause := stop.cause()) is not None:
         return (Finding("run-stopped-before-release", "supervisor", cause),)
+    with ExitStack() as peers:
+        member = opened.route.member if opened.route is not None else None
+        research = None
+        if member is not None:
+            stop.deadline = min(stop.deadline, stop.now() + max(0, member.expires - time.time()))
+        if member is not None and member.caller == "band":
+            try:
+                policy = research_action(member, opening.config.world_id, opening.written, opened.request.tier.routes)
+                prior = history(member.pool, member.name, opened.dirs.run_dir.parent, member.conversation_id,
+                                member.provider_session_id, current=opened.dirs.run_id)
+                peer = peers.enter_context(HostPeer(member.pool, member.name, opened.dirs.run_id, "job"))
+                delegate = peers.enter_context(peer.take_socket())
+                research = ResearchLaunch(delegate.fileno(), policy, resume_handoff(prior))
+            except AllowanceRefused as exc:
+                return (Finding("endpoint-unavailable", exc.code, exc.message),)
+        return _session(opened, opening, stop, env, actor_launched, research)
+
+
+def _session(opened, opening, stop, env, actor_launched, research):
     launch = Launch(opened.dirs, opening.reader.executable, opening.config.path, opening.config.operations,
-                    opened.request.tier.permit, opening.written, opened.request.lease, SEAL_TIMEOUT)
+                    opened.request.tier.permit, opening.written, opened.request.lease, SEAL_TIMEOUT, research)
     run_dir = opened.dirs.run_dir
     try:
         opening.config.verify()
         endpoint = Endpoint.start(launch, env, timeout=stop.remaining(START_TIMEOUT))
     except (EndpointError, ReadUnavailable) as error:
         code = error.code if isinstance(error, EndpointError) else "endpoint-unavailable"
-        return (Finding(code, "endpoint", str(error)),)
+        return (Finding("endpoint-unavailable", code, str(error)),) if code.startswith("allowance-") else (Finding(code, "endpoint", str(error)),)
     actor = None
     proxy = None
     try:
@@ -288,6 +315,9 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
             findings: tuple[Finding, ...] = ()
             cause = "startup-failure"
             try:
+                if research is not None:
+                    member = opened.route.member
+                    member.pool.register_actor(member.name, run_dir.name, endpoint.opened.session_id)
                 _checked_heads(opening, run_dir)
                 _check_gate(stop, endpoint, heartbeat, None)
                 spec, denied = _prove(opened, opening, endpoint, stop)
@@ -313,6 +343,8 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
             except _StopBeforeRelease as error:
                 cause = str(error)
                 findings = (Finding("run-stopped-before-release", "supervisor", cause),)
+            except AllowanceRefused as error:
+                findings = (Finding("endpoint-unavailable", error.code, error.message),)
             except EndpointError as error:
                 findings = (Finding(error.code, "endpoint", str(error)),)
             except EgressUnproven as error:
@@ -321,7 +353,8 @@ def supervise(opened: Opened, opening: Opening, stop: Stop, env: Mapping[str, st
                 findings = (Finding("sandbox-unproven", error.code, str(error)),)
             finally:
                 heartbeat.stop()
-                completion = finish(run_dir, endpoint, proxy, actor, opening.written, cause)
+                member = opened.route.member if opened.route is not None else None
+                completion = finish(run_dir, endpoint, proxy, actor, opening.written, cause, member=member)
         return findings + completion
     finally:
         try:

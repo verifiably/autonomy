@@ -19,6 +19,8 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from autonomy.allowance.protocol import PeerClient
+from autonomy.egress.meter import ModelMeter
 from autonomy.egress.descriptor import receive_fds
 from autonomy.egress.errors import EgressUnproven, RouteRefused
 from autonomy.egress.route import parse_route
@@ -112,6 +114,9 @@ def main(argv: list[str]) -> int:
     signal.signal(signal.SIGTERM, lambda signum, frame: None)
     control = socket.socket(fileno=int(argv[0]))
     records = int(argv[1])
+    if len(argv) != 3:
+        return 2
+    client = PeerClient(socket.socket(fileno=int(argv[2])))
     message, _ = receive_message(control)
     if message is None or message.get("op") != "route":
         return 2
@@ -129,9 +134,11 @@ def main(argv: list[str]) -> int:
     except OSError as caught:
         send_message(control, {"op": "error", "code": "ca-unreadable", "message": str(caught)})
         return 3
-    server = ProxyServer(route, credential, Recorder(records), context=context, run=str(message.get("run", "")))
+    server = ProxyServer(route, credential, Recorder(records), context=context, run=message["run"],
+                         allowance=ModelMeter(client, message["tariff"]))
     send_message(control, {"op": "ready"})
     cause = control_loop(server, control, wake_read, float(message["lease"]))
     server.close(cause)
+    client.close()
     send_message(control, {"op": "closed", "cause": cause, "last_seq": server.gate.last_seq})
     return 0

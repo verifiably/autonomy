@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import autonomy
+from autonomy.allowance import AllowanceRefused
+from autonomy.allowance.protocol import HostPeer
 from autonomy.baseline import EVENTS, append_event
 from autonomy.egress.errors import EgressUnproven
 from autonomy.egress.helper import make_listener
@@ -72,7 +74,7 @@ def check_proxy(binds: ProxyBinds, denied: Iterable[Path]) -> None:
 
 
 def proxy_argv(binds: ProxyBinds, links: tuple[tuple[str, str], ...], *, control_fd: int, records_fd: int,
-               info_fd: int) -> list[str]:
+               info_fd: int, allowance_fd: int) -> list[str]:
     """No `--die-with-parent`, deliberately: a proxy that died with the orchestrator
     would write no closing line. It sees EOF on its control socket and closes."""
     args = ["bwrap", "--unshare-all", "--share-net", "--new-session", "--clearenv",
@@ -82,7 +84,7 @@ def proxy_argv(binds: ProxyBinds, links: tuple[tuple[str, str], ...], *, control
     for target, link in links:
         args += ["--symlink", target, link]
     args += ["--setenv", "PATH", "/usr/bin", "--info-fd", str(info_fd), "--",
-             "/usr/bin/python3", "-I", "-c", BOOT, str(_package().parent), str(control_fd), str(records_fd)]
+             "/usr/bin/python3", "-I", "-c", BOOT, str(_package().parent), str(control_fd), str(records_fd), str(allowance_fd)]
     return args
 
 
@@ -145,6 +147,7 @@ class EgressSession:
         self.pidfd = pidfd
         self.run_dir = run_dir
         self._control = control
+        self._host_peer: HostPeer
 
     @classmethod
     def start(cls, loaded: LoadedRoute, run_dir: Path, *, lease: float, denied: Iterable[Path]) -> EgressSession:
@@ -154,22 +157,29 @@ class EgressSession:
             links = system_symlinks()
         except SandboxUnproven as caught:
             raise EgressUnproven("proxy-unstarted", str(caught)) from None
+        member = loaded.member
+        if member is None:
+            raise EgressUnproven("allowance-missing", "proxy requires a bound allowance")
         flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_CLOEXEC
         records = os.open(run_dir / EGRESS_RECORDS, flags, 0o600)
         log = os.open(run_dir / PROXY_LOG, flags, 0o600)
         ours, theirs = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         info_read, info_write = os.pipe()
+        host_peer = HostPeer(member.pool, member.name, run_dir.name, "model")
+        delegate = host_peer.take_socket()
         try:
             process = subprocess.Popen(
-                proxy_argv(binds, links, control_fd=theirs.fileno(), records_fd=records, info_fd=info_write),
-                pass_fds=(theirs.fileno(), records, info_write), stdin=subprocess.DEVNULL,
+                proxy_argv(binds, links, control_fd=theirs.fileno(), records_fd=records, info_fd=info_write, allowance_fd=delegate.fileno()),
+                pass_fds=(theirs.fileno(), records, info_write, delegate.fileno()), stdin=subprocess.DEVNULL,
                 stdout=log, stderr=log, start_new_session=True,
             )
         except OSError as caught:
+            host_peer.close()
             ours.close()
             os.close(info_read)
             raise EgressUnproven("proxy-unstarted", f"cannot run bwrap: {caught}") from None
         finally:
+            delegate.close()
             theirs.close()
             os.close(records)
             os.close(log)
@@ -186,15 +196,18 @@ class EgressSession:
             except OSError:
                 pidfd = -1
         if pidfd < 0:
+            host_peer.close()
             process.kill()
             process.wait()
             ours.close()
             raise EgressUnproven("proxy-unstarted", f"bwrap reported no proxy namespace (exit {process.returncode})")
         session = cls(process, child, pidfd, ours, run_dir)
+        session._host_peer = host_peer
+        session._member = member
         try:  # until the start succeeds, any failure kills and reaps the proxy and closes its descriptors
             append_event(run_dir, "egress-proxy", pid=child, start_time=_start_time(child))
             send_message(ours, {"op": "route", "route": base64.b64encode(loaded.data).decode("ascii"), "lease": lease,
-                                "run": run_dir.name})
+                                "run": run_dir.name, "tariff": member.tariff})
             reply = session._receive(PROXY_START_TIMEOUT)
             if reply is None or reply.get("op") != "ready":
                 raise EgressUnproven("proxy-unready", _why(reply, PROXY_START_TIMEOUT))
@@ -226,12 +239,18 @@ class EgressSession:
         append_event(self.run_dir, "egress-listening")
 
     def renew(self) -> None:
+        try:
+            self._member.check()
+        except AllowanceRefused as exc:
+            self.send_close()
+            raise OSError(str(exc)) from exc
         send_message(self._control, {"op": "renew"})
 
     def exited(self) -> bool:
         return pidfd_exited(self.pidfd)
 
     def send_close(self) -> None:
+        self._member.pool.seal(self._member.name, self.run_dir.name)
         if self.pidfd < 0:
             raise RuntimeError("this proxy session is already released")
         send_message(self._control, {"op": "close"})
@@ -264,6 +283,7 @@ class EgressSession:
             self.process.kill()
             self.process.wait()
         self._control.close()
+        self._host_peer.close()
         if self.pidfd >= 0:
             os.close(self.pidfd)
             self.pidfd = -1

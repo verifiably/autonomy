@@ -125,6 +125,9 @@ def _parser(diag: Diag) -> _Parser:
         description="Run one actor under the envelope. Exit 0 clean, 3 quarantined, 4 unwired, 2 refused.",
         epilog="For offline development use autonomy run --development --help. Use run stop ID to stop a run or run close ID to recover its verdict.",
     )
+    run.add_argument("--allowance", metavar="CAMPAIGN/MEMBER")
+    run.add_argument("--conversation-id", metavar="UUID")
+    run.add_argument("--provider-session-id", metavar="UUID")
     run.add_argument("--tier", required=True, help="report-only, coordination or mints; publishes is refused")
     run.add_argument(
         "--route", action="append", default=[], type=_route, metavar="KIND=FAMILY",
@@ -160,6 +163,7 @@ def _parser(diag: Diag) -> _Parser:
             "4 the analyst never started, 2 refused."
         ),
     )
+    analyst_parser.add_argument("--allowance", metavar="CAMPAIGN/MEMBER")
     analyst_parser.add_argument("--model-route", required=True, metavar="NAME", help="the model route under <config>/routes/NAME.toml")
     analyst_parser.add_argument("--model", required=True, metavar="MODEL", help="pi's --model; must be in the route's models")
     analyst_parser.add_argument("--thinking", required=True, metavar="LEVEL", help="pi's --thinking level; must be supported for --model in pi's registry")
@@ -199,7 +203,7 @@ def _run(args: argparse.Namespace, diag: _Diagnostics, progress: Progress) -> in
         except TierRefused as caught:
             raise RunRefused(caught.code, str(caught).removeprefix(f"{caught.code}: ")) from None
         request = RunRequest(chosen, args.lease, args.report_fd, tuple(args.actor), args.model_route,
-                             args.deadline, tuple(args.toolchain))
+                             args.deadline, tuple(args.toolchain), args.allowance, args.conversation_id, args.provider_session_id)
         return science_run.execute(request, os.environ, diag=diag, progress=progress,
                                    actor_launched=lambda run_dir: _release_supervisor_stdio(diag, run_dir))
     except RunRefused as caught:
@@ -296,7 +300,7 @@ def _analyst(args: argparse.Namespace, diag: Diag, progress: analyst.Progress) -
             raise AnalystRefused("input-missing", "at least one --input directory is required")
         request = analyst.AnalystRequest(
             args.model_route, args.model, args.thinking, tuple(args.input), tuple(args.deny), args.release,
-            report_fd=args.report_fd, pi_dir=args.pi_dir, node_dir=args.node_dir, lease=args.lease,
+            report_fd=args.report_fd, pi_dir=args.pi_dir, node_dir=args.node_dir, lease=args.lease, allowance=args.allowance,
             deadline=args.deadline,
         )
         return analyst.execute(request, os.environ, diag=diag, progress=progress)

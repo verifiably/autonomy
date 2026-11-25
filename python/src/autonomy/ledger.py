@@ -9,6 +9,7 @@ closing check turns into a finding.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +32,15 @@ class ActLine:
     corpus: str
     entry: str
     intent: str
+    records: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
+class Invocation:
+    invocation: str
+    command: str
+    input_digest: str
+    outcome: dict | None
 
 
 @dataclass(frozen=True)
@@ -44,6 +54,7 @@ class Ledger:
     torn_tail: bool
     world: str | None = None
     opened_at: str | None = None
+    invocations: tuple[Invocation, ...] = ()
 
     @property
     def incomplete(self) -> bool:
@@ -74,6 +85,27 @@ def _text(value: object, what: str) -> str:
     return value
 
 
+def _pairs(value: object) -> tuple[tuple[str, str], ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(pair, list) or len(pair) != 2 for pair in value
+    ):
+        raise _Malformed("expected ordered record pairs")
+    return tuple((_text(uid, "record uid"), _text(address, "record id")) for uid, address in value)
+
+
+def _outcome(value: object) -> dict:
+    if isinstance(value, dict) and set(value) == {"done"}:
+        _pairs(value["done"])
+        return value
+    if isinstance(value, dict) and set(value) == {"refusal"}:
+        reason = value["refusal"]
+        if (isinstance(reason, dict) and set(reason) == {"code", "message", "data"}
+                and isinstance(reason["message"], str) and isinstance(reason["data"], dict)):
+            _text(reason["code"], "refusal code")
+            return value
+    raise _Malformed("invalid invocation outcome")
+
+
 def read_ledger(session_id: str, raw: bytes) -> Ledger | LedgerUnusable:
     try:
         return _parse(session_id, raw)
@@ -98,8 +130,8 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
         raise _Malformed("no complete line; no session-open")
     head: dict[str, object] | None = None
     acts: list[ActLine] = []
-    opened: list[str] = []
-    closed_invocations: set[str] = set()
+    opened: dict[str, tuple[str, str]] = {}
+    closed_invocations: dict[str, dict] = {}
     session_closed = False
     for number, chunk in enumerate(chunks, start=1):
         if chunk.endswith(b"\r"):
@@ -138,14 +170,16 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
         if kind == "invocation-open":
             if invocation in opened:
                 raise _Malformed(f"line {number}: invocation {invocation!r} is already open")
-            opened.append(invocation)
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", invocation):
+                raise _Malformed("invalid invocation identifier")
+            opened[invocation] = _text(parsed["command"], "command"), _hex(parsed["input_digest"], 64, "input digest")
             continue
         if invocation not in opened:
             raise _Malformed(f"line {number}: {kind} names invocation {invocation!r}, never opened")
         if invocation in closed_invocations:
             raise _Malformed(f"line {number}: {kind} names invocation {invocation!r}, already closed")
         if kind == "invocation-close":
-            closed_invocations.add(invocation)
+            closed_invocations[invocation] = _outcome(parsed["outcome"])
         elif kind == "act":
             acts.append(
                 ActLine(
@@ -153,6 +187,7 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
                     _hex(parsed["corpus"], 32, f"line {number}: corpus id"),
                     _hex(parsed["entry"], 64, f"line {number}: entry digest"),
                     _hex(parsed["intent"], 64, f"line {number}: intent digest"),
+                    _pairs(parsed["records"]),
                 )
             )
     assert head is not None  # line 1 was checked above
@@ -162,6 +197,7 @@ def _parse(session_id: str, raw: bytes) -> Ledger:
         raise _Malformed(f"line 1: {caught}") from caught
     return Ledger(
         session_id=session_id,
+        invocations=tuple(Invocation(i, command, digest, closed_invocations.get(i)) for i, (command, digest) in opened.items()),
         actor=_text(head["actor"], "line 1: actor"),
         permit=permit,
         acts=tuple(acts),

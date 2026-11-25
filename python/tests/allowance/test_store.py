@@ -21,7 +21,9 @@ def definition():
     action = {"proposition": "target"}
     return dict(campaign_id="pool", source="offline fixture", expires=int(time.time()) + 3600,
                 limits=LIMITS, tariff=dict(model="fixture", billing_mode="standard", context=200,
-                    output_cap=100, max_input_micro_usd_per_mtok=4000000, output_micro_usd_per_mtok=5000000),
+                    output_cap=100, max_input_micro_usd_per_mtok=4000000, output_micro_usd_per_mtok=5000000,
+                    rates_micro_usd_per_mtok=dict(input=1000000, output=5000000, cache_read=100000,
+                                                  cache_write_5m=2000000, cache_write_1h=4000000)),
                 members={"action": dict(caller="band", target=action, route_digest=ROUTE, limits=LIMITS),
                          "smoke": dict(caller="e21", target={}, route_digest=ROUTE,
                                        limits={**LIMITS, "job_starts": 0, "attempts": 1})})
@@ -203,3 +205,12 @@ def test_corrupt_negative_debit_refuses_instead_of_adding_capacity(tmp_path):
         db.execute("""UPDATE reservation SET debit='{"micro_usd":-500}'""")
     with pytest.raises(AllowanceRefused, match="allowance-unavailable"):
         model(pool, 2)
+
+
+def test_route_grant_resolves_before_reading_credential(tmp_path):
+    from autonomy.egress.route import load_governed_route
+    from egress_fixtures import pi_route, write_route
+    route = pi_route(credential=tmp_path / "missing-key")
+    write_route(tmp_path, "pi", route)
+    with pytest.raises(AllowanceRefused, match="allowance-missing"):
+        load_governed_route(tmp_path, "pi", None, caller="analyst")

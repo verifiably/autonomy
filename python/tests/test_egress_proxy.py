@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 import pytest
+from egress_fixtures import FixtureAllowance
 
 import autonomy
 from egress_fixtures import (  # noqa: F401  (tls is a fixture)
@@ -57,7 +58,7 @@ def fresh(tmp_path, tls, *, mode="json", hooks=Hooks()):
     route = parse_route(to_toml(pi_route(credential=tmp_path / "c", upstream=upstream.origin, ca_file=tls.cert)).encode())
     records = tmp_path / "egress.jsonl"
     fd = os.open(records, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    server = ProxyServer(route, CANARY, Recorder(fd), context=tls_context(tls.cert), hooks=hooks)
+    server = ProxyServer(route, CANARY, Recorder(fd), context=tls_context(tls.cert), allowance=FixtureAllowance(), hooks=hooks)
     return server, upstream, records
 
 
@@ -237,13 +238,26 @@ def spawn_proxy(tmp_path: Path, tls, credential_text: str):
         f"p.IN_SANDBOX_CREDENTIAL = Path({str(credential)!r}); p.IN_SANDBOX_CA = Path({str(tls.cert)!r}); "
         "raise SystemExit(p.main(sys.argv[2:]))"
     )
+    from egress_fixtures import governed_route
+    from autonomy.egress.route import load_governed_route
+    from autonomy.allowance.protocol import HostPeer
+    config = tmp_path / "cfg"
+    path = governed_route(config, "pi", pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert))
+    loaded = load_governed_route(config, "pi", None, caller="run")
+    run = "a" * 32
+    loaded.member.open(run)
+    host = HostPeer(loaded.member.pool, loaded.member.name, run, "model")
+    delegate = host.take_socket()
     process = subprocess.Popen(
-        ["/usr/bin/python3", "-I", "-c", code, package_parent, str(theirs.fileno()), str(records_fd)],
-        pass_fds=(theirs.fileno(), records_fd), stdin=subprocess.DEVNULL, start_new_session=True,
+        ["/usr/bin/python3", "-I", "-c", code, package_parent, str(theirs.fileno()), str(records_fd), str(delegate.fileno())],
+        pass_fds=(theirs.fileno(), records_fd, delegate.fileno()), stdin=subprocess.DEVNULL, start_new_session=True,
+        env={"HOME": str(tmp_path), "PATH": os.defpath},
     )
     theirs.close()
     os.close(records_fd)
-    send_message(ours, {"op": "route", "route": base64.b64encode(route_bytes).decode(), "lease": 30})
+    delegate.close()
+    send_message(ours, {"op": "route", "route": base64.b64encode(path.read_bytes()).decode(),
+                       "lease": 30, "run": run, "tariff": loaded.member.tariff})
     return process, ours, records
 
 

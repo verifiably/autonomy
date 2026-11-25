@@ -103,7 +103,7 @@ os.execv(sys.argv[2], sys.argv[2:])
 
 def spawn_recorded(
     argv: Sequence[str], *, env: Mapping[str, str], record: Callable[[ProcessIdentity], None],
-    stdin, stdout, stderr, encoding: str | None = None,
+    stdin, stdout, stderr, encoding: str | None = None, pass_fds: tuple[int, ...] = (),
 ) -> tuple[subprocess.Popen, int]:
     """Release the exec barrier only after the child identity is durable."""
     read_end, write_end = os.pipe2(os.O_CLOEXEC)
@@ -112,7 +112,7 @@ def spawn_recorded(
     try:
         child = subprocess.Popen(
             [sys.executable, "-I", "-c", _EXEC_BARRIER, str(read_end), *argv],
-            pass_fds=(read_end,), env=env, stdin=stdin, stdout=stdout, stderr=stderr,
+            pass_fds=(read_end, *pass_fds), env=env, stdin=stdin, stdout=stdout, stderr=stderr,
             encoding=encoding, start_new_session=True,
         )
         pidfd = os.pidfd_open(child.pid)

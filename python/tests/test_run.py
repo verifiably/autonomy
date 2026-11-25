@@ -14,6 +14,7 @@ from autonomy.run import (
 )
 from autonomy.tiers import REPORT_ONLY
 from channels import drain, fill, one_page_pipe, read_all
+from egress_fixtures import governed_route
 from egress_fixtures import pi_route, write_credential, write_route
 
 
@@ -381,7 +382,7 @@ def test_a_relative_config_home_falls_back_to_the_home_default(tmp_path, env):
 def test_a_model_route_reaches_the_steps(tmp_path, env, actor):
     config = config_of(tmp_path)
     credential = write_credential(config / "credentials" / "anthropic")
-    path = write_route(config, "anthropic", pi_route(credential=credential))
+    path = governed_route(config, "anthropic", pi_route(credential=credential))
     seen = {}
 
     def steps(opened):
@@ -417,7 +418,7 @@ def test_a_route_refusal_keeps_nothing_and_writes_no_report_line(tmp_path, env, 
     if case == "credential-unavailable":
         os.chmod(credential, 0o644)
     if case != "route-unknown":
-        write_route(config, "anthropic", doc)
+        (governed_route if case == "credential-unavailable" else write_route)(config, "anthropic", doc)
     read_end, write_end = os.pipe()
     try:
         with pytest.raises(RunRefused) as caught:

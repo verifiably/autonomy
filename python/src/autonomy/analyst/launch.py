@@ -33,7 +33,8 @@ from autonomy.baseline import append_event, fsync_dir, utc_now, write_all
 from autonomy.channel import LineChannel
 from autonomy.egress.errors import EgressUnproven, RouteRefused
 from autonomy.egress.helper import MODEL_URL
-from autonomy.egress.route import LoadedRoute, all_egress_denied, egress_denied, load_route
+from autonomy.allowance import AllowanceRefused
+from autonomy.egress.route import LoadedRoute, all_egress_denied, egress_denied, load_governed_route
 from autonomy.egress.session import EGRESS_RECORDS, EgressClosed, EgressSession, _start_time, closing_line
 from autonomy.run import LEASE_DEFAULT, LEASE_FLOOR, Diag, RunRefused, _home, _xdg
 from autonomy.sandbox.bwrap import Sandboxed, launch, preflight, probe
@@ -62,6 +63,7 @@ class AnalystRequest:
     node_dir: Path | None = None
     lease: float = LEASE_DEFAULT
     deadline: float = DEADLINE_DEFAULT
+    allowance: str | None = None
 
 
 @dataclass(frozen=True)
@@ -160,8 +162,8 @@ def refuse(request: AnalystRequest, env: Mapping[str, str], *, actor_fds: tuple[
         if request.report_fd is not None:
             check_report_fd(request.report_fd, actor_fds)
         where = places(env)
-        loaded = load_route(where.config, request.model_route)
-    except (StdioRefused, RunRefused, RouteRefused) as caught:
+        loaded = load_governed_route(where.config, request.model_route, request.allowance, caller="analyst")
+    except (StdioRefused, RunRefused, RouteRefused, AllowanceRefused) as caught:
         raise AnalystRefused(caught.code, caught.message) from None
     operation = loaded.route.operation("POST", "/v1/messages", "beta=true")
     if operation is None or request.model not in operation.models:
@@ -179,6 +181,8 @@ def refuse(request: AnalystRequest, env: Mapping[str, str], *, actor_fds: tuple[
     except SandboxUnproven as caught:
         raise AnalystRefused(caught.code, str(caught)) from None
     release_dir = check_release_dir(request.release_dir, forbidden=(*inputs, *denied, where.cache))
+    if loaded.member.target != {"inputs": [str(p) for p in inputs], "release": str(release_dir), "model": request.model}:
+        raise AnalystRefused("allowance-scope", "analyst inputs, release or model differ from the issued grant")
     return Prepared(where, loaded, inputs, (*denied, release_dir), release_dir, pi, node, stdio)
 
 
@@ -327,8 +331,16 @@ def execute(
         dirs = _allocate(prepared.places)
         progress.run_dir, progress.scratch = dirs.run_dir, dirs.scratch
         run_dir, scratch = dirs.run_dir, dirs.scratch
+        member = prepared.route.member
+        try:
+            binding = member.open(dirs.run_id)
+        except AllowanceRefused as exc:
+            raise AnalystRefused(exc.code, exc.message) from exc
+        _write_json(run_dir / "allowance.json", {"campaign_id": member.pool.name, "member_id": member.name,
+                    "route_digest": prepared.route.digest, **binding})
         diag(f"analyst run {dirs.run_id} in {run_dir}")
-        _write_json(scratch / "agent/models.json", {"providers": {"anthropic": {"baseUrl": MODEL_URL, "apiKey": "placeholder"}}})
+        _write_json(scratch / "agent/models.json", {"providers": {"anthropic": {"baseUrl": MODEL_URL, "apiKey": "placeholder",
+                    "modelOverrides": {request.model: {"maxTokens": member.tariff["output_cap"]}}}}})
         _write_json(
             run_dir / "epoch.json",
             epoch_record(prepared.pi, prepared.node_dir, model=request.model, thinking=request.thinking),
@@ -381,6 +393,7 @@ def execute(
             if tuple(actor_fds) == ACTOR_FDS:
                 _take_stdio(log)
             pi_exit = _supervise(actor, session, request, log)
+            member.pool.seal(member.name, run_dir.name)
             closed = _close_route(session, run_dir, log)
             route_closed = True
         finally:
@@ -406,6 +419,8 @@ def execute(
     finally:
         if log is not None:
             log.close()
+        if progress.run_dir is not None and prepared.route.member is not None and (progress.run_dir / "allowance.json").exists():
+            prepared.route.member.pool.seal(prepared.route.member.name, progress.run_dir.name)
         if report is not None:
             report.close()
         if request.report_fd is not None:

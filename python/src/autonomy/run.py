@@ -16,11 +16,12 @@ from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
 
-from autonomy.baseline import append_event, decode_object, fsync_dir, publish_bytes, read_private_bytes, utc_now
+from autonomy.baseline import append_event, decode_object, fsync_dir, publish_bytes, publish_json, read_private_bytes, utc_now
 from autonomy.channel import LineChannel
 from autonomy.closing import SEVERITY, Disposition, disposition_of
 from autonomy.egress.errors import RouteRefused
-from autonomy.egress.route import LoadedRoute, load_route
+from autonomy.egress.route import LoadedRoute, load_governed_route
+from autonomy.allowance import AllowanceRefused
 from autonomy.membership import Finding
 from autonomy.stdio import ACTOR_FDS, StdioKind, StdioRefused, check_report_fd, check_stdio
 from autonomy.tiers import Tier
@@ -54,6 +55,9 @@ class RunRequest:
     model_route: str | None = None
     deadline: float = DEADLINE_DEFAULT
     toolchain: tuple[Path, ...] = ()
+    allowance: str | None = None
+    conversation_id: str | None = None
+    provider_session_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -322,14 +326,22 @@ def read_disposition(run_dir: Path) -> tuple[bytes, int] | None:
 
 
 
-def _route(name: str | None, where: Places) -> LoadedRoute | None:
+def _route(request: RunRequest, where: Places) -> LoadedRoute | None:
     """Step 2's route refusals: before anything exists, so a refusal
     leaves no run directory and writes nothing on the report fd."""
-    if name is None:
+    if request.model_route is None:
+        if any((request.allowance, request.conversation_id, request.provider_session_id)):
+            raise RunRefused("allowance-scope", "allowance identity requires a model route")
         return None
     try:
-        return load_route(where.config, name)
-    except RouteRefused as caught:
+        loaded = load_governed_route(where.config, request.model_route, request.allowance,
+                                    caller="band" if request.conversation_id else "run",
+                                    conversation_id=request.conversation_id,
+                                    provider_session_id=request.provider_session_id)
+        if request.conversation_id is None and request.tier.name != "report-only":
+            raise RunRefused("allowance-scope", "model-only run requires report-only tier")
+        return loaded
+    except (AllowanceRefused, RouteRefused) as caught:
         raise RunRefused(caught.code, caught.message) from None
 
 
@@ -358,7 +370,7 @@ def execute(
     directory exists."""
     stdio = refuse(request, actor_fds=actor_fds)
     where = places(env)
-    route = _route(request.model_route, where)
+    route = _route(request, where)
     report: LineChannel | None = None
     try:
         if request.report_fd is not None:
@@ -369,7 +381,19 @@ def execute(
                 _line({"run": dirs.run_id, "run_dir": str(dirs.run_dir), "scratch": str(dirs.scratch)})
             ):
                 append_event(dirs.run_dir, "report-unwritten", line="run")
-            result = steps(Opened(request, dirs, stdio, where, route))
+            member = route.member if route is not None else None
+            if member is not None:
+                try:
+                    binding = member.open(dirs.run_id)
+                except AllowanceRefused as error:
+                    raise RunRefused(error.code, error.message) from error
+                publish_json(dirs.run_dir / "allowance.json", {"campaign_id": member.pool.name, "member_id": member.name,
+                             "conversation_id": member.conversation_id, "route_digest": route.digest, **binding})
+            try:
+                result = steps(Opened(request, dirs, stdio, where, route))
+            finally:
+                if member is not None:
+                    member.pool.seal(member.name, dirs.run_id)
             findings = result.findings if isinstance(result, RunResult) else tuple(result)
             disposition = disposition_of(findings)
             code = EXIT_CODES[disposition]

@@ -73,11 +73,16 @@ def definition(value):
     limits(value["limits"])
     tariff = value["tariff"]
     keys(tariff, ("model", "billing_mode", "context", "output_cap", "max_input_micro_usd_per_mtok",
-                  "output_micro_usd_per_mtok"))
+                  "output_micro_usd_per_mtok", "rates_micro_usd_per_mtok"))
     for field in ("model", "billing_mode"):
         require(type(tariff[field]) is str and tariff[field], "missing tariff identity")
     for field in ("context", "output_cap", "max_input_micro_usd_per_mtok", "output_micro_usd_per_mtok"):
         integer(tariff[field], 1)
+    rates = tariff["rates_micro_usd_per_mtok"]
+    keys(rates, ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h"))
+    for kind, rate in rates.items():
+        ceiling = tariff["output_micro_usd_per_mtok"] if kind == "output" else tariff["max_input_micro_usd_per_mtok"]
+        require(integer(rate) <= ceiling, "actual rate exceeds conservative reservation rate", "allowance-unpriced")
     require(type(value["members"]) is dict and value["members"], "missing grant members")
     for name, row in value["members"].items():
         opaque(name)

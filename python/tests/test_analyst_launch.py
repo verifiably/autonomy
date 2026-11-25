@@ -8,7 +8,7 @@ import pytest
 
 from autonomy.analyst.launch import AnalystRequest, Progress, actor_env, execute, pi_argv, refuse
 from autonomy.analyst.toolchain import ANALYST_TOOLS, AnalystRefused, check_pi
-from egress_fixtures import MODEL, FakeUpstream, pi_route, tls, write_credential, write_route  # noqa: F401
+from egress_fixtures import governed_route, MODEL, FakeUpstream, pi_route, tls, write_credential, write_route  # noqa: F401
 from test_analyst_toolchain import node_tree, pi_tree
 
 
@@ -18,7 +18,8 @@ def world(tmp_path, tls):
     a node tree, an input, a denied directory and a release directory."""
     config = tmp_path / "config/verifiably-autonomy"
     credential = write_credential(config / "credentials/anthropic", "placeholder-not-a-key")
-    write_route(config, "pi", pi_route(credential=credential, upstream="https://localhost:1", ca_file=tls.cert))
+    target = {"model": MODEL, "inputs": [str(tmp_path / "bundle")], "release": str(tmp_path / "release")}
+    governed_route(config, "pi", pi_route(credential=credential, upstream="https://localhost:1", ca_file=tls.cert), caller="analyst", target=target)
     env = {"HOME": str(tmp_path / "home"), "XDG_CONFIG_HOME": str(tmp_path / "config"),
            "XDG_STATE_HOME": str(tmp_path / "state"), "XDG_CACHE_HOME": str(tmp_path / "cache"), "PATH": "/usr/bin"}
     for name in ("home", "bundle", "release", "key"):
@@ -83,7 +84,8 @@ def test_a_routed_model_absent_from_pi_registry_is_refused(world, null_fds, tls)
     credential = config / "credentials/anthropic"
     doc = pi_route(credential=credential, upstream="https://localhost:1", ca_file=tls.cert)
     doc["operations"][0]["models"] = ["claude-unlisted"]
-    write_route(config, "pi", doc)
+    governed_route(config, "pi", doc, caller="analyst", target={"model": "claude-unlisted",
+                   "inputs": [str(world["tmp"] / "bundle")], "release": str(world["tmp"] / "release")})
     request = dataclasses.replace(world["request"], model="claude-unlisted")
     with pytest.raises(AnalystRefused) as caught:
         refuse(request, world["env"], actor_fds=null_fds)
@@ -150,7 +152,8 @@ def served_world(world, tls):
     upstream = FakeUpstream(tls, mode="script")
     config = world["tmp"] / "config/verifiably-autonomy"
     credential = config / "credentials/anthropic"
-    write_route(config, "pi", pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert))
+    target = {"model": MODEL, "inputs": [str(world["tmp"] / "bundle")], "release": str(world["tmp"] / "release")}
+    governed_route(config, "pi", pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert), caller="analyst", target=target)
     yield {**world, "upstream": upstream}
     upstream.stop()
 
@@ -215,7 +218,8 @@ def test_a_clean_run_releases_and_reports(served_world):
     epoch = json.loads((run_dir / "epoch.json").read_text())
     assert epoch["pi"]["version"] == "1.1.0" and epoch["model"] == MODEL and epoch["thinking"] == "low"
     models = served_world["tmp"] / "cache/verifiably-autonomy/analyst" / run_dir.name / "scratch/agent/models.json"
-    assert json.loads(models.read_text()) == {"providers": {"anthropic": {"baseUrl": "http://127.0.0.1:4780", "apiKey": "placeholder"}}}
+    assert json.loads(models.read_text()) == {"providers": {"anthropic": {"baseUrl": "http://127.0.0.1:4780", "apiKey": "placeholder",
+                                                        "modelOverrides": {MODEL: {"maxTokens": 2048}}}}}
 
 
 @bwrap

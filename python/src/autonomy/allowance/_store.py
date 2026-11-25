@@ -101,25 +101,40 @@ class Campaign:
         c.require(row is not None, "envelope does not belong to member")
         return row
 
+    @staticmethod
+    def _opening_member(db, config, member, caller, target, route_digest, conversation_id, provider_session_id):
+        spec = config["members"].get(member)
+        c.require(spec and (caller, target, route_digest) == (spec["caller"], spec["target"], spec["route_digest"]),
+                  "grant member binding differs")
+        row = db.execute("SELECT * FROM member WHERE name=?", (member,)).fetchone()
+        prior = db.execute("SELECT id,closed FROM envelope WHERE name=?", (member,)).fetchall()
+        c.require(not any(not item["closed"] for item in prior), "member already open")
+        if caller == "band":
+            c.uid(conversation_id)
+            c.require(row["conversation"] in (None, conversation_id), "different host conversation")
+            if prior:
+                c.uid(provider_session_id)
+            c.require(provider_session_id == row["provider"], "provider session is missing or changed")
+        else:
+            c.require(not prior and provider_session_id is None and conversation_id is None, "member already used")
+        return row
+
+    def check_open(self, member, **binding):
+        with self._transaction() as (db, config, cause):
+            self._active(cause)
+            self._opening_member(db, config, member, **binding)
+            remaining = self._remaining(db, config, member)
+            if not remaining["attempts"]:
+                raise AllowanceRefused("allowance-exhausted", "no provider attempts remain",
+                                       dimension="attempts", remaining=remaining)
+
     def open(self, member, envelope, *, caller, target, route_digest,
              conversation_id=None, provider_session_id=None, lower_limits=None):
         c.hexadecimal(envelope, 32)
         with self._transaction() as (db, config, cause):
             self._active(cause)
-            spec = config["members"].get(member)
-            c.require(spec and (caller, target, route_digest) == (spec["caller"], spec["target"], spec["route_digest"]),
-                      "grant member binding differs")
-            row = db.execute("SELECT * FROM member WHERE name=?", (member,)).fetchone()
-            prior = db.execute("SELECT id,closed FROM envelope WHERE name=?", (member,)).fetchall()
-            c.require(not any(not item["closed"] for item in prior), "member already open")
-            if caller == "band":
-                c.uid(conversation_id)
-                c.require(row["conversation"] in (None, conversation_id), "different host conversation")
-                if prior:
-                    c.uid(provider_session_id)
-                c.require(provider_session_id == row["provider"], "provider session is missing or changed")
-            else:
-                c.require(not prior and provider_session_id is None and conversation_id is None, "member already used")
+            row = self._opening_member(db, config, member, caller, target, route_digest,
+                                       conversation_id, provider_session_id)
             effective = json.loads(row["limits"])
             if lower_limits is not None:
                 c.limits(lower_limits)
@@ -238,4 +253,6 @@ class Campaign:
                 if entry["report"] is not None:
                     entry["report"] = json.loads(entry["report"])
                 envelopes.append(entry)
-            return {"grant": config, "closed": cause, "remaining": remaining, "reservations": reservations, "envelopes": envelopes}
+            identity = db.execute("SELECT conversation,provider FROM member WHERE name=?", (member,)).fetchone()
+            return {"grant": config, "closed": cause, "remaining": remaining, "reservations": reservations,
+                    "envelopes": envelopes, "conversation_id": identity["conversation"], "provider_session_id": identity["provider"]}

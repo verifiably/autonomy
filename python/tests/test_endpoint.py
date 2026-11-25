@@ -105,7 +105,13 @@ run = Path(sys.argv[3]).parent
 events = [json.loads(row) for row in (run / "events.jsonl").read_text().splitlines()]
 assert any(row.get("event") == "endpoint-starting" and row["pid"] == os.getpid() for row in events)
 launch = json.loads(Path(sys.argv[3]).read_text())
-assert set(launch) == set(json.loads(os.environ["LAUNCH_FIXTURE"])) | {"lease_seconds", "seal_timeout_seconds"}
+campaign = os.environ.get("CAMPAIGN")
+fields = {"allowance_fd", "research_action", "resume_handoff"} if campaign else set()
+assert set(launch) == set(json.loads(os.environ["LAUNCH_FIXTURE"])) | {"lease_seconds", "seal_timeout_seconds"} | fields
+if campaign:
+    peer = socket.socket(fileno=launch["allowance_fd"])
+    assert peer.type == socket.SOCK_SEQPACKET and peer.recv(16) == b"job-channel"
+    peer.close()
 assert launch["version"] == "launch.v1"
 assert launch["permit"] == {"kinds": [], "act_families": [], "ungoverned": False}
 assert len(launch["written_chains"]) == 1
@@ -115,6 +121,10 @@ assert len(token.read_bytes()) == 64 and set(token.read_bytes()) <= set(b"012345
 with socket.socket(socket.AF_UNIX) as stream:
     stream.connect(launch["control_socket"])
     opened = json.loads(os.environ["OPEN_FIXTURE"])
+    if campaign and campaign != "missing":
+        import hashlib
+        encoded = json.dumps(launch["research_action"], separators=(",", ":"), ensure_ascii=False, sort_keys=True)
+        opened["research_action_digest"] = hashlib.sha256(encoded.encode()).hexdigest() if campaign == "valid" else "0"*64
     opened["ledger_path"] = os.environ["LEDGER"]
     opened["session_id"] = "a" * 32
     stream.sendall(json.dumps(opened).encode() + b"\n")
@@ -123,7 +133,7 @@ with socket.socket(socket.AF_UNIX) as stream:
 '''
 
 
-@pytest.mark.parametrize("invalid", [None, "actor-mismatch", "permit-mismatch"])
+@pytest.mark.parametrize("invalid", [None, "actor-mismatch", "permit-mismatch", "valid", "missing", "changed"])
 def test_endpoint_exec_waits_for_identity_and_validates_session_ledger(tmp_path, invalid):
     from tempfile import TemporaryDirectory
 
@@ -158,19 +168,32 @@ def test_endpoint_exec_waits_for_identity_and_validates_session_ledger(tmp_path,
         dirs = RunDirs("1" * 32, run, scratch, Path(runtime).resolve())
         chain = ChainHead("corpus", "a" * 32, root / "corpus", "1" * 64, "1" * 64, ())
         launch = Launch(dirs, executable, config, operations, REPORT_ONLY.permit, (chain,), 60, 1)
-        if invalid is None:
-            endpoint = Endpoint.start(launch, env, timeout=2)
-            try:
-                assert endpoint.opened.session_id == "a" * 32
-                assert endpoint.opened.ledger_path == ledger
-                assert os.getsid(endpoint.process.pid) == endpoint.process.pid
-            finally:
-                endpoint.close()
-            assert endpoint.process.returncode is not None
-        else:
-            with pytest.raises(EndpointError) as caught:
-                Endpoint.start(launch, env, timeout=2)
-            assert caught.value.code == invalid
+        from contextlib import ExitStack
+        from dataclasses import replace
+
+        with ExitStack() as sockets:
+            if invalid in ("valid", "missing", "changed"):
+                from autonomy.endpoint import ResearchLaunch
+
+                host, delegate = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+                sockets.enter_context(host)
+                sockets.enter_context(delegate)
+                host.sendall(b"job-channel")
+                launch = replace(launch, research=ResearchLaunch(delegate.fileno(), {"target": "é"}, {"sessions": []}))
+                env["CAMPAIGN"] = invalid
+            if invalid in (None, "valid"):
+                endpoint = Endpoint.start(launch, env, timeout=2)
+                try:
+                    assert endpoint.opened.session_id == "a" * 32
+                    assert endpoint.opened.ledger_path == ledger
+                    assert os.getsid(endpoint.process.pid) == endpoint.process.pid
+                finally:
+                    endpoint.close()
+                assert endpoint.process.returncode is not None
+            else:
+                with pytest.raises(EndpointError) as caught:
+                    Endpoint.start(launch, env, timeout=2)
+                assert caught.value.code == ("allowance-scope" if invalid in ("missing", "changed") else invalid)
 
 
 def test_recorded_process_identity_refuses_a_reused_pid():

@@ -465,6 +465,14 @@ class Served:
         return [json.loads(line) for line in self.records_path.read_text().splitlines()]
 
 
+class FixtureAllowance:
+    def admit(self, run, seq, body, request_bytes, in_flight):
+        return 0
+
+    def settle(self, seq, request_id, stream):
+        return 0 if stream.complete else None
+
+
 def make_served(tmp_path: Path, tls: Tls, *, mode: str = "json", hooks=None, allowance=None, route_changes=None) -> Served:
     from autonomy.egress.route import parse_route
     from autonomy.egress.server import Hooks, ProxyServer, Recorder
@@ -480,7 +488,7 @@ def make_served(tmp_path: Path, tls: Tls, *, mode: str = "json", hooks=None, all
     records_path = tmp_path / "egress.jsonl"
     fd = os.open(records_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     server = ProxyServer(route, CANARY, Recorder(fd), context=tls_context(tls.cert), run="run-test",
-                         allowance=allowance, hooks=hooks or Hooks())
+                         allowance=allowance or FixtureAllowance(), hooks=hooks or Hooks())
     listener = socket.create_server(("127.0.0.1", 0))
     server.serve(listener)
     return Served(server, listener.getsockname()[1], upstream, other, records_path, CANARY)
@@ -506,3 +514,27 @@ def serve(tmp_path, tls):
 @pytest.fixture
 def served(serve):
     return serve()
+
+
+def governed_route(config, name, doc, *, caller="run", target=None):
+    """Issue an isolated local grant bound to the exact route written by this test."""
+    import hashlib
+    import uuid
+    from autonomy.allowance import Campaign
+    campaign = uuid.uuid4().hex
+    path = write_route(config, name, {**doc, "allowance": campaign + "/member"})
+    storage = config.parent / "allowance-state"
+    storage.mkdir(mode=0o700, exist_ok=True)
+    info = storage.stat()
+    pin = config / "allowance-storage.json"
+    pin.write_text(json.dumps(dict(version=1, path=str(storage), device=info.st_dev, inode=info.st_ino)))
+    pin.chmod(0o600)
+    model = doc["operations"][0]["models"][0]
+    limits = dict(attempts=64, input_tokens=20_000_000, output_tokens=131072, micro_usd=100000000, job_starts=0)
+    rates = dict(input=1000000, output=5000000, cache_read=100000, cache_write_5m=1250000, cache_write_1h=2000000)
+    Campaign.issue(storage, dict(campaign_id=campaign, source="local TLS test", expires=int(time.time()) + 3600,
+                   limits=limits, tariff=dict(model=model, billing_mode="standard", context=200000, output_cap=2048,
+                   max_input_micro_usd_per_mtok=2000000, output_micro_usd_per_mtok=5000000, rates_micro_usd_per_mtok=rates),
+                   members={"member": dict(caller=caller, target=target or {}, route_digest=hashlib.sha256(path.read_bytes()).hexdigest(),
+                   limits=limits)}))
+    return path

@@ -8,7 +8,7 @@ from autonomy.allowance import AllowanceRefused, Campaign
 from autonomy.allowance._configuration import parse_json, private_config, resolve, storage
 from autonomy.allowance._contract import opaque
 from autonomy.baseline import write_all
-from autonomy.run import config_root
+from autonomy.run import config_root, state_root
 
 
 def add_parser(commands):
@@ -16,6 +16,10 @@ def add_parser(commands):
     ops = group.add_subparsers(dest="operation", required=True, parser_class=commands._parser_class)
     ops.add_parser("issue", help="issue a new campaign from named operator configuration").add_argument("name")
     ops.add_parser("revoke", help="permanently close a campaign").add_argument("campaign")
+    reconcile = ops.add_parser("reconcile", help="export the sealed member history")
+    reconcile.add_argument("reference")
+    reconcile.add_argument("--conversation-id", required=True)
+    reconcile.add_argument("--provider-session-id", required=True)
     turn = ops.add_parser("record-turn", help="attach one validated Band turn on stdin")
     turn.add_argument("reference")
     turn.add_argument("--conversation-id", required=True)
@@ -32,6 +36,11 @@ def execute(args: argparse.Namespace):
             receipt = campaign.receipt()
         elif args.operation == "revoke":
             receipt = Campaign(storage(config), args.campaign).revoke()
+        elif args.operation == "reconcile":
+            from autonomy.science_run.history import history
+
+            pool, member = resolve(config, args.reference)
+            receipt = history(pool, member, state_root(os.environ) / "runs", args.conversation_id, args.provider_session_id)
         else:
             pool, member = resolve(config, args.reference)
             data = sys.stdin.buffer.read(1_048_577)

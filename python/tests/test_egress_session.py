@@ -48,7 +48,12 @@ class World:
     actor_timings: dict = field(default_factory=dict)
 
     def loaded(self):
-        return load_route(self.config, "anthropic")
+        if hasattr(self, "_selected"):
+            return self._selected
+        from autonomy.egress.route import load_governed_route
+        self._selected = load_governed_route(self.config, "anthropic", None, caller="run")
+        self._selected.member.open(self.run_dir.name)
+        return self._selected
 
     def denied(self, loaded):
         return egress_denied(self.config, loaded)
@@ -85,11 +90,13 @@ def make_world(root: Path, tls: Tls, *, canary: str = CANARY, mode: str = "sse",
     if credential_text is not None:
         credential.write_text(credential_text)
     upstream, other = FakeUpstream(tls, mode=mode), FakeUpstream(tls)
-    write_route(config, "anthropic", pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert))
-    run_dir, scratch = root / "run", root / "scratch"
+    from egress_fixtures import governed_route
+    governed_route(config, "anthropic", pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert))
+    run_dir, scratch = root / ("a" * 32), root / "scratch"
     run_dir.mkdir()
     scratch.mkdir()
-    return World(config, credential, run_dir, scratch, upstream, other, canary)
+    world = World(config, credential, run_dir, scratch, upstream, other, canary)
+    return world
 
 
 @pytest.fixture
@@ -266,7 +273,7 @@ def proxy_pid(session: EgressSession) -> int:
 def test_the_proxys_argv(world):
     route = world.loaded().route
     binds = proxy_binds(route)
-    argv = proxy_argv(binds, system_symlinks(), control_fd=5, records_fd=6, info_fd=7)
+    argv = proxy_argv(binds, system_symlinks(), control_fd=5, records_fd=6, info_fd=7, allowance_fd=8)
     assert argv[:6] == ["bwrap", "--unshare-all", "--share-net", "--new-session", "--clearenv", "--proc"]
     assert "--die-with-parent" not in argv
     at = argv.index(str(world.credential))
@@ -276,7 +283,7 @@ def test_the_proxys_argv(world):
 
 def test_the_proxys_links_are_the_ones_resolved_at_start(world):
     links = (("usr/bin", "/bin"), ("usr/lib64", "/lib64"))
-    argv = proxy_argv(proxy_binds(world.loaded().route), links, control_fd=5, records_fd=6, info_fd=7)
+    argv = proxy_argv(proxy_binds(world.loaded().route), links, control_fd=5, records_fd=6, info_fd=7, allowance_fd=8)
     assert [tuple(argv[i + 1:i + 3]) for i, arg in enumerate(argv) if arg == "--symlink"] == list(links)
 
 
@@ -532,7 +539,9 @@ ORCHESTRATOR = textwrap.dedent("""
     from autonomy.egress.route import egress_denied, load_route
     from autonomy.egress.session import EgressSession
     config, run_dir, lease = Path(sys.argv[2]), Path(sys.argv[3]), float(sys.argv[4])
-    loaded = load_route(config, "anthropic")
+    from autonomy.egress.route import load_governed_route
+    loaded = load_governed_route(config, "anthropic", None, caller="run")
+    loaded.member.open(run_dir.name)
     session = EgressSession.start(loaded, run_dir, lease=lease, denied=egress_denied(config, loaded))
     print(json.dumps({"init": session.init_pid}), flush=True)
     while True:

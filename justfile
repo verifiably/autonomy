@@ -95,8 +95,8 @@ test-full:
 
 # Live egress smoke check: pi through the model proxy to the real API. It costs one short prompt
 # and never runs in the suite. Needs a model route whose credential is a real key.
-live-egress route model="claude-haiku-5-5":
-    {{tt}} live-egress -- sh -c 'cd python && uv run python scripts/egress_live.py "$0" "$1"' {{route}} {{model}}
+live-egress route model="claude-haiku-4-5" *options:
+    {{tt}} live-egress -- sh -c 'cd python && uv run python scripts/egress_live.py "$0" "$@"' "$@"
 
 # The mandatory checks: shared hygiene, guide regions, tasks check. Seconds, never
 # skipped by policy.

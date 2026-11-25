@@ -14,6 +14,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+from autonomy.allowance import AllowanceRefused
+from autonomy.egress.usage import StreamUsage
 from autonomy.baseline import utc_now, write_all
 from autonomy.egress.dialect import check_body, parse_body
 from autonomy.egress.errors import Refused
@@ -52,20 +54,9 @@ class Allowance(Protocol):
     """Allowance join points (docs/egress.md): `admit` before any byte goes
     upstream, `settle` when the response stream ends, however it ended."""
 
-    def admit(self, run: str, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None: ...
+    def admit(self, run: str, seq: int, body: dict, request_bytes: int, in_flight: int) -> int: ...
 
-    def settle(self, seq: int, upstream_request_id: str | None, usage: Mapping[str, object] | None) -> None: ...
-
-
-class NoAllowance:
-    """Until an allowance exists, `admit` allows every request the route permits and
-    `settle` does nothing beyond the record line."""
-
-    def admit(self, run: str, operation: Operation, model: str, request_bytes: int, in_flight: int) -> str | None:
-        return None
-
-    def settle(self, seq: int, upstream_request_id: str | None, usage: Mapping[str, object] | None) -> None:
-        return None
+    def settle(self, seq: int, upstream_request_id: str | None, stream: StreamUsage) -> int | None: ...
 
 
 def _no_hold(stage: str, seq: int) -> None:
@@ -95,7 +86,7 @@ _CLOSED_BEFORE = "the route closed before this request went upstream"
 class ProxyServer:
     def __init__(
         self, route: Route, credential: str, recorder: Recorder, *, context: ssl.SSLContext, run: str = "",
-        allowance: Allowance | None = None, hooks: Hooks = Hooks(),
+        allowance: Allowance, hooks: Hooks = Hooks(),
     ) -> None:
         self.route = route
         self.recorder = recorder
@@ -103,7 +94,7 @@ class ProxyServer:
         self._run = run
         self._credential = credential
         self._context = context
-        self._allowance = allowance or NoAllowance()
+        self._allowance = allowance
         self._hooks = hooks
         self._listener: socket.socket | None = None
         self._actors: set[socket.socket] = set()
@@ -288,6 +279,8 @@ class ProxyServer:
             "status": None, "refused": None, "upstream_request_id": None, "request_bytes": 0,
             "response_bytes": 0, "forwarded": False, "ended": "complete",
         }
+        usage = StreamUsage()
+        admitted = False
         upstream: socket.socket | None = None
         answered = False
         request_id: str | None = None
@@ -335,9 +328,13 @@ class ProxyServer:
                 self._in_flight += 1
                 in_flight = self._in_flight
             try:
-                verdict = self._allowance.admit(self._run, op, parsed["model"], len(body), in_flight)
-                if verdict is not None:
-                    raise Refused("allowance-refused", verdict)
+                try:
+                    reserved = self._allowance.admit(self._run, seq, parsed, len(body), in_flight)
+                except AllowanceRefused as error:
+                    raise Refused(error.code, error.message) from None
+                admitted = True
+                record.update(envelope_id=self._run, reserved_micro_usd=reserved, actual_micro_usd=None,
+                              message_id=None, usage_status="unknown", usage=None)
                 self._hooks.hold("admit", seq)
                 if not self.gate.is_open:
                     raise Refused("route-closed", "the route is closed")
@@ -354,7 +351,12 @@ class ProxyServer:
                 record.update(status=response.status, upstream_request_id=request_id)
                 answered = True
                 self._to_actor(conn, response_head(response))
+                is_sse = response.status == 200 and any(
+                    name == "content-type" and value.split(";", 1)[0].strip().lower() == "text/event-stream"
+                    for name, value in response.headers)
                 for piece in response.body:
+                    if is_sse:
+                        usage.feed(piece)
                     self._to_actor(conn, b"%x\r\n%s\r\n" % (len(piece), piece))
                     record["response_bytes"] = int(record["response_bytes"]) + len(piece)
                 if not self.gate.is_open:
@@ -405,11 +407,14 @@ class ProxyServer:
             try:
                 if upstream is not None:
                     self._release(upstream)
-                try:
-                    if record["seq"] is not None or record["refused"] is not None:
-                        self._finish(record)  # before the actor's EOF, so a reader at EOF sees it
-                finally:
-                    if record["forwarded"] and record["seq"] is not None:
-                        self._allowance.settle(int(record["seq"]), request_id, None)
+                if admitted:
+                    record.update(message_id=usage.message_id, usage=usage.usage)
+                    try:
+                        actual = self._allowance.settle(seq, request_id, usage)
+                        record.update(actual_micro_usd=actual, usage_status="complete" if usage.complete else "unknown")
+                    except Exception:
+                        record["settlement"] = "unacknowledged"
+                if record["seq"] is not None or record["refused"] is not None:
+                    self._finish(record)
             finally:
                 self._release(conn)

@@ -23,9 +23,12 @@ import tempfile
 import time
 from pathlib import Path
 
+import argparse
+import secrets
+from autonomy.allowance import AllowanceRefused
 from autonomy.egress.errors import EgressUnproven, RouteRefused
 from autonomy.egress.helper import MODEL_URL
-from autonomy.egress.route import egress_denied, load_route
+from autonomy.egress.route import egress_denied, load_governed_route
 from autonomy.egress.session import EgressClosed, EgressSession
 from autonomy.run import RunRefused, places
 from autonomy.sandbox.bwrap import launch, prove
@@ -36,7 +39,7 @@ from autonomy.sandbox.static import SandboxUnproven
 def main(argv: list[str]) -> int:
     try:
         return _main(argv)
-    except (RouteRefused, EgressUnproven, RunRefused, SandboxUnproven) as caught:
+    except (AllowanceRefused, RouteRefused, EgressUnproven, RunRefused, SandboxUnproven) as caught:
         print(f"refused: {caught}", file=sys.stderr)
         return 2
 
@@ -45,9 +48,17 @@ def _main(argv: list[str]) -> int:
     if not argv:
         print("usage: egress_live.py <route> [model]", file=sys.stderr)
         return 2
-    model = argv[1] if len(argv) > 1 else "claude-haiku-5-5"
+    parser = argparse.ArgumentParser(prog="egress_live.py")
+    parser.add_argument("route")
+    parser.add_argument("model", nargs="?", default="claude-haiku-4-5")
+    parser.add_argument("--allowance")
+    opts = parser.parse_args(argv)
+    model = opts.model
     where = places(os.environ)
-    loaded = load_route(where.config, argv[0])
+    loaded = load_governed_route(where.config, opts.route, opts.allowance, caller="e21")
+    member = loaded.member
+    if member.target != {"model": model} or member.tariff["model"] != model:
+        raise AllowanceRefused("allowance-scope", "different smoke model")
     node = shutil.which("node")
     if node is None and "NODE_DIR" not in os.environ:
         print("node is not on PATH; set NODE_DIR", file=sys.stderr)
@@ -59,12 +70,13 @@ def _main(argv: list[str]) -> int:
         raise SandboxUnproven("bind-unreadable", "toolchain", f"cannot resolve pi or node: {caught}") from caught
     where.cache.mkdir(parents=True, exist_ok=True)
     root = Path(tempfile.mkdtemp(prefix="egress-live-", dir=where.cache.resolve()))
-    run_dir, scratch = root / "run", root / "scratch"
+    run_dir, scratch = root / secrets.token_hex(16), root / "scratch"
     agent, home = scratch / "agent", scratch / "home"
     for path in (run_dir, agent, home, scratch / "sessions"):
         path.mkdir(parents=True)
     (agent / "models.json").write_text(json.dumps(
-        {"providers": {"anthropic": {"baseUrl": MODEL_URL, "apiKey": "placeholder"}}}
+        {"providers": {"anthropic": {"baseUrl": MODEL_URL, "apiKey": "placeholder",
+          "modelOverrides": {model: {"maxTokens": member.tariff["output_cap"]}}}}}
     ))
     env = {
         "PATH": f"{node_dir}/bin:/usr/bin", "HOME": str(home), "PI_CODING_AGENT_DIR": str(agent),
@@ -73,14 +85,18 @@ def _main(argv: list[str]) -> int:
     spec = SandboxSpec(scratch=scratch, ro_binds=(node_dir, pi_dir), env=env)
     denied = egress_denied(where.config, loaded)
     prove(spec, denied)
-    session = EgressSession.start(loaded, run_dir, lease=120, denied=denied)
+    member.open(run_dir.name)
+    session = None
     try:
+        session = EgressSession.start(loaded, run_dir, lease=120, denied=denied)
         records, exit_code = _prompt(spec, session, pi_dir, model, scratch, root)
         closed = session.close()
     except BaseException:
-        if session.pidfd >= 0:
+        if session is not None and session.pidfd >= 0:
             session.kill()  # a failure after the start must not leave the proxy up for its lease
         raise
+    finally:
+        member.pool.seal(member.name, run_dir.name)
     lines = [json.loads(line) for line in (run_dir / "egress.jsonl").read_text().splitlines()]
     for line in lines:
         print(json.dumps(line))

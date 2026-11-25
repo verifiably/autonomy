@@ -11,12 +11,13 @@ import re
 import stat
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Literal
 from urllib.parse import urlsplit
 
+from autonomy.allowance import binding
 from autonomy.egress.errors import RouteRefused
 
 DIALECTS = frozenset({"anthropic-messages"})
@@ -75,6 +76,7 @@ class Route:
     credential_file: Path
     credential_header: Literal["x-api-key", "authorization"]
     max_request_bytes: int
+    allowance: str | None = None
 
     @property
     def upstream(self) -> str:
@@ -206,7 +208,7 @@ def parse_route(data: bytes) -> Route:
     top = _table(
         doc, "the route",
         {"api", "upstream", "operations", "forward_headers", "credential", "max_request_bytes"},
-        {"ca_file", "header_tokens"},
+        {"ca_file", "header_tokens", "allowance"},
     )
     api = top["api"]
     if not isinstance(api, str) or api not in DIALECTS:
@@ -241,6 +243,8 @@ def parse_route(data: bytes) -> Route:
     limit = top["max_request_bytes"]
     if type(limit) is not int or limit <= 0:
         raise _invalid("max_request_bytes must be a positive integer")
+    if "allowance" in top and (type(top["allowance"]) is not str or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,64}", top["allowance"])):
+        raise _invalid("allowance must name a campaign/member")
     return Route(
         api=api,
         host=host,
@@ -252,6 +256,7 @@ def parse_route(data: bytes) -> Route:
         credential_file=_absolute(credential["file"], "credential.file"),
         credential_header=header,
         max_request_bytes=limit,
+        allowance=top.get("allowance"),
     )
 
 
@@ -265,6 +270,7 @@ class LoadedRoute:
     data: bytes
     digest: str
     route: Route
+    member: binding.Member | None = None
 
 
 def check_credential(path: Path) -> None:
@@ -296,7 +302,7 @@ def check_credential(path: Path) -> None:
         raise refused(f"mode {stat.S_IMODE(info.st_mode):04o} has group or other permission bits")
 
 
-def load_route(config: Path, name: str) -> LoadedRoute:
+def _read_route(config: Path, name: str) -> LoadedRoute:
     if not _ROUTE_NAME.fullmatch(name):
         raise RouteRefused("route-unknown", f"{name!r} is not a route name ([a-z0-9][a-z0-9_-]*)")
     path = config / "routes" / f"{name}.toml"
@@ -308,13 +314,35 @@ def load_route(config: Path, name: str) -> LoadedRoute:
     except OSError as caught:
         raise RouteRefused("route-unknown", f"cannot read {path}: {caught.strerror}") from None
     route = parse_route(data)
-    check_credential(route.credential_file)
     return LoadedRoute(name, real, data, hashlib.sha256(data).hexdigest(), route)
+
+
+def load_route(config: Path, name: str) -> LoadedRoute:
+    loaded = _read_route(config, name)
+    check_credential(loaded.route.credential_file)
+    return loaded
+
+
+def load_governed_route(config, name, reference, *, caller, conversation_id=None, provider_session_id=None):
+    loaded = _read_route(config, name)
+    member = binding.select(config, reference, loaded.route.allowance, caller, loaded.digest,
+                            conversation_id, provider_session_id)
+    if member.tariff["billing_mode"] != "standard" or (
+        (loaded.route.forward_headers & {"anthropic-version", "anthropic-beta"}) - loaded.route.header_tokens.keys()
+        or loaded.route.forward_headers - {"content-type", "anthropic-version", "anthropic-beta", "user-agent", "accept"}
+        or loaded.route.header_tokens.get("anthropic-beta", set()) - {"fine-grained-tool-streaming-2025-05-14", "interleaved-thinking-2025-05-14",
+            "mid-conversation-output-config-2026-07-01", "thinking-binding-controls-2026-08-01", "inline-tools-2026-09-15"}
+        or loaded.route.header_tokens.get("anthropic-version", set()) - {"2023-06-01"}
+    ):
+        raise RouteRefused("allowance-unpriced", "unsupported route billing features")
+    check_credential(loaded.route.credential_file)
+    return replace(loaded, member=member)
 
 
 def egress_denied(config: Path, loaded: LoadedRoute) -> tuple[Path, ...]:
     """The denied set's entries for a run with this route (docs/egress.md, docs/envelope.md)."""
-    return (config.resolve(), loaded.path, loaded.route.credential_file.resolve())
+    denied = (config.resolve(), loaded.path, loaded.route.credential_file.resolve())
+    return denied + ((loaded.member.pool.root,) if loaded.member else ())
 
 
 def all_egress_denied(config: Path) -> tuple[Path, ...]:
@@ -322,6 +350,9 @@ def all_egress_denied(config: Path) -> tuple[Path, ...]:
     docs/envelope.md): `<config>` and every resolved absolute `credential.file` parsed from
     `<config>/routes/*.toml`, ignoring unreadable or malformed route files."""
     entries: list[Path] = [config.resolve(strict=False)]
+    if (config / "allowance-storage.json").exists():
+        from autonomy.allowance._configuration import storage
+        entries.append(storage(config))
     routes_dir = config / "routes"
     if routes_dir.is_dir():
         for route_file in sorted(routes_dir.glob("*.toml")):

@@ -54,7 +54,10 @@ def test_live_recipe_proves_canonical_toolchain_and_scratch(tmp_path, monkeypatc
         monkeypatch.setenv(key, str(alias))
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path / "runtime"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    monkeypatch.setattr(live, "load_route", lambda *args: object())
+    from types import SimpleNamespace
+    model = "claude-haiku-4-5"
+    member = SimpleNamespace(target={"model": model}, tariff={"model": model, "output_cap": 2048})
+    monkeypatch.setattr(live, "load_governed_route", lambda *args, **kw: SimpleNamespace(member=member))
     monkeypatch.setattr(live, "egress_denied", lambda *args: (tmp_path / "private",))
 
     class ProofReached(Exception):

@@ -313,7 +313,10 @@ def configure(tmp_path: Path, tls, upstream: FakeUpstream, f: Fixture, toolchain
     credential = write_credential(config / "credentials/anthropic", "placeholder-not-a-key")
     doc = pi_route(credential=credential, upstream=upstream.origin, ca_file=tls.cert)
     doc["header_tokens"]["anthropic-beta"] = doc["header_tokens"]["anthropic-beta"] + PI_1_1_0_BETAS
-    write_route(config, "pi", doc)
+    from egress_fixtures import governed_route
+    target = {"model": MODEL, "inputs": [str(p.resolve()) for p in (inputs if inputs is not None else (f.bundle,))],
+              "release": str(tmp_path / "release")}
+    governed_route(config, "pi", doc, caller="analyst", target=target)
     for name in ("home", "release"):
         (tmp_path / name).mkdir()
     env = {"HOME": str(tmp_path / "home"), "XDG_CONFIG_HOME": str(tmp_path / "config"),
