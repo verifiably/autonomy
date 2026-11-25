@@ -61,10 +61,13 @@ Start a supervised offline attempt against a local repository and a full
 commit ID.
 
 ```sh
-autonomy run --development --repository REPO --base OID --deadline SECONDS \
-  [--report-fd N] -- <actor argv>
+autonomy run --development [--delegation ID --attempt ATTEMPT] \
+  --repository REPO --base OID --deadline SECONDS [--report-fd N] -- <actor argv>
 autonomy run stop RUN_ID
 autonomy run close RUN_ID
+autonomy delegation issue NAME
+autonomy delegation revoke ID
+autonomy delegation report ID [--attempt ATTEMPT]
 ```
 
 The actor starts in an independent scratch checkout at the pinned base. It

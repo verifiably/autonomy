@@ -63,7 +63,7 @@ class Revocation:
     acknowledged: bool
 
 
-def ceiling(limits: Limits) -> Ceiling:
+def ceiling(limits: Limits = Limits()) -> Ceiling:
     return Ceiling(
         prepared_bytes=limits.base_bytes + limits.candidate_bytes,
         storage_bytes=limits.actor_storage_bytes,

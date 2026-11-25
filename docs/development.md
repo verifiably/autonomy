@@ -136,6 +136,8 @@ the affected parameter or boundary in the owning test.
 | `development-mode-conflict`, `development-model-route-refused` | `test_development_start_refusals_precede_allocation`, `test_delegation_and_attempt_go_together` |
 | `delegation-required` | `test_requires_delegation_from_a_user_service` |
 | `delegation-invalid`, `delegation-missing`, `delegation-unavailable`, `delegation-caller`, `delegation-repository`, `delegation-actor`, `delegation-deadline`, `delegation-bounds`, `delegation-busy`, `delegation-run-unfinished`, `delegation-attempt-used`, `delegation-exhausted`, `delegation-expired`, `delegation-closed` | `test_each_admission_refusal` |
+| `delegation-unit-held` | `test_issue_refuses_a_held_unit` |
+| `delegation-unconfirmed`, `delegation-stop-unacknowledged` | `test_wrong_id`, `test_end_of_input_at_the_prompt`, `test_no_controlling_terminal`, `test_report_and_revoke_exit_codes` |
 | `development-repository-invalid`, `development-base-invalid` | `test_omitted_development_inputs_have_normative_codes`, `test_rejects_incomplete_source_and_external_object_storage` |
 | `delegation-base` | `test_branch_tip_refuses_unsupported_or_damaged_refs` |
 | `deadline-invalid` | `test_development_start_refusals_precede_allocation`, `test_omitted_development_inputs_have_normative_codes` |

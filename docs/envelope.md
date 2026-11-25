@@ -382,3 +382,35 @@ to Science and requires the open reply to echo the canonical research-action
 digest before actor release. A model-only run requires the report-only tier.
 
 A terminal Band turn closes its campaign in the same transaction that accepts its report. The supervisor’s journal must show a normal actor exit and the report must have no pending question. A recoverable worker interruption and a question keep the original member eligible. Cancellation closes the campaign before drain. An envelope with missing or disputed predecessor evidence cannot resume.
+
+## Operator delegation commands
+
+`autonomy delegation issue NAME`, `autonomy delegation revoke ID` and
+`autonomy delegation report ID [--attempt A]` manage `development-delegation.v1`
+grants in the shared store pinned by `<config>/allowance-storage.json`, where
+`<config>` is resolved from the account's password database rather than `HOME`
+or `XDG_CONFIG_HOME`. Each command writes one JSON line on stdout and formats
+refusals as `autonomy: refused: CODE: message` on stderr with exit 2.
+
+`autonomy delegation issue NAME` validates `<config>/delegations/NAME.json`
+(owned, mode `0600`), checks that no live or stopping grant already holds the
+named systemd user service unit (`delegation-unit-held`), opens `/dev/tty`,
+prints the unit, repositories and refs, commands, longest total run time
+(`starts × deadline_seconds`), most retained disk (`starts × (base + candidate +
+writable)` bytes), peak memory (`memory_bytes + writable_bytes + 768 MiB`),
+expiry, and any earlier unfinished starts on that unit, and requires the
+operator to type `delegation_id` (`delegation-unconfirmed` without a controlling
+terminal or on mismatch/EOF).
+
+`autonomy delegation revoke ID` commits `closed = 'revoked'` first, settles
+when `<id>.lock` is free, records `stop.json` under `publication.lock` when an
+allocated start has no verdict, waits up to 16 s for `<unit>/actor-<run>` to
+empty, and writes `cgroup.kill` when it does not. If `publication.lock` is not
+acquired, the run's roots are unreachable, or the actor cgroup remains occupied,
+it prints its JSON receipt (naming `systemctl --user stop <unit>`) and exits 2
+with `delegation-stop-unacknowledged`.
+
+`autonomy delegation report ID [--attempt A]` settles under `<id>.lock` when
+available within 1 s and prints the stored grant, digest, storage identity,
+closure cause, `starts_left` and each start's status (`running` while `<id>.lock`
+is held, `unfinished` when free without a verdict, or the settled outcome).
