@@ -6,8 +6,8 @@ import sys
 
 from autonomy.allowance import AllowanceRefused, Campaign
 from autonomy.allowance._configuration import parse_json, private_config, resolve, storage
-from autonomy.allowance._contract import opaque
-from autonomy.baseline import write_all
+from autonomy.allowance._contract import hexadecimal, opaque
+from autonomy.baseline import read_events, write_all
 from autonomy.run import config_root, state_root
 
 
@@ -53,11 +53,22 @@ def execute(args: argparse.Namespace):
             if len(data) > 1_048_576:
                 raise ValueError("oversized turn report")
             report = parse_json(data)
-            receipt = pool.record_turn(member, args.envelope, args.conversation_id, report)
+            if type(report) is not dict:
+                raise ValueError("invalid report")
+            events, torn = read_events(state_root(os.environ) / "runs" / hexadecimal(args.envelope, 32))
+            statuses = [e.get("status") for e in events if e["event"] == "actor-exit"]
+            causes = [e.get("cause") for e in events if e["event"] == "close-start"]
+            normal = None
+            if not torn and len(statuses) == len(causes) == 1 and type(statuses[0]) is int:
+                normal = statuses == [0] and causes == ["actor-exit"]
+            receipt = pool.record_turn(member, args.envelope, args.conversation_id, report, normal_exit=normal)
         write_all(1, (json.dumps(receipt, allow_nan=False) + "\n").encode())
         return 0
     except (ValueError, RecursionError):
         write_all(2, b"autonomy: allowance-scope: invalid JSON document\n")
+        return 2
+    except OSError:
+        write_all(2, b"autonomy: allowance-unavailable: unreadable protected evidence\n")
         return 2
     except AllowanceRefused as exc:
         write_all(2, f"autonomy: {exc}\n".encode())

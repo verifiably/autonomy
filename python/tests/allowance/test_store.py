@@ -88,7 +88,7 @@ def test_open_and_late_report_cannot_change_identity(tmp_path):
     opening = dict(caller="band", target={"proposition": "target"}, route_digest=ROUTE, conversation_id=C)
     with pytest.raises(AllowanceRefused, match="allowance-scope"):
         pool.open("action", R2, **opening, provider_session_id=P)
-    receipt = pool.record_turn("action", R, C, report)
+    receipt = pool.record_turn("action", R, C, report, normal_exit=False)
     assert pool.record_turn("action", R, C, report) == receipt
     with pytest.raises(AllowanceRefused, match="allowance-scope"):
         pool.record_turn("action", R, C, report | {"provider_session_id": C})
@@ -229,3 +229,63 @@ def test_route_grant_resolves_before_reading_credential(tmp_path):
     write_route(tmp_path, "pi", route)
     with pytest.raises(AllowanceRefused, match="allowance-missing"):
         load_governed_route(tmp_path, "pi", None, caller="analyst")
+
+
+def test_disputed_turn_is_retained_once_without_overwriting_the_accepted_projection(tmp_path):
+    pool = issued(tmp_path)
+    pool.seal("action", R)
+    report = dict(version="band-turn.v1", provider_session_id=P, settlement=None,
+                  question_id=None, answer_id=None, submission_id=1, responses=[])
+    pool.record_turn("action", R, C, report)
+    for _ in range(2):
+        with pytest.raises(AllowanceRefused):
+            pool.record_turn("action", R, C, report | {"submission_id": 2})
+    envelope, = pool.snapshot("action")["envelopes"]
+    assert envelope["report"] == report
+    assert envelope["disputes"] == [report | {"submission_id": 2}]
+
+
+def test_terminal_projection_closes_the_campaign_even_for_another_member(tmp_path):
+    pool = issued(tmp_path)
+    pool.seal("action", R)
+    report = dict(version="band-turn.v1", provider_session_id=P, settlement=None,
+                  question_id=None, answer_id=None, submission_id=1, responses=[])
+    pool.record_turn("action", R, C, report, normal_exit=True)
+    assert pool.receipt()["closed"] == "completed"
+    with pytest.raises(AllowanceRefused, match="allowance-closed"):
+        pool.open("smoke", R2, caller="e21", target={}, route_digest=ROUTE)
+
+
+@pytest.mark.parametrize("substitution", ["argv", "bytes"])
+def test_band_worker_is_checked_before_credential_access(tmp_path, substitution):
+    import hashlib
+    from autonomy.egress.errors import RouteRefused
+    from autonomy.egress.route import load_governed_route
+    from egress_fixtures import governed_route, pi_route
+
+    config = tmp_path / "operator"
+    worker = tmp_path / "worker.ts"
+    worker.write_bytes(b"authorized worker")
+    argv = ["/usr/bin/node", str(worker)]
+    target = {"worker": {"argv": list(argv), "sha256": hashlib.sha256(worker.read_bytes()).hexdigest()}}
+    governed_route(config, "pi", pi_route(credential=tmp_path / "absent"), caller="band", target=target)
+    if substitution == "argv":
+        argv[1] = str(tmp_path / "another")
+    else:
+        worker.write_bytes(b"changed worker")
+    with pytest.raises(RouteRefused, match="worker") as refused:
+        load_governed_route(config, "pi", None, caller="band", conversation_id=C, actor_argv=argv)
+    assert refused.value.code == "allowance-scope"
+
+def test_early_report_cannot_reopen_before_host_confirms_the_terminal_exit(tmp_path):
+    pool = issued(tmp_path)
+    report = dict(version="band-turn.v1", provider_session_id=P, settlement=None,
+                  question_id=None, answer_id=None, submission_id=1, responses=[])
+    pool.record_turn("action", R, C, report)
+    pool.seal("action", R)
+    opening = dict(caller="band", target={"proposition": "target"}, route_digest=ROUTE, conversation_id=C, provider_session_id=P)
+    with pytest.raises(AllowanceRefused, match="awaiting predecessor exit"):
+        pool.open("action", R2, **opening)
+    pool.confirm_exit("action", R, True)
+    with pytest.raises(AllowanceRefused, match="allowance-closed"):
+        pool.open("action", R2, **opening)

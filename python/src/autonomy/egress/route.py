@@ -323,10 +323,26 @@ def load_route(config: Path, name: str) -> LoadedRoute:
     return loaded
 
 
-def load_governed_route(config, name, reference, *, caller, conversation_id=None, provider_session_id=None):
+def _check_band_worker(worker, argv):
+    if (not isinstance(worker, dict) or set(worker) != {"argv", "sha256"}
+            or not argv or len(argv) != 2 or worker["argv"] != list(argv)
+            or not all(Path(arg).is_absolute() for arg in argv)):
+        raise RouteRefused("allowance-scope", "actor differs from the authorized Band worker")
+    try:
+        with Path(argv[1]).open("rb") as source:
+            digest = hashlib.file_digest(source, "sha256").hexdigest()
+    except OSError:
+        raise RouteRefused("allowance-scope", "authorized Band worker unavailable") from None
+    if digest != worker["sha256"]:
+        raise RouteRefused("allowance-scope", "authorized Band worker digest differs")
+
+
+def load_governed_route(config, name, reference, *, caller, conversation_id=None, provider_session_id=None, actor_argv=None):
     loaded = _read_route(config, name)
     member = binding.select(config, reference, loaded.route.allowance, caller, loaded.digest,
                             conversation_id, provider_session_id)
+    if caller == "band":
+        _check_band_worker(member.target.get("worker"), actor_argv)
     if member.tariff["billing_mode"] != "standard" or (
         (loaded.route.forward_headers & {"anthropic-version", "anthropic-beta"}) - loaded.route.header_tokens.keys()
         or loaded.route.forward_headers - {"content-type", "anthropic-version", "anthropic-beta", "user-agent", "accept"}

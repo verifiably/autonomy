@@ -293,3 +293,5 @@ Previously admitted work can settle while either peer drains.
 On a governed research launch the supervisor passes a separate job descriptor
 to Science and requires the open reply to echo the canonical research-action
 digest before actor release. A model-only run requires the report-only tier.
+
+A terminal Band turn closes its campaign in the same transaction that accepts its report. The supervisor’s journal must show a normal actor exit and the report must have no pending question. A recoverable worker interruption and a question keep the original member eligible. Cancellation closes the campaign before drain. An envelope with missing or disputed predecessor evidence cannot resume.

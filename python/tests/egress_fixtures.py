@@ -211,6 +211,7 @@ class FakeUpstream:
         self.last_event_at: float | None = None
         self.peer_closed = threading.Event()
         self.script: list[Turn] = []
+        self.message_ids: dict[int, str] = {}
         self.tool_uses: list[tuple[str, ToolTurn]] = []
         self._served = 0
         self._stalled: list[tuple[Seen, ssl.SSLSocket]] = []
@@ -352,7 +353,7 @@ class FakeUpstream:
             model = json.loads(seen.body).get("model", "")
         except ValueError:
             model = ""
-        start = {"type": "message", "id": f"msg_{index}", "role": "assistant", "model": model, "content": [],
+        start = {"type": "message", "id": self.message_ids.get(index, f"msg_{index}"), "role": "assistant", "model": model, "content": [],
                  "stop_reason": None, "stop_sequence": None, "usage": {"input_tokens": 1, "output_tokens": 1}}
         if isinstance(turn, ToolTurn):
             block = {"type": "tool_use", "id": f"toolu_{index}", "name": turn.name, "input": {}}

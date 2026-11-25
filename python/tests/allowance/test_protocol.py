@@ -206,7 +206,7 @@ def test_shared_last_model_slot_before_tls_connect(tmp_path, serve, tls):
         assert b"allowance-exhausted" in exchange(research.port, request)
         pool.seal("action", R)
         pool.record_turn("action", R, C, dict(version="band-turn.v1", provider_session_id=P, submission_id=None,
-                         settlement=None, question_id=None, answer_id=None, responses=[]))
+                         settlement=None, question_id=None, answer_id=None, responses=[]), normal_exit=False)
         with pytest.raises(AllowanceRefused, match="allowance-exhausted"):
             pool.check_open("action", **opening, provider_session_id=P)
         assert len(research.upstream.seen) == 1

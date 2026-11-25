@@ -14,7 +14,7 @@ def _relative(path):
 
 
 def research_action(member, world, written, routes):
-    target = member.target
+    target = {k: v for k, v in member.target.items() if k != "worker"}
     c.keys(target, ("world_id", "corpus_id", "proposition", "spec", "dataset", "workflow"))
     c.require(target["world_id"] == world and [(h.role, h.chain_id) for h in written] == [("corpus", target["corpus_id"])]
               and routes == ROUTES, "research world, written corpus or permit differs")

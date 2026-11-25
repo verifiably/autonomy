@@ -170,3 +170,5 @@ member also enforces one model attempt and zero job starts. A separately invoked
 E21 helper binds its own fixed command and takes a model-only target. Tariffs for
 text and client tools refuse image and document blocks, including nested tool
 results, before reservation or upstream connection.
+
+A Band grant’s host-only `target.worker` binds the full two-element Node/worker argument vector and the worker entry file’s SHA-256 digest. Autonomy checks both before credential access. The grant’s trusted toolchain provides the runtime and imports. Science receives the scientific target projection.

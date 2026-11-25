@@ -23,7 +23,7 @@ from test_analyst_check import PI_1_1_0_BETAS, toolchain
 pytestmark = [pytest.mark.science_endpoint, pytest.mark.pi, pytest.mark.bwrap]
 
 
-def cut_original(world, pool, member, mode):
+def cut_original(world, pool, member, mode, cli_pid):
     from autonomy.sandbox.bwrap import _pin_worker
 
     until = time.monotonic() + 95
@@ -41,7 +41,7 @@ def cut_original(world, pool, member, mode):
     events = [json.loads(line) for line in (directory / "events.jsonl").read_text().splitlines()]
     session = next(e for e in events if e["event"] == "session-open")
     ledger = Path(session["ledger_path"])
-    if mode == "revoked":
+    if mode in ("revoked", "cli-stop"):
         endpoint = next(e["pid"] for e in events if e["event"] == "endpoint-starting")
 
         def workflow_running():
@@ -61,6 +61,9 @@ def cut_original(world, pool, member, mode):
             return False
 
         wait_for(workflow_running)
+        if mode == "cli-stop":
+            os.kill(cli_pid, signal.SIGTERM)
+            return
         subprocess.run(
             [str(Path(sys.executable).with_name("autonomy")), "allowance", "revoke", pool.name],
             env=world.env,
@@ -116,10 +119,11 @@ def retain_qualification(report, world, case, pins):
 
 
 @pytest.mark.parametrize(
-    "mode", ["immediate", "delayed-answer", "lost-first-report", "lost-worker", "revoked", "no-eligible"]
+    "mode", ["immediate", "delayed-answer", "lost-first-report", "lost-worker", "revoked", "no-eligible",
+             "cli-stop", "missing-final-read", "delayed-selection", "duplicate-resumed"]
 )
 def test_science_action_and_operator_report(world, tls, toolchain, tmp_path, mode):
-    delayed = mode in ("delayed-answer", "lost-first-report")
+    delayed = mode in ("delayed-answer", "lost-first-report", "delayed-selection", "duplicate-resumed")
     band = os.environ.get("BAND_TEST_ROOT")
     if not band:
         pytest.skip("set BAND_TEST_ROOT to the Band checkout under qualification")
@@ -229,9 +233,13 @@ print(json.dumps([str(world.config), str(world.code), target]))
         ]
         if mode == "no-eligible":
             upstream.script = [action("next", {}), TextTurn("No eligible work.")]
+        if mode == "missing-final-read":
+            del upstream.script[4]
+        if mode == "duplicate-resumed":
+            upstream.message_ids[6] = "msg_0"
         if delayed:
             upstream.script.insert(
-                3,
+                1 if mode == "delayed-selection" else 3,
                 ToolTurn(
                     "ask_question",
                     {
@@ -252,7 +260,10 @@ print(json.dumps([str(world.config), str(world.code), target]))
             ca_file=tls.cert,
         )
         doc["header_tokens"]["anthropic-beta"].extend(PI_1_1_0_BETAS)
-        route = governed_route(config, "fixture", doc, caller="band", target=target)
+        worker = band / "src/conversation/worker.ts"
+        worker_binding = {"argv": [str((node / "bin/node").resolve()), str(worker)],
+                          "sha256": hashlib.sha256(worker.read_bytes()).hexdigest()}
+        route = governed_route(config, "fixture", doc, caller="band", target=target | {"worker": worker_binding})
         reference = tomllib.loads(route.read_text())["allowance"]
         executable = str(Path(sys.executable).with_name("autonomy"))
         host_executable = executable
@@ -300,13 +311,11 @@ print(json.dumps([str(world.config), str(world.code), target]))
                 }
             )
         )
-        if mode in ("lost-worker", "revoked"):
+        if mode in ("lost-worker", "revoked", "cli-stop"):
             from autonomy.allowance import Campaign
 
             pool = Campaign(config.parent / "allowance-state", reference.split("/")[0])
-            with ThreadPoolExecutor(max_workers=1) as driver:
-                cut = driver.submit(cut_original, world, pool, "member", mode)
-                first = subprocess.run(
+            with subprocess.Popen(
                     [
                         str(node / "bin/node"),
                         str(band / "src/cli.ts"),
@@ -317,19 +326,26 @@ print(json.dumps([str(world.config), str(world.code), target]))
                     ],
                     env=world.env,
                     stdin=subprocess.DEVNULL,
-                    capture_output=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     text=True,
-                    timeout=180,
-                )
+            ) as process, ThreadPoolExecutor(max_workers=1) as driver:
+                cut = driver.submit(cut_original, world, pool, "member", mode, process.pid)
+                try:
+                    stdout, stderr = process.communicate(timeout=180)
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                        process.wait()
+                first = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
                 cut.result()
-            if mode == "revoked":
+            if mode in ("revoked", "cli-stop"):
                 report = json.loads(
                     subprocess.check_output([executable, "allowance", "report", reference], env=world.env)
                 )
                 retain_qualification(report, world, mode, pins)
-                assert report["closed"] == "revoked" and report["job_starts"] == 1, report
+                assert report["closed"] == ("revoked" if mode == "revoked" else "cancelled") and report["job_starts"] == 1, report
                 science = report["envelopes"][0]["science"]
-                assert science["stop"] == "allowance-closed" and science["seal_cause"] == "stop", science
+                assert science["stop"] == ("allowance-closed" if mode == "revoked" else "sigterm") and science["seal_cause"] == "stop", science
                 assert science["jobs"][0]["status"] == "run-cancelled", science
                 return
             assert json.loads(first.stdout)["report"] is None, first
@@ -428,7 +444,25 @@ print(json.dumps({"entry":{"id":qid,"state":"answered","kind":"question","answer
             subprocess.check_output([executable, "allowance", "report", reference], env=world.env, text=True)
         )
         retain_qualification(report, world, mode, pins)
+        assert report["closed"] == "completed", report
+        if mode == "duplicate-resumed":
+            assert not report["accounting_complete"] and report["attempts"] == 7
+            duplicate = [m for e in report["envelopes"] for m in e["models"] if m["message_id"] == "msg_0"]
+            assert len(duplicate) == 2 and all(m["actual_micro_usd"] is None for m in duplicate)
+            assert report["known_micro_usd"] == sum(m["actual_micro_usd"] or 0 for e in report["envelopes"] for m in e["models"])
+            return
         assert report["accounting_complete"], report
+        if mode == "missing-final-read":
+            assert report["scientific_outcome"]["verdict"] == "passed"
+            assert report["action_outcome"] == "recovery required" and "final keyed belief" in report["next_decision"]
+            return
+        if mode == "immediate":
+            count = len(upstream.seen)
+            retry = subprocess.run([str(node / "bin/node"), str(band / "src/cli.ts"), "science-action", "resume",
+                                    str(tmp_path / "conversation")], env=world.env, stdin=subprocess.DEVNULL,
+                                   capture_output=True, text=True, timeout=30)
+            assert len(upstream.seen) == count
+            assert "allowance-closed" in retry.stderr + retry.stdout
         if mode == "no-eligible":
             assert report["action_outcome"] == "nothing needed" and report["next_decision"] is None, report
             assert report["job_starts"] == 0 and report["attempts"] == 2

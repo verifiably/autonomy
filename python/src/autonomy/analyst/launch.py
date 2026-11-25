@@ -272,6 +272,8 @@ def _supervise(actor: Sandboxed, session: EgressSession, request: AnalystRequest
         while True:
             now = time.monotonic()
             if stop:
+                if member is not None:
+                    member.pool.seal(member.name, session.run_dir.name, cancel=True)
                 log.write(f"signal {stop[0]}: terminating the analyst")
                 return actor.terminate(grace=TERMINATE_GRACE)
             if member is not None:
@@ -281,6 +283,8 @@ def _supervise(actor: Sandboxed, session: EgressSession, request: AnalystRequest
                     log.write(f"{exc.code}: terminating the analyst")
                     return actor.terminate(grace=TERMINATE_GRACE)
             if now - started >= request.deadline:
+                if member is not None:
+                    member.pool.seal(member.name, session.run_dir.name, cancel=True)
                 log.write(f"deadline of {request.deadline:g} s reached: terminating the analyst")
                 return actor.terminate(grace=TERMINATE_GRACE)
             if session.exited():

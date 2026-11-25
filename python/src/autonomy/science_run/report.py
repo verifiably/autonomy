@@ -157,6 +157,15 @@ def _science(directory, actor, jobs, target):
         ):
             raise ValueError("queue receipt differs from bound target")
         selection = selected["class"]
+    belief_read = None
+    if (directory / "belief-read.json").exists():
+        receipt = read_record(directory / "belief-read.json", strict_private=True)
+        if (set(receipt) != {"session_id", "proposition", "assessment", "verification", "answer"}
+                or receipt["session_id"] != session.session_id
+                or receipt["proposition"] != target["proposition"]
+                or not isinstance(receipt["answer"], dict) or not receipt["answer"].get("key")):
+            raise ValueError("actor belief receipt differs from bound session")
+        belief_read = receipt
     readback = None
     if terminal["disposition"] == "clean" and (directory / "readback.json").exists():
         value = read_record(directory / "readback.json")
@@ -174,6 +183,7 @@ def _science(directory, actor, jobs, target):
         "disposition": terminal["disposition"],
         "findings": findings,
         "readback": readback,
+        "belief_read": belief_read,
         "opened_at": ledger.opened_at,
         "closed_at": terminal["closed_at"],
         "refusals": [
@@ -187,7 +197,7 @@ def _science(directory, actor, jobs, target):
     }
 
 
-def action_summary(last, scientific, waiting, closed, jobs):
+def action_summary(last, scientific, waiting, closed, jobs, reads=()):
     science = last and last["science"]
     if not science or not last["closed"] or last["science_error"]:
         return "recovery required", "recover the last envelope"
@@ -195,14 +205,17 @@ def action_summary(last, scientific, waiting, closed, jobs):
         return "recovery required", "reconcile the last envelope"
     if any(j["status"] == "unknown" for j in jobs):
         return "recovery required", "reconcile the admitted job with its writer ledger"
-    if scientific and scientific.get("scope") == "clean-environment" and scientific.get("verdict") == "passed":
-        return "proved", None
-    if scientific:
-        return "recovery required", "inspect the independent verification verdict"
-    if closed:
+    if closed and closed != "completed":
         return "recovery required", "review closed or exhausted authority"
     if waiting:
         return "approval requested", "answer the open question"
+    if scientific and scientific.get("scope") == "clean-environment" and scientific.get("verdict") == "passed":
+        if any(all(read[k] == scientific[k] for k in ("proposition", "assessment", "verification"))
+               and read["answer"] == scientific["belief"] for read in reads):
+            return "proved", None
+        return "recovery required", "confirm the actor's final keyed belief read"
+    if scientific:
+        return "recovery required", "inspect the independent verification verdict"
     if (
         not jobs
         and not science["refusals"]
@@ -235,7 +248,7 @@ def report(pool, member, state):
         reserved = [item for item in reservations if item["envelope"] == rid]
         turn = row["report"]
         claims = turn["responses"] if turn else []
-        errors = []
+        errors = ["conflicting validated turn reports"] if row["disputes"] else []
         receipts = []
         science = None
         custody = {}
@@ -261,6 +274,7 @@ def report(pool, member, state):
                 "seal.json",
                 "selection.json",
                 "job-stop.json",
+                "belief-read.json",
                 "readback.json",
                 "events.jsonl",
             ):
@@ -305,6 +319,7 @@ def report(pool, member, state):
                 "turn": turn,
                 "science": science,
                 "models": models,
+                "disputes": row["disputes"],
                 "errors": errors,
                 "science_error": science_error,
                 "evidence_sha256": custody,
@@ -324,7 +339,9 @@ def report(pool, member, state):
     jobs_complete = len(jobs) == job_starts and all(j["status"] != "unknown" for j in jobs)
     model_complete = not unknown and not any(row["errors"] for row in envelope_rows)
     exhausted = any(snapshot["remaining"][k] == 0 for k in ("attempts", "micro_usd"))
-    outcome, decision = action_summary(last, scientific, waiting, expired or snapshot["closed"] or exhausted, jobs)
+    reads = [s["belief_read"] for s in sciences if s["disposition"] == "clean" and s["belief_read"]]
+    closed = snapshot["closed"] or expired or exhausted
+    outcome, decision = action_summary(last, scientific, waiting, closed, jobs, reads)
     if not model_complete and (not decision or outcome in ("proved", "nothing needed")):
         decision = "reconcile incomplete model accounting"
     usage = {k: sum(m["usage"][k] for m in models if m["status"] == "complete") for k in rates}

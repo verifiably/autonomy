@@ -20,6 +20,7 @@ def _known(condition, message):
 def _sealed(runs, campaign, name, target, conversation, row):
     run = runs / c.hexadecimal(row["id"], 32)
     _known(run.resolve() == run and row["closed"], "predecessor is unsealed or substituted")
+    _known(not row.get("disputes"), "predecessor has conflicting turn evidence")
     allowance = read_record(run / "allowance.json")
     _known((allowance["campaign_id"], allowance["member_id"], allowance["conversation_id"]) ==
            (campaign, name, conversation), "predecessor grant differs")

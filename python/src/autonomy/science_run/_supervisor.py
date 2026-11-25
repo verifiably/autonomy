@@ -203,7 +203,7 @@ def _wait(actor: bwrap.Sandboxed, endpoint: Endpoint, proxy: EgressSession | Non
             return "actor-exit"
 
 
-def _stop_actor(actor: bwrap.Sandboxed, run_dir: Path) -> None:
+def _stop_actor(actor: bwrap.Sandboxed, run_dir: Path) -> int:
     forced = False
     try:
         if not exited(actor.pidfd):
@@ -219,6 +219,7 @@ def _stop_actor(actor: bwrap.Sandboxed, run_dir: Path) -> None:
             actor.process.kill()
             status = actor.wait(timeout=_CLOSE_MARGIN)
         append_event(run_dir, "actor-exit", status=status, **({"namespace_kill": forced} if actor.worker_fd >= 0 else {}))
+        return status
     finally:
         actor.close_handles()
 
@@ -262,7 +263,10 @@ def _close_proxy(proxy: EgressSession) -> tuple[Finding, ...]:
 def finish(run_dir: Path, endpoint: Endpoint, proxy: EgressSession | None, actor: bwrap.Sandboxed | None,
            written: tuple[ChainHead, ...], cause: str, *, member: Member | None = None) -> tuple[Finding, ...]:
     if member is not None:
-        member.pool.seal(member.name, run_dir.name)
+        if cause in ("sigterm", "sighup", "sigint", "deadline", "renew-refused"):
+            member.pool.seal(member.name, run_dir.name, cancel=True)
+        else:
+            member.pool.seal(member.name, run_dir.name)
     journal_error: BaseException | None = None
     try:
         append_event(run_dir, "close-start", cause=cause)
@@ -276,7 +280,9 @@ def finish(run_dir: Path, endpoint: Endpoint, proxy: EgressSession | None, actor
             findings = sealing.result()
         finally:
             if actor is not None:
-                _stop_actor(actor, run_dir)
+                status = _stop_actor(actor, run_dir)
+                if member is not None and member.caller == "band":
+                    member.pool.confirm_exit(member.name, run_dir.name, cause == "actor-exit" and status == 0)
         settled = egress.result() if egress is not None else ()
     if journal_error is not None:
         raise journal_error

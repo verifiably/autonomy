@@ -337,7 +337,7 @@ def _route(request: RunRequest, where: Places) -> LoadedRoute | None:
         loaded = load_governed_route(where.config, request.model_route, request.allowance,
                                     caller="band" if request.conversation_id else "run",
                                     conversation_id=request.conversation_id,
-                                    provider_session_id=request.provider_session_id)
+                                    provider_session_id=request.provider_session_id, actor_argv=request.actor_argv)
         if request.conversation_id is None:
             member = loaded.member
             expected = {"actor_argv": list(request.actor_argv), "model": member.tariff["model"]}

@@ -79,6 +79,8 @@ class Campaign:
                 c.require(len(rows) == 1, "invalid grant record", "allowance-unavailable")
                 config = json.loads(rows[0]["cfg"])
                 c.require(config["campaign_id"] == self.name, "grant identity differs", "allowance-unavailable")
+                db.execute("CREATE TABLE IF NOT EXISTS turn_dispute (envelope TEXT, report TEXT, PRIMARY KEY(envelope,report))")
+                db.execute("CREATE TABLE IF NOT EXISTS turn_exit (envelope TEXT PRIMARY KEY, normal INTEGER NOT NULL)")
                 cause = rows[0]["closed"]
                 if cause is None and time.time() >= config["expires"]:
                     db.execute("UPDATE grant_record SET closed='expired',closed_at=?", (int(time.time()),))
@@ -107,12 +109,16 @@ class Campaign:
         c.require(spec and (caller, target, route_digest) == (spec["caller"], spec["target"], spec["route_digest"]),
                   "grant member binding differs")
         row = db.execute("SELECT * FROM member WHERE name=?", (member,)).fetchone()
-        prior = db.execute("SELECT id,closed FROM envelope WHERE name=?", (member,)).fetchall()
+        prior = db.execute("SELECT e.id,e.closed,e.report,x.normal FROM envelope e LEFT JOIN turn_exit x ON x.envelope=e.id WHERE e.name=? ORDER BY e.rowid", (member,)).fetchall()
         c.require(not any(not item["closed"] for item in prior), "member already open")
         if caller == "band":
             c.uid(conversation_id)
             c.require(row["conversation"] in (None, conversation_id), "different host conversation")
             if prior:
+                c.require(all(item["report"] is not None for item in prior), "awaiting predecessor turn evidence")
+                c.require(not db.execute("SELECT 1 FROM turn_dispute d JOIN envelope e ON e.id=d.envelope WHERE e.name=?",
+                                         (member,)).fetchone(), "disputed predecessor turn", "allowance-unavailable")
+                c.require(all(item["normal"] is not None for item in prior), "awaiting predecessor exit evidence")
                 c.uid(provider_session_id)
             c.require(provider_session_id == row["provider"], "provider session is missing or changed")
         else:
@@ -207,10 +213,14 @@ class Campaign:
             db.execute("UPDATE reservation SET settlement=? WHERE envelope=? AND role=? AND ticket=?", (encoded, *key))
             return {"result": "settled"}
 
-    def seal(self, member, envelope):
-        with self._transaction() as (db, _, _cause):
+    def seal(self, member, envelope, *, cancel=False):
+        with self._transaction() as (db, config, _cause):
             self._envelope(db, member, envelope)
             db.execute("UPDATE envelope SET closed=1 WHERE id=?", (envelope,))
+            if cancel:
+                db.execute("UPDATE grant_record SET closed='cancelled',closed_at=? WHERE closed IS NULL", (int(time.time()),))
+            elif len(config["members"]) == 1 and config["members"][member]["caller"] != "band":
+                db.execute("UPDATE grant_record SET closed='completed',closed_at=? WHERE closed IS NULL", (int(time.time()),))
 
     def recover_envelope(self, member, envelope, digest, storage):
         with self._transaction() as (db, config, _cause):
@@ -230,7 +240,24 @@ class Campaign:
             return {"campaign_id": self.name, "cause": cause or "revoked",
                     "pending_envelopes": [r[0] for r in db.execute("SELECT id FROM envelope WHERE closed=0 ORDER BY id")]}
 
-    def record_turn(self, member, envelope, conversation, report):
+    @staticmethod
+    def _exit_state(db, envelope, normal, report):
+        if normal is not None:
+            c.require(type(normal) is bool, "invalid actor exit evidence")
+            db.execute("INSERT OR IGNORE INTO turn_exit VALUES (?,?)", (envelope, int(normal)))
+        row = db.execute("SELECT normal FROM turn_exit WHERE envelope=?", (envelope,)).fetchone()
+        if row is not None:
+            c.require(normal is None or row["normal"] == normal, "conflicting actor exit evidence", "allowance-unavailable")
+            if row["normal"] and report is not None and report["question_id"] is None:
+                db.execute("UPDATE grant_record SET closed='completed',closed_at=? WHERE closed IS NULL", (int(time.time()),))
+
+    def confirm_exit(self, member, envelope, normal):
+        with self._transaction() as (db, _, _cause):
+            row = self._envelope(db, member, envelope)
+            c.require(row["closed"], "actor exit before envelope close")
+            self._exit_state(db, envelope, normal, json.loads(row["report"]) if row["report"] else None)
+
+    def record_turn(self, member, envelope, conversation, report, *, normal_exit=None):
         c.validate_report(report)
         provider = report["provider_session_id"]
         with self._transaction() as (db, _, _cause):
@@ -238,7 +265,12 @@ class Campaign:
             host = db.execute("SELECT conversation,provider FROM member WHERE name=?", (member,)).fetchone()
             c.require(c.uid(conversation) == host["conversation"] and host["provider"] in (None, provider), "turn identity differs")
             encoded = c.canonical(report)
-            c.require(row["report"] in (None, encoded), "conflicting turn evidence")
+            if row["report"] not in (None, encoded):
+                db.execute("INSERT OR IGNORE INTO turn_dispute VALUES (?,?)", (envelope, encoded))
+                db.commit()
+                raise AllowanceRefused("allowance-scope", "conflicting turn evidence")
+            c.require(normal_exit is None or row["closed"], "exit evidence for an open envelope")
+            self._exit_state(db, envelope, normal_exit, report)
             db.execute("UPDATE member SET provider=? WHERE name=?", (provider, member))
             db.execute("UPDATE envelope SET report=? WHERE id=?", (encoded, envelope))
             return {"version": "band-turn.v1", "envelope_id": envelope, "provider_session_id": provider}
@@ -266,6 +298,8 @@ class Campaign:
                 entry = dict(row)
                 if entry["report"] is not None:
                     entry["report"] = json.loads(entry["report"])
+                entry["disputes"] = [json.loads(r[0]) for r in db.execute(
+                    "SELECT report FROM turn_dispute WHERE envelope=? ORDER BY report", (entry["id"],))]
                 envelopes.append(entry)
             identity = db.execute("SELECT conversation,provider FROM member WHERE name=?", (member,)).fetchone()
             return {"grant": config, "closed": cause, "remaining": remaining, "reservations": reservations,
