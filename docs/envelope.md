@@ -219,10 +219,17 @@ exit and confirmed namespace shutdown.
 
 `autonomy run stop <id>` records a protected stop request. The request wins
 if recorded before terminal publication. `autonomy run close <id>` refuses a
-run with a live supervisor. Recovery uses a pidfd, boot ID and process start
-ticks to confirm containment or limit signals to the recorded namespace.
-Only an intact journal proving the gate never opened permits an unfinished
-run to close unwired. All other unfinished runs close quarantined.
+run with a live supervisor. Recovery compares `run.json`'s `boot_id` against the
+live kernel boot first, then uses a pidfd, boot ID and process start ticks to
+confirm containment or limit signals to the recorded namespace. Only an intact
+journal proving the gate never opened permits an unfinished run to close
+unwired. All other unfinished runs close quarantined. For delegated starts,
+settlement under `<id>.lock` reconciles each unsettled start's actor cgroup and
+verdict, closing the grant permanently on `containment` if the actor cgroup
+remains occupied or `containment_proven` is `false`; revocation commits durable
+grant closure first, records `stop.json` under `publication.lock` when no
+verdict exists, waits up to 16 s for the actor cgroup to empty, and writes
+`cgroup.kill` if a stopped or wedged supervisor has not ended the actor.
 
 ##### Candidate validation
 

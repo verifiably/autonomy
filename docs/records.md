@@ -355,6 +355,22 @@ with its 1-based `ordinal`, unique `attempt`, unique `run`, `at`, `state`,
 are never returned. Closure in `grant_record.closed` is permanent (`expired`,
 `revoked` or `containment`, first cause kept).
 
+Settlement runs under `<id>.lock` (at start admission, and at `report` and
+`revoke` when the lock is acquired within 1 s). For each unsettled start in
+ordinal order, settlement kills and removes `<unit>/actor-<run>` (`wait=5.0`),
+reads `disposition.json` from the recorded state and cache roots, settles a run
+with a verdict to its disposition and digest (whether marked or unmarked),
+settles an unmarked run with no verdict to `not-allocated`, and leaves a marked
+run with no verdict (or missing/damaged roots) unsettled. Any actor cgroup that
+will not empty or any verdict with `containment_proven: false` closes the grant
+with `containment`. `report` emits `grant`, `grant_digest`, `storage`, `closed`,
+`starts_left` and `starts` (reporting unsettled starts as `running` while
+`<id>.lock` is held and `unfinished` when free, and listing any leftover run or
+scratch directory for `not-allocated` starts). `revoke` commits `closed='revoked'`
+before settling, then for an unfinished allocated start takes `publication.lock`,
+records `stop.json` if no verdict exists, waits up to 16 s for the actor cgroup
+to empty, and writes `cgroup.kill` when it does not.
+
 ## Observed independent child failure
 
 During a research close, Science can publish a private `job-stop.json` before its durable seal. The record contains `version` (job-stop.v1), `session_id`, `invocation_id`, `phase`, `intent`, `seal_cause`, `observation` (independent-failure) and a nonzero integer `returncode`. The kernel observed the outer child exit and verified the immutable closure before the writer gate closed. The intent remains unfulfilled. The member report joins a private singly linked record to the authenticated writer, reserved job, unfulfilled intent and the cause in the durable authenticated seal. A missing seal or conflicting evidence leaves the result unknown.

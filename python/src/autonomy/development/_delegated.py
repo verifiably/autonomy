@@ -1,0 +1,236 @@
+"""Settlement, status reporting, revocation, and admission for delegated development runs."""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from typing import Literal
+
+from autonomy.allowance import AllowanceRefused, storage
+from autonomy.baseline import fsync_dir, utc_now
+from autonomy.delegation import ActorCgroup, Ceiling, Delegation, Host, Start, identifier
+from autonomy.development._records import (
+    DevelopmentPlaces,
+    RunPaths,
+    Terminal,
+    lookup_run,
+    publication_lock,
+    publish_json,
+    read_terminal,
+)
+from autonomy.development._supervisor import stop_requested
+from autonomy.development._workspace import Limits
+from autonomy.run import RunRefused
+
+
+@dataclass(frozen=True)
+class Revocation:
+    cause: str
+    first: Literal["stop", "verdict"] | None
+    actor: Literal["empty", "occupied"]
+    acknowledged: bool
+
+
+def ceiling(limits: Limits) -> Ceiling:
+    return Ceiling(
+        prepared_bytes=limits.base_bytes + limits.candidate_bytes,
+        storage_bytes=limits.actor_storage_bytes,
+        storage_inodes=limits.actor_storage_inodes,
+        receiver_bytes=limits.receiver_memory_bytes + limits.receiver_storage_bytes,
+        prepare_seconds=limits.prepare_seconds,
+    )
+
+
+def open_grant(host: Host, delegation_id: str) -> Delegation:
+    name = identifier(delegation_id)
+    try:
+        root = storage(host.config)
+    except AllowanceRefused as caught:
+        raise RunRefused("delegation-unavailable", str(caught)) from caught
+    return Delegation(root, name)
+
+
+def _read_verdict(start: Start, host: Host) -> Terminal | None:
+    places = DevelopmentPlaces(start.state, start.cache, host.config)
+    try:
+        run = lookup_run(places, start.run)
+        return read_terminal(run)
+    except OSError:
+        return None
+    except RunRefused as caught:
+        if caught.code == "development-run-invalid":
+            return None
+        raise
+
+
+def settle(grant: Delegation, host: Host) -> None:
+    for start in grant.starts():
+        if start.outcome is not None:
+            continue
+        try:
+            cgroup_cleared = host.actor_cgroup(start.cgroup, start.run).remove(wait=5.0)
+        except OSError:
+            cgroup_cleared = False
+        terminal = _read_verdict(start, host)
+        if terminal is not None:
+            if not cgroup_cleared or not terminal.containment_proven:
+                grant.contain()
+            grant.settle(start.run, terminal.disposition, terminal.sha256)
+        else:
+            if not cgroup_cleared:
+                grant.contain()
+            if not start.allocated:
+                grant.settle(start.run, "not-allocated", None)
+
+
+def _leftover_directories(start: Start) -> list[str]:
+    found: list[str] = []
+    for candidate in (start.state / "runs" / start.run, start.cache / "scratch" / start.run):
+        try:
+            if candidate.exists() or candidate.is_symlink():
+                found.append(str(candidate))
+        except OSError:
+            continue
+    return found
+
+
+def _serialize_start(start: Start, *, lock_held: bool) -> dict[str, object]:
+    if start.outcome is not None:
+        outcome = start.outcome
+    else:
+        outcome = "running" if lock_held else "unfinished"
+    leftover = _leftover_directories(start) if outcome == "not-allocated" else []
+    return {
+        "ordinal": start.ordinal,
+        "attempt": start.attempt,
+        "run": start.run,
+        "at": start.at,
+        "roots": {"state": str(start.state), "cache": str(start.cache)},
+        "repository": start.repository,
+        "actor": start.actor,
+        "base": start.base,
+        "deadline_seconds": start.deadline,
+        "caller": {
+            "unit": start.unit,
+            "cgroup": start.cgroup,
+            "invocation_id": start.invocation,
+        },
+        "allocated": start.allocated,
+        "outcome": outcome,
+        "disposition_sha256": start.disposition_sha256,
+        "leftover": leftover,
+    }
+
+
+def report(grant: Delegation, host: Host, attempt: str | None = None) -> dict[str, object]:
+    selected = None if attempt is None else identifier(attempt)
+    try:
+        with grant.lock(wait=1.0):
+            settle(grant, host)
+            info = grant.grant()
+            all_starts = grant.starts()
+            lock_held = False
+    except RunRefused as caught:
+        if caught.code != "delegation-busy":
+            raise
+        lock_held = True
+        info = grant.grant()
+        all_starts = grant.starts()
+
+    visible = all_starts if selected is None else tuple(s for s in all_starts if s.attempt == selected)
+    starts_left = max(0, int(info.config["limits"]["starts"]) - len(all_starts))
+    return {
+        "grant": info.config,
+        "grant_digest": info.digest,
+        "storage": info.storage,
+        "closed": info.closed,
+        "starts_left": starts_left,
+        "starts": [_serialize_start(item, lock_held=lock_held) for item in visible],
+    }
+
+
+def _wait_empty(cgroup: ActorCgroup, seconds: float) -> bool:
+    deadline = time.monotonic() + max(0.0, seconds)
+    while True:
+        try:
+            if cgroup.empty():
+                return True
+        except OSError:
+            pass
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(0.02, remaining))
+    try:
+        return cgroup.empty()
+    except OSError:
+        return False
+
+
+def _kill_and_wait(cgroup: ActorCgroup, seconds: float) -> bool:
+    try:
+        cgroup.kill()
+    except OSError:
+        pass
+    return _wait_empty(cgroup, seconds)
+
+
+def revoke(
+    grant: Delegation,
+    host: Host,
+    *,
+    lock_wait: float = 5.0,
+    stop_wait: float = 16.0,
+    kill_wait: float = 5.0,
+) -> Revocation:
+    cause = grant.revoke()
+    try:
+        with grant.lock(wait=1.0):
+            settle(grant, host)
+    except RunRefused as caught:
+        if caught.code != "delegation-busy":
+            raise
+
+    unfinished = [item for item in grant.starts() if item.allocated and item.outcome is None]
+    if not unfinished:
+        return Revocation(cause=cause, first=None, actor="empty", acknowledged=True)
+
+    start = unfinished[0]
+    cgroup = host.actor_cgroup(start.cgroup, start.run)
+    places = DevelopmentPlaces(start.state, start.cache, host.config)
+    first: Literal["stop", "verdict"] | None = None
+    recorded = False
+    run: RunPaths | None = None
+
+    try:
+        run = lookup_run(places, start.run)
+        with publication_lock(run, wait=lock_wait):
+            if read_terminal(run) is not None:
+                first = "verdict"
+                recorded = True
+            else:
+                if stop_requested(run):
+                    fsync_dir(run.run_dir)
+                else:
+                    publish_json(
+                        run.run_dir / "stop.json",
+                        {"version": 1, "run": run.run_id, "requested_at": utc_now()},
+                    )
+                first = "stop"
+                recorded = True
+    except (OSError, TimeoutError, ValueError, RunRefused):
+        pass
+
+    if not recorded:
+        empty = _kill_and_wait(cgroup, kill_wait)
+    elif _wait_empty(cgroup, stop_wait):
+        empty = True
+    else:
+        empty = _kill_and_wait(cgroup, kill_wait)
+
+    return Revocation(
+        cause=cause,
+        first=first,
+        actor="empty" if empty else "occupied",
+        acknowledged=recorded and empty,
+    )
